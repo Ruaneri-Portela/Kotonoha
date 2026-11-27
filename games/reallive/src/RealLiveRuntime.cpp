@@ -427,11 +427,12 @@ struct Text : VNTextBox {
     const auto lines =
         Kotonoha::VNTextBoxUtility::WrapText(value, width, wrapWidth);
     if (!lines.empty()) {
-      p.y = float(boxY()) + static_cast<float>((lines.size() - 1) * 28.0f * sy);
-      p.x = float(boxX()) + 53.0f * sx + width(lines.back());
+      p.y = static_cast<int>(float(boxY()) +
+                            static_cast<float>((lines.size() - 1) * 28.0f * sy));
+      p.x = static_cast<int>(float(boxX()) + 53.0f * sx + width(lines.back()));
     } else {
-      p.x = float(boxX()) + 53.0f * sx;
-      p.y = float(boxY());
+      p.x = static_cast<int>(float(boxX()) + 53.0f * sx);
+      p.y = static_cast<int>(float(boxY()));
     }
     return p;
   }
@@ -477,12 +478,16 @@ struct Text : VNTextBox {
                              ? (speaker ? engine.GetSettings().vnSpeakerColor
                                         : engine.GetSettings().vnTextColor)
                              : SDL_Color{255, 255, 255, 255};
-      engine.GetVNUI().textSized(r, s, x + 1, y + 1, wrap, 25, {0, 0, 0, 255});
-      engine.GetVNUI().textSized(r, s, x, y, wrap, 25, color);
+      engine.GetVNUI().textSized(r, s, static_cast<float>(x + 1),
+                                  static_cast<float>(y + 1), static_cast<float>(wrap), 25.0f,
+                                  {0, 0, 0, 255});
+      engine.GetVNUI().textSized(r, s, static_cast<float>(x), static_cast<float>(y),
+                                  static_cast<float>(wrap), 25.0f, color);
       return;
     }
     if (!font) {
-      engine.GetVNUI().text(r, s, x, y, wrap);
+      engine.GetVNUI().text(r, s, static_cast<float>(x), static_cast<float>(y),
+                            static_cast<float>(wrap));
       return;
     }
     const float density = UI::rasterDensity(r);
@@ -1780,7 +1785,7 @@ struct RealLiveRuntime::Impl {
       }
 
       SDL_Rect src{0, 0, int(g.image.width), int(g.image.height)};
-      if (!g.image.regions.empty() && pattern < g.image.regions.size()) {
+      if (!g.image.regions.empty() && pattern >= 0 && static_cast<size_t>(pattern) < g.image.regions.size()) {
         const auto &r = g.image.regions.at(pattern);
         src = {r.atlasX, r.atlasY, r.x2 - r.x1 + 1, r.y2 - r.y1 + 1};
       }
@@ -2208,8 +2213,8 @@ struct RealLiveRuntime::Impl {
     auto elapsed = SDL_GetTicks() - shakeStart;
     for (const auto &step : shake) {
       if (elapsed < Uint64(step[2])) {
-        destination.x = step[0];
-        destination.y = step[1];
+        destination.x = static_cast<float>(step[0]);
+        destination.y = static_cast<float>(step[1]);
         break;
       }
       elapsed -= step[2];
@@ -2279,7 +2284,7 @@ struct RealLiveRuntime::Impl {
     clip.loop = loop;
     clip.startFrame = bgmSeekFrame(start, offsetMilliseconds, target.freq,
                                    clip.samples.size() / clip.channels);
-    clip.loopStart = std::min<size_t>(std::max<int64_t>(0, loopStart),
+    clip.loopStart = std::min<size_t>(static_cast<size_t>(std::max<int64_t>(0, loopStart)),
                                       clip.samples.size() / clip.channels);
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
       throw std::runtime_error(SDL_GetError());
@@ -2339,7 +2344,8 @@ struct RealLiveRuntime::Impl {
     musicID.clear();
   }
   int value(const libreallive::CommandElement &c, int n, int fallback = 0) {
-    return n < c.GetParamCount() ? IntegerParameter(vm.machine(), c, n)
+    return n >= 0 && static_cast<size_t>(n) < c.GetParamCount()
+             ? IntegerParameter(vm.machine(), c, n)
                                  : fallback;
   }
   std::string str(const libreallive::CommandElement &c, int n) {
@@ -2352,7 +2358,7 @@ struct RealLiveRuntime::Impl {
         return;
       }
       param.SetIntegerValue(vm.machine(), v);
-    } catch (const libreallive::Error &e) {
+    } catch (const libreallive::Error &) {
       // Silently ignore assignment errors to invalid lvalues
     }
   }
@@ -2660,8 +2666,8 @@ struct RealLiveRuntime::Impl {
         return true;
       }
       if (titleInput.handle(e)) {
-        mouseX = titleInput.mouseX();
-        mouseY = titleInput.mouseY();
+        mouseX = static_cast<float>(titleInput.mouseX());
+        mouseY = static_cast<float>(titleInput.mouseY());
         return true;
       }
     }
@@ -3062,8 +3068,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     }
     case 213:
       if (c.GetParamCount() >= 2) {
-        mouseX = value(c, 0);
-        mouseY = value(c, 1);
+        mouseX = static_cast<float>(value(c, 0));
+        mouseY = static_cast<float>(value(c, 1));
       }
       return true;
     case 220:
@@ -3166,7 +3172,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         machine.set_store_register(0);
       return true;
     case 410:
-      for (int i = 0; i < c.GetParamCount(); ++i)
+      for (int i = 0; static_cast<size_t>(i) < c.GetParamCount(); ++i)
         assign(c, i, assets->settings().integer("WINDOW_ATTR", 0, i));
       return true;
     case 500:
@@ -3189,7 +3195,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 600:
     case 601:
     case 620: {
-      for (int i = 0; i < c.GetParamCount(); ++i) {
+      for (int i = 0; static_cast<size_t>(i) < c.GetParamCount(); ++i) {
         auto raw = c.GetParam(i);
         const char *cursor = raw.c_str();
         auto p = libreallive::GetComplexParam(cursor).GetContainedPieces();
@@ -3208,7 +3214,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     case 610:
     case 630: {
       bool active = false;
-      for (int i = 0; i < c.GetParamCount(); ++i) {
+      for (int i = 0; static_cast<size_t>(i) < c.GetParamCount(); ++i) {
         auto raw = c.GetParam(i);
         const char *cursor = raw.c_str();
         auto p = libreallive::GetComplexParam(cursor).GetContainedPieces();
@@ -3271,7 +3277,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
         syscomEntries.fill(op == 1211 ? 1 : 0);
         return true;
       }
-      for (int i = 0; i < c.GetParamCount(); ++i) {
+      for (int i = 0; static_cast<size_t>(i) < c.GetParamCount(); ++i) {
         const int entry = value(c, i);
         if (entry < 0 || entry >= int(syscomEntries.size()))
           throw std::out_of_range("REALLIVE system menu entry");
@@ -3315,7 +3321,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
       const auto p = slotSavePath(slot);
       std::error_code ec;
       const bool exists = std::filesystem::is_regular_file(p, ec);
-      for (int i = 1; i <= 8 && i < c.GetParamCount(); ++i)
+      for (int i = 1; i <= 8 && static_cast<size_t>(i) < c.GetParamCount(); ++i)
         assign(c, i, 0);
       if (c.GetParamCount() >= 10) {
         try {
@@ -3502,7 +3508,8 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
     return true;
   }
   if (type == 1 && m == 12 && op == 3300) {
-    for (int i = 0; i < c.GetParamCount() && i < int(syscomEntries.size()); ++i)
+    for (int i = 0; static_cast<size_t>(i) < c.GetParamCount() &&
+             static_cast<size_t>(i) < syscomEntries.size(); ++i)
       syscomEntries[i] = value(c, i) != 0 ? 1 : 0;
     return true;
   }
@@ -4455,7 +4462,7 @@ bool RealLiveRuntime::Impl::command(const libreallive::CommandElement &c) {
   if (type == 1 && m == 30 && op == 31) {
     auto &image = surface(value(c, 2));
     Uint8 r = 0, g = 0, b = 0, a = 0;
-    float x = value(c, 0), y = value(c, 1);
+    float x = static_cast<float>(value(c, 0)), y = static_cast<float>(value(c, 1));
     if (x >= 0 && y >= 0 && x < image.w && y < image.h)
       SDL_ReadSurfacePixel(&image, int(x), int(y), &r, &g, &b, &a);
     assign(c, 3, r);
@@ -5721,7 +5728,7 @@ void RealLiveRuntime::debugJumpToNode(const std::string &s) {
     impl->vm.jump(std::stoi(s));
   else
     impl->vm.seek(std::stoi(s.substr(0, colon)),
-                  std::stoull(s.substr(colon + 1)));
+                  static_cast<size_t>(std::stoull(s.substr(colon + 1))));
   impl->deadline = 0;
   impl->editFields.clear();
   impl->focusedEdit = -1;

@@ -6,7 +6,13 @@ Após mudar o CMake ou o projeto Xcode, verifique os metadados:
 
 ```sh
 python3 tools/ValidateBuildMetadata.py
+python3 tools/check_visual_studio_sources.py
 ```
+
+`check_visual_studio_sources.py` verifica a solução independente
+`buildsystems/visualstudio/Kotonoha.sln`: 74 projetos (16 jogos, 39 módulos),
+cobertura das fontes em `lib/`, todos os diretórios de módulos, os 16 jogos e o
+launcher, além das seis combinações Debug/Release × Win32/x64/ARM64.
 
 A verificação, que não modifica arquivos, confere **16 aplicações de jogo no CMake** (15 ports de jogos mais o Example), **34 schemes Xcode** (16 jogos mais `KotonohaLauncher` para macOS e iOS), ausência de pendências `xcode_pending` sem registro, IDs dos alvos, preparação de dependências e includes `.xcconfig`. O Android possui 16 flavors de jogos e um flavor `launcher` separado (`KOTONOHA_BUILD_GAME=all`); execute `python3 tools/check_release_matrix.py` para validar ambas as matrizes. Exige apenas Python 3 e não compila código.
 

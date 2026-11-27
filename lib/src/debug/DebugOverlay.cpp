@@ -241,7 +241,7 @@ std::pair<std::string, std::string> DebugOverlay::hudText(float width) const {
                                            showNode ? nodeClockText() : ""};
   const auto fits = [&] {
     const auto &ui = engine.GetUI();
-    const float gap = !text.first.empty() && !text.second.empty() ? 10 : 0;
+    const float gap = !text.first.empty() && !text.second.empty() ? 10.0f : 0.0f;
     return ui.textSize(text.first, 65535).x +
                ui.textSize(text.second, 65535).x + gap <=
            width;

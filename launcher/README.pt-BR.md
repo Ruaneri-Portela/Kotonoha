@@ -29,7 +29,7 @@ O Navigator do Xcode espelha essa divisão com um grupo `KotonohaLauncherCore` (
    - O Example permanece como aplicativo independente e nunca é registrado nem linkado no hub. O launcher não é criado quando se compila um único port.
 
 3. **Divisão da Pasta de Save e Config por Jogo (`splitSavesByGame`)**:
-   - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/save` (omitindo o nome do pacote no modo unificado e em mobile/WASM) para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
+   - Isola `KOTONOHA_USER_DATA_DIR` e `settings.json` em `<SaveRoot>/Kotonoha/Profiles/<saveProfileId>/save` (omitindo o nome do pacote no modo unificado e em mobile/WASM) para que múltiplos títulos do mesmo motor (ex.: `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` no RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` no CMP; `ZeroNoTsukaima0..2` no Zero) nunca entrem em conflito.
 
 ## Compilar com as bibliotecas dos jogos
 
@@ -105,6 +105,10 @@ nm -gU libKotonohaLauncherCore.dylib | grep Java_me_hirameki
 Cada ponte chama a mesma C ABI; nenhuma duplica lógica do launcher. Strings alocadas pelo C devem ser liberadas com `KotonohaLauncherFreeString` (as facades já fazem isso).
 
 **Nota sobre o namespace JNI:** o app distribuído usa `me.hirameki.kotonoha.android` e seus símbolos JNI são `Java_me_hirameki_kotonoha_android_LauncherBridge_*`. A ponte reutilizável exporta `Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_*`. Os dois conjuntos também são exportados pelo core no desktop; não restam símbolos `org.kotonoha.android`.
+
+O gerenciador desktop Avalonia fica em
+[`desktop/KotonohaManager/`](desktop/KotonohaManager/README.pt-BR.md) e usa a
+mesma ponte e os mesmos tokens de design.
 
 ## Design system unificado e paridade de recursos
 

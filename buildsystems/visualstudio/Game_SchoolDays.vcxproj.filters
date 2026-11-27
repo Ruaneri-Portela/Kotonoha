@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{A4ECA2C1-A25B-4E8E-7FAA-257BEC50FD7B}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\school-days\src\main.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

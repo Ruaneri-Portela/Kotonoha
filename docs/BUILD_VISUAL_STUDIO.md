@@ -1,0 +1,68 @@
+# Visual Studio build (native solution)
+
+**English (US)** | [Português (Brasil)](BUILD_VISUAL_STUDIO.pt-BR.md)
+
+Kotonoha ships a second, independent Windows build path in addition to CMake:
+a checked-in Visual Studio solution at
+`buildsystems/visualstudio/Kotonoha.sln`. Like the native Xcode project, it
+references the source tree directly and does not invoke CMake.
+
+## Solution map
+
+| Configuration | Platforms | Toolset | Dependencies |
+|---|---|---|---|
+| Debug, Release | Win32 (x86), x64 (amd64), ARM64 | MSVC v145 / Windows SDK 10.0 | vcpkg, manifest mode |
+
+The 74 projects are divided into 1 engine DLL, 39 module static libraries
+(12 VMs, 14 formats, 13 providers), 16 game static libraries plus 16 `main.cpp`
+executables, and 2 launcher projects (`KotonohaLauncherCore` is also a DLL).
+SDL3, SDL3_ttf and Dear ImGui come entirely from vcpkg. Game libraries each
+have their own intermediate directory, so identically named sources in
+different ports do not collide in MSBuild. See `buildsystems/visualstudio/README.md` for details.
+
+## Prepare and build
+
+Windows scripts are PowerShell only (`.ps1`); the cross-platform validators
+remain Python (`.py`). From the repository root:
+
+```powershell
+$env:VCPKG_ROOT = 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\vcpkg'
+powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Generate
+powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Version
+powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Install
+powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Build
+```
+
+`-Mode Install` runs `vcpkg install` for `x86-windows`, `x64-windows` and
+`arm64-windows` with `--x-feature=sdl-vcpkg --x-feature=imgui-vcpkg` and the
+ffmpeg overlay ports. `-Mode Build` compiles all six Debug/Release ×
+platform combinations; restrict it with `-Architectures x64 -Configuration Release`
+when iterating. Artifacts go to `buildsystems/visualstudio/out/<Platform>/<Configuration>/`.
+
+Opening the `.sln` in Visual Studio works as well — vcpkg include/library paths
+are resolved from `buildsystems/visualstudio/vcpkg/<arch>/<triplet>/`, so no global `vcpkg integrate
+install` is required.
+
+## Verification
+
+```sh
+python3 tools/ValidateBuildMetadata.py
+python3 tools/check_visual_studio_sources.py
+```
+
+Both are read-only. The first checks CMake/Xcode/Visual Studio metadata
+consistency; the second checks source coverage and the configuration matrix of
+the Visual Studio solution.
+
+## Launcher and Avalonia manager
+
+`KotonohaLauncherCore.dll` exports `KotonohaLauncherRunDll`, a RUNDLL32 entry
+point equivalent to a fork on Windows. The managed game manager in
+`launcher/desktop/KotonohaManager/` uses it to start each game on its own
+main thread (SDL requirement), receives the PID, captures stdout/stderr and
+keeps the game card green until the process exits. The manager switches between
+Portuguese and English at runtime and copies `assets/` to its build output so
+the engine can open the bundled fonts.
+
+Commercial game assets remain in local, untracked `games/<slug>/game-assets/`
+directories and are never copied into the solution or packaged by it.

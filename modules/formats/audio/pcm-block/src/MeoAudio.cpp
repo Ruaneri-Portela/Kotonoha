@@ -50,7 +50,8 @@ BgmPcm decodeBgm(const std::vector<uint8_t> &bytes) {
   const std::size_t loop = word(bytes, 4);
   if (!intro || intro + loop != bytes.size() - 16)
     throw std::runtime_error("Invalid MEO BGM segment lengths");
-  if (bytes.size() - 16 > std::numeric_limits<int>::max() / 4)
+  if (bytes.size() - 16 >
+      static_cast<size_t>(std::numeric_limits<int>::max() / 4))
     throw std::runtime_error("MEO BGM is too large");
 
   BgmPcm result;

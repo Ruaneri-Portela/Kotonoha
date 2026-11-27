@@ -1349,12 +1349,14 @@ void Frontend::DrawPhase(SDL_Renderer *r, Phase phase, float alpha) {
       SDL_SetTextureAlphaModFloat(p->Source(), 1);
     }
     if (stage >= 1)
-      DrawImage(r, host_.NormalPicture("TITLE_TITLELOGO"), adapted ? 24 : 16,
+      DrawImage(r, host_.NormalPicture("TITLE_TITLELOGO"),
+                  static_cast<float>(adapted ? 24 : 16),
                 61, alpha * (stage == 1 ? Ramp(Since(), 1000) : 1.0f));
     if (stage >= 2) {
       auto *copy = host_.NormalPicture("TITLE_COPYRIGHT");
-      DrawImage(r, copy, adapted && copy ? (kW - copy->Width()) / 2 : 80,
-                adapted ? 390 : 374, alpha);
+      DrawImage(r, copy,
+                static_cast<float>(adapted && copy ? (kW - copy->Width()) / 2 : 80),
+                static_cast<float>(adapted ? 390 : 374), alpha);
       // Focused start button: TriangleAction on the opacity, 0 -> 255 in 1500
       // ms and back in 800 ms.
       const uint64_t t = (SDL_GetTicks() - titleIdleStart_) % 2300;
@@ -1538,7 +1540,8 @@ void Frontend::DrawVoiceOption(SDL_Renderer *r, float alpha) {
     const bool hidden = (i == 9 && !(allSeen || d.Flag("sf.ri_appear"))) ||
                         (i == 10 && !(allSeen || d.Flag("sf.ch_appear")));
     if (hidden)
-      DrawImage(r, Img("VOICEOPTION_HATENA"), 394, i == 9 ? 126 : 169, alpha);
+      DrawImage(r, Img("VOICEOPTION_HATENA"), 394,
+                 static_cast<float>(i == 9 ? 126 : 169), alpha);
     else
       DrawImage(r, Img(std::string("VOICEOPTION_") + n.name), n.x, n.y, alpha);
   }

@@ -89,7 +89,7 @@ void AmagamiTextBox::renderSpeaker(Kotonoha::RendererRef r) {
                                  : SDL_Color{240, 240, 245, 255});
 }
 void AmagamiTextBox::renderDialogue(Kotonoha::RendererRef r) {
-  const float x = speakerName.empty() ? 44 : 136;
+  const float x = speakerName.empty() ? 44.0f : 136.0f;
   const auto key = speakerName + '\0' + fullDialogue + '\0' +
                    engine.GetSettings().vnFontPath + '\0' +
                    engine.GetSettings().fontPath;
@@ -442,8 +442,9 @@ void AmagamiEventMap::layout() {
   }
   for (size_t i = 0; i < events_.size(); ++i) {
     const auto &event = events_[i];
-    const float x = 68 + (event.x - originX_) * 42;
-    const float y = 190 + (event.y - originY_) * 44 + ((event.x + 1) % 2) * 22;
+    const float x = 68.0f + static_cast<float>(event.x - originX_) * 42.0f;
+    const float y = 190.0f + static_cast<float>(event.y - originY_) * 44.0f +
+                 static_cast<float>((event.x + 1) % 2) * 22.0f;
     options[i].hitBox = {x - 20, y - 20, 40, 40};
   }
   options.back().hitBox = {448, 393, 176, 32};
@@ -551,8 +552,9 @@ void AmagamiEventMap::render(Kotonoha::RendererRef r, float) {
   // recoverable from EventNode.setIcon; complex overlay/type flags stay
   // pending.
   for (const auto &event : map_) {
-    const float x = 68 + (event.x - originX_) * 42;
-    const float y = 190 + (event.y - originY_) * 44 + ((event.x + 1) % 2) * 22;
+    const float x = 68.0f + static_cast<float>(event.x - originX_) * 42.0f;
+    const float y = 190.0f + static_cast<float>(event.y - originY_) * 44.0f +
+                 static_cast<float>((event.x + 1) % 2) * 22.0f;
     if (x < 20 || x > 450 || y < 64 || y > 444)
       continue;
     const int category = (event.icon >> 12) & 7;
@@ -1047,7 +1049,7 @@ void AmagamiRuntime::renderModeIndicators(Kotonoha::RendererRef r) {
          "text speed");
     for (int i = 0; i < 4; ++i) {
       const Uint8 level = i <= session_->messageSpeed() ? 255 : 128;
-      draw("sysgraph/textspeed1.tm2", 552 + i * 10, 256, opacity,
+      draw("sysgraph/textspeed1.tm2", static_cast<float>(552 + i * 10), 256, opacity,
            {level, level, level, 255});
     }
   }

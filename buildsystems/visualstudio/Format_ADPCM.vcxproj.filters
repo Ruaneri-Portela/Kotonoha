@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{A7449880-F62C-2CC6-C5CF-6968EF69282B}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)modules\formats\audio\adpcm\src\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

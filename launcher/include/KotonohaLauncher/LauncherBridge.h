@@ -56,6 +56,14 @@ KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherScanRootsJson(const char *const *
                                     int splitSavesByGame,
                                     const char *customSaveRoot);
 
+// Versao com callback: `callback` recebe um JSON por jogo no momento em que
+// ele e encontrado. A string deve ser liberada com KotonohaLauncherFreeString.
+// maxDepth=0 (padrao) visita apenas a raiz e seus filhos diretos.
+KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherScanRootsJsonWithCallback(
+    const char *const *roots, int rootCount, int splitSavesByGame,
+    const char *customSaveRoot, int maxDepth,
+    void (*callback)(const char *gameJson, void *userData), void *userData);
+
 // Detects a single game folder or disc image and returns a newly-allocated
 // UTF-8 JSON object (or "{}" if unrecognized).
 KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherDetectPathJson(const char *path, int splitSavesByGame,
@@ -116,6 +124,22 @@ KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherResolveSaveDirectory(const char *
 
 // Frees any heap string returned by KotonohaLauncher* functions.
 KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherFreeString(char *ptr);
+
+// Same as KotonohaLauncherLaunchGame, but takes the request as UTF-8 JSON.
+// Useful for out-of-process launchers that cannot marshal the C struct.
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGameJson(const char *requestJson);
+
+#if defined(_WIN32) && !defined(CALLBACK)
+#define CALLBACK __stdcall
+#endif
+#if defined(_WIN32)
+// RUNDLL32 entry point (the Windows equivalent of a fork): the request JSON is
+// read from KOTONOHA_LAUNCH_REQUEST_JSON, or from the command line as fallback.
+// Usage: rundll32.exe KotonohaLauncherCore.dll,KotonohaLauncherRunDll
+// The game runs in the RUNDLL32 process; the caller does not exit.
+KOTONOHA_LAUNCHER_EXPORT void CALLBACK KotonohaLauncherRunDll(
+    void *hwnd, void *instance, char *commandLine, int show);
+#endif
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>

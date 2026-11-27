@@ -688,6 +688,11 @@ buildsystems/xcode/build/
 buildsystems/xcode/vcpkg/
 buildsystems/xcode/python/
 
+# Visual Studio solution outputs and per-architecture vcpkg install roots
+buildsystems/visualstudio/out/
+buildsystems/visualstudio/obj/
+buildsystems/visualstudio/vcpkg/
+
 # Android & Gradle
 .gradle/
 .cxx/

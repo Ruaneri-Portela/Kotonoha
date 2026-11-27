@@ -1,0 +1,73 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kotonoha.Manager.ViewModels"
+        x:Class="Kotonoha.Manager.Views.SettingsWindow"
+        x:DataType="vm:SettingsViewModel"
+        Width="620" Height="560" WindowStartupLocation="CenterOwner"
+        Title="{Binding Strings.SettingsTitle}">
+
+    <DockPanel Margin="18">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="10" Margin="0,14,0,0">
+            <Button Classes="Ghost" Content="{Binding Strings.Cancel}" Click="Cancel_Click" />
+            <Button Classes="Primary" Content="{Binding Strings.SaveBtn}" Click="Save_Click" />
+        </StackPanel>
+
+        <ScrollViewer>
+            <StackPanel Spacing="14">
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="Biblioteca" Classes="Accent" FontWeight="SemiBold" />
+                        <ListBox x:Name="RootsList" ItemsSource="{Binding Roots}" MaxHeight="140" />
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="Ghost" Content="+ Pasta" Click="AddRoot_Click" />
+                            <Button Classes="Ghost" Content="Remover selecionada" Click="RemoveRoot_Click" />
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.Saves}" Classes="Accent" FontWeight="SemiBold" />
+                        <ToggleSwitch Content="{Binding Strings.IsolateSaves}"
+                                      IsChecked="{Binding SplitSavesByGame}" />
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.CustomSaveRoot}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding CustomSaveRoot}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.GraphicsDefaults}" Classes="Accent" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.Renderer}" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding RendererOptions}"
+                                      SelectedItem="{Binding RendererBackend}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.Upscaler}" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding UpscalerOptions}"
+                                      SelectedItem="{Binding UpscalerBackend}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.Preset}" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding PresetOptions}"
+                                      SelectedItem="{Binding UpscalerPreset}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.Factor}" VerticalAlignment="Center" Classes="Muted" />
+                            <Slider Grid.Column="1" Minimum="1" Maximum="4" TickFrequency="0.25"
+                                    IsSnapToTickEnabled="True" Value="{Binding UpscalerFactor}" />
+                            <TextBlock Grid.Column="2" Text="{Binding FactorText}" Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="{Binding Status}" Classes="Muted" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

@@ -43,7 +43,7 @@ std::streamsize InputFile::Buffer::xsgetn(char_type *data,
     }
     const auto available =
         std::min<std::streamsize>(count - total, egptr() - gptr());
-    traits_type::copy(data + total, gptr(), available);
+    traits_type::copy(data + total, gptr(), static_cast<size_t>(available));
     gbump(static_cast<int>(available));
     total += available;
   }

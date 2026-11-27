@@ -332,7 +332,7 @@ void Vm::send(VmValue receiver, std::string selector, std::vector<VmValue> args,
   }
   if ((receiver.kind == VmValue::Text || receiver.kind == VmValue::Symbol) &&
       selector == "length" && args.empty()) {
-    deliver(VmValue::num(stringCharacters(receiver.asText()).size()));
+    deliver(VmValue::num(static_cast<double>(stringCharacters(receiver.asText()).size())));
     return;
   }
   if (receiver.kind == VmValue::Text &&
@@ -398,7 +398,7 @@ void Vm::send(VmValue receiver, std::string selector, std::vector<VmValue> args,
     return;
   }
   if (selector == "length" && args.empty() && receiver.kind == VmValue::Array) {
-    deliver(VmValue::num(receiver.object->fields.size()));
+    deliver(VmValue::num(static_cast<double>(receiver.object->fields.size())));
     return;
   }
   if (receiver.kind == VmValue::Array && receiver.object && args.empty() &&

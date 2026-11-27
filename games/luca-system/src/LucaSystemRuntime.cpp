@@ -810,7 +810,7 @@ class AirChoiceScene final : public Kotonoha::ChoiceQuestionScene {
     const float height = (options.size() - 1) * rowStep + rowHeight;
     float y = std::max(0.f, (720 - height) * .5f) - scroll;
     for (auto &option : options) {
-      const float width = ui.textWidth(option.label, 26) <= 600 ? 652 : 1280;
+      const float width = ui.textWidth(option.label, 26) <= 600 ? 652.0f : 1280.0f;
       option.hitBox = {(1280 - width) * .5f, y, width, rowHeight};
       y += rowStep;
     }

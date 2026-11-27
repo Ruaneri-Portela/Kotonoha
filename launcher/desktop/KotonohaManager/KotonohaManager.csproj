@@ -1,0 +1,42 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Kotonoha.Manager</RootNamespace>
+    <AssemblyName>KotonohaManager</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <!-- Icone oficial do kit visual (design/generated/generic). -->
+    <ApplicationIcon>..\..\..\design\generated\generic\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.2.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.2.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent2" Version="12.2.0" />
+    <PackageReference Include="Avalonia.Fonts.Inter" Version="12.2.0" />
+  </ItemGroup>
+
+  <!-- Fonte unica da ponte C ABI, compartilhada com os outros frontends .NET. -->
+  <ItemGroup>
+    <Compile Include="../../bridge/dotnet/KotonohaLauncher.cs"
+             Link="Bridge/KotonohaLauncher.cs" />
+  </ItemGroup>
+
+  <!-- O motor procura assets/fonts no diretorio de trabalho do executavel. -->
+  <Target Name="CopyEngineAssets" AfterTargets="Build">
+    <ItemGroup>
+      <EngineAsset Include="../../../assets/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(EngineAsset)"
+          DestinationFiles="@(EngineAsset->'$(OutDir)assets\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <ItemGroup>
+    <AvaloniaResource Include="Styles/Theme.axaml" />
+    <AvaloniaResource Include="..\..\..\design\generated\generic\icon.ico"
+                      Link="Assets/icon.ico" />
+  </ItemGroup>
+</Project>

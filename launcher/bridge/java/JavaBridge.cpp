@@ -62,6 +62,44 @@ jstring jniScanRoots(JNIEnv *env, jobjectArray roots, jboolean splitSavesByGame,
   return newOwnedString(env, json, "[]");
 }
 
+jstring jniScanRootsWithDepth(JNIEnv *env, jobjectArray roots,
+                              jboolean splitSavesByGame,
+                              jstring customSaveRoot, jint maxDepth) {
+  std::vector<std::string> storage;
+  std::vector<const char *> ptrs;
+  if (roots) {
+    const jsize count = env->GetArrayLength(roots);
+    storage.reserve(static_cast<std::size_t>(count));
+    ptrs.reserve(static_cast<std::size_t>(count));
+    for (jsize i = 0; i < count; ++i) {
+      auto item = static_cast<jstring>(env->GetObjectArrayElement(roots, i));
+      storage.push_back(jstringToStd(env, item));
+      env->DeleteLocalRef(item);
+    }
+    for (const auto &s : storage)
+      ptrs.push_back(s.c_str());
+  }
+  const std::string saveRoot = jstringToStd(env, customSaveRoot);
+  std::vector<std::string> entries;
+  auto callback = [](const char *gameJson, void *userData) {
+    if (!gameJson) return;
+    auto *list = static_cast<std::vector<std::string> *>(userData);
+    list->emplace_back(gameJson);
+    KotonohaLauncherFreeString(const_cast<char *>(gameJson));
+  };
+  KotonohaLauncherScanRootsJsonWithCallback(
+      ptrs.empty() ? nullptr : ptrs.data(), static_cast<int>(ptrs.size()),
+      splitSavesByGame ? 1 : 0, saveRoot.c_str(), static_cast<int>(maxDepth),
+      callback, &entries);
+  std::string combined = "[";
+  for (std::size_t i = 0; i < entries.size(); ++i) {
+    if (i > 0) combined += ',';
+    combined += entries[i];
+  }
+  combined += ']';
+  return env->NewStringUTF(combined.c_str());
+}
+
 jstring jniDetectPath(JNIEnv *env, jstring path, jboolean splitSavesByGame,
                       jstring customSaveRoot) {
   const std::string target = jstringToStd(env, path);
@@ -192,6 +230,14 @@ Java_me_hirameki_kotonoha_android_LauncherBridge_nativeScanRootsJson(
 }
 
 JNIEXPORT jstring JNICALL
+Java_me_hirameki_kotonoha_android_LauncherBridge_nativeScanRootsJsonWithDepth(
+    JNIEnv *env, jclass, jobjectArray roots, jboolean splitSavesByGame,
+    jstring customSaveRoot, jint maxDepth) {
+  return jniScanRootsWithDepth(env, roots, splitSavesByGame, customSaveRoot,
+                               maxDepth);
+}
+
+JNIEXPORT jstring JNICALL
 Java_me_hirameki_kotonoha_android_LauncherBridge_nativeDetectPathJson(
     JNIEnv *env, jclass, jstring path, jboolean splitSavesByGame,
     jstring customSaveRoot) {
@@ -259,6 +305,14 @@ Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_nativeScanRootsJson(
     JNIEnv *env, jclass, jobjectArray roots, jboolean splitSavesByGame,
     jstring customSaveRoot) {
   return jniScanRoots(env, roots, splitSavesByGame, customSaveRoot);
+}
+
+JNIEXPORT jstring JNICALL
+Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_nativeScanRootsJsonWithDepth(
+    JNIEnv *env, jclass, jobjectArray roots, jboolean splitSavesByGame,
+    jstring customSaveRoot, jint maxDepth) {
+  return jniScanRootsWithDepth(env, roots, splitSavesByGame, customSaveRoot,
+                               maxDepth);
 }
 
 JNIEXPORT jstring JNICALL

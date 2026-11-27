@@ -21,14 +21,14 @@ comandos, cenas, rotas, transições ou finais funcionem.
 | Kirikiri2/KirikiriZ | XP3/TLG/KAG e TJS2 experimental; TJS/plugins originais ainda incompletos | Provider XP3 passado ao runtime **e** ao motor, evitando o provider genérico |
 | LucaSystem | Cobertura dos PAKs e VM de AIR; outros jogos não certificados | Correção do provider, slug de assets, validação ISO/VFS sem diferenciar caixa e migração conservadora do ID legado |
 | Pure Mail | Script/gráficos do DVD e começo da história; computador, timing e rotas incompletos | Remoção de caminhos específicos de um computador, launcher, fonte lembrada e reconhecimento de ISO/pastas no VFS |
-| PONscripter / ONScripter | Novo port independente CMake/Android, com VM, arquivos SAR/NSA, runtime SDL3 e testes sintéticos; paridade comercial não comprovada | Registrado como alvo independente; schemes Xcode macOS/iOS pendentes |
-| N2System | VM NsScript/NPA/AFS, grafo de cenas e testes sintéticos de saves; sem comprovação de paridade de jogos originais | Integrado ao CMake/Android e à auditoria de inicialização; targets/schemes Xcode ainda pendentes |
+| PONscripter / ONScripter | Novo port independente CMake/Android, com VM, arquivos SAR/NSA, runtime SDL3 e testes sintéticos; paridade comercial não comprovada | Registrado como alvo independente, com schemes Xcode macOS/iOS |
+| N2System | VM NsScript/NPA/AFS, grafo de cenas e testes sintéticos de saves; sem comprovação de paridade de jogos originais | Integrado ao CMake/Android, à auditoria de inicialização e aos schemes Xcode macOS/iOS |
 
 ## Launcher e plataformas (18/11/2026)
 
 - Todos os 12 launchers de jogos (mais o demo Example) seguem a política compartilhada: abertura interativa com launcher por padrão; `--no-launcher`, `--frames N`, exportação de tradução e MCP executam diretamente. Descoberta automática de arquivos não pode anular a escolha do usuário.
 - `Kotonoha.CommandLine` testa o modo automatizado e `check_port_contracts.py` detecta tentativas de forçar launcher no port ou deixar o jogo fora do índice.
-- N2System e PONscripter possuem CMake/Android, porém **não há schemes Xcode macOS/iOS para esses ports** no projeto versionado. O manifesto registra `xcode_pending` para não anunciar suporte Apple não comprovado.
+- N2System e PONscripter estão disponíveis no CMake, no Android e no projeto Xcode versionado. O `ProjectManifest.json` registra `xcode_pending: []`; a existência dos schemes ainda exige compilação real em macOS/iOS para validação.
 - Testes sintéticos verificam contratos, não substituem validação completa em dispositivos nem com mídia original.
 
 ## Integração compartilhada com a UI de Kotonoha (18/11/2026)

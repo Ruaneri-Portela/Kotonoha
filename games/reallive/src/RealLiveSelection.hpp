@@ -102,7 +102,7 @@ public:
   void configure(int number) {
     const auto &config = assets.settings();
     const auto key = numbered("WINDOW.", number) + ".";
-    fontSize = std::max(1, config.integer(key + "MOJI_SIZE", 25));
+    fontSize = static_cast<float>(std::max(1, config.integer(key + "MOJI_SIZE", 25)));
     lineHeight =
         std::max(1.0f, fontSize + config.integer(key + "MOJI_REP", 3, 1) +
                            config.integer(key + "LUBY_SIZE"));
@@ -125,8 +125,8 @@ public:
       window = {0, 0, width, height};
     }
     const int origin = config.integer(key + "POS");
-    window.x = config.integer(key + "POS", 0, 1);
-    window.y = config.integer(key + "POS", 345, 2);
+    window.x = static_cast<float>(config.integer(key + "POS", 0, 1));
+    window.y = static_cast<float>(config.integer(key + "POS", 345, 2));
     if (origin & 1)
       window.x = canvasW - window.w - window.x;
     if (origin & 2)

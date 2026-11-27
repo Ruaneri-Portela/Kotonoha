@@ -260,7 +260,7 @@ std::vector<ClassFile> ParseClassImage(const Bytes &unpacked) {
     if (r.p > offsets.front())
       Invalid("unterminated class name");
     r.p = offsets[i];
-    out.push_back({std::move(name), r.take(end - offsets[i])});
+    out.push_back({std::move(name), r.take(static_cast<size_t>(end - offsets[i]))});
   }
   return out;
 }

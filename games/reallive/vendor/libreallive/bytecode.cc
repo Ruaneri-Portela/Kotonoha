@@ -147,7 +147,7 @@ void PrintParameterString(std::ostream& oss,
       ExpressionPiece piece(GetData(start));
       oss << piece.GetDebugString();
     }
-    catch (libreallive::Error& e) {
+    catch (libreallive::Error&) {
       // Any error throw here is a parse error.
       oss << "{RAW : " << ParsableToPrintableString(param) << "}";
     }

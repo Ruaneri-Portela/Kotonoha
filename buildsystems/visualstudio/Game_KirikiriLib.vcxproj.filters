@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{7D080F5A-B6F4-6E09-2D40-116C07A33953}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\kirikiri\src\**\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

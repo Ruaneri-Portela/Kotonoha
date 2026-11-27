@@ -97,6 +97,27 @@ def validate():
         require(any("PrepareApple.py" in action.get("scriptText", "") for action in actions),
                 f"Missing preparation step: {scheme.name}")
     require(seen == set(expected), "Some Xcode schemes are missing")
+
+    # Visual Studio solution: same read-only consistency guarantees as Xcode.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import check_visual_studio_sources as vs  # noqa: E402
+    vs.validate()
+
+    # Build-script convention: Windows uses PowerShell only; macOS/Linux use
+    # Python or sh. WASM helpers live under tools/, never at the repository root.
+    vs_dir = ROOT / "buildsystems" / "visualstudio"
+    vs_sources = [p for p in vs_dir.rglob("*")
+                  if p.is_file() and not any(part in ("out", "obj", "vcpkg")
+                                             for part in p.relative_to(vs_dir).parts)]
+    require(not any(p.suffix in (".sh", ".bat", ".cmd", ".py") for p in vs_sources),
+            "Visual Studio build scripts must be PowerShell (.ps1) only")
+    for name in ("build-wasm.sh", "build-wasm.ps1"):
+        require(not (ROOT / name).exists(), f"{name} must live under tools/")
+        require((ROOT / "tools" / name).is_file(), f"Missing tools/{name}")
+    require(not any(p.suffix in (".bat", ".cmd")
+                    for p in (ROOT / "tools").glob("build-*.*")),
+            "Windows build helpers under tools/ must be .ps1")
+
     print(f"[Kotonoha] OK: {len(rows)} CMake games; {len(schemes)} existing Xcode "
           f"schemes; Xcode pending: {', '.join(sorted(pending_xcode)) or 'none'}")
 

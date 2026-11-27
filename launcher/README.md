@@ -29,7 +29,7 @@ The Xcode navigator mirrors this split with a `KotonohaLauncherCore` group (`cor
    - The Example demo is never registered or linked into the hub; it remains a separate game target. The hub is not generated for individual-port builds.
 
 3. **Per-Game Save & Config Folder Isolation (`splitSavesByGame`)**:
-   - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha-Profiles/<saveProfileId>/save` (omitting package names in unified launcher mode and on mobile/WASM) so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
+   - Isolates `KOTONOHA_USER_DATA_DIR` and `settings.json` under `<SaveRoot>/Kotonoha/Profiles/<saveProfileId>/save` (omitting package names in unified launcher mode and on mobile/WASM) so multiple titles sharing the same engine (e.g., `AIR_PT-BR`, `AIR-SE.ISO`, `Clannad_PT-BR`, `KANON-SE.ISO`, `PLANETARIAN.ISO` on RealLive; `SummerRadishVacation`, `SummerRadishVacation2`, `MEO` on CMP; `ZeroNoTsukaima0..2` on Zero) never collide.
 
 ## Build with game libraries
 
@@ -106,6 +106,10 @@ nm -gU libKotonohaLauncherCore.dylib | grep Java_me_hirameki
 Each bridge calls the same C ABI; none duplicates launcher logic. Heap strings returned by C must be released via `KotonohaLauncherFreeString` (the facades already do this).
 
 **JNI namespace note:** the shipped app uses `me.hirameki.kotonoha.android` and its JNI symbols are `Java_me_hirameki_kotonoha_android_LauncherBridge_*`. The reusable bridge exports `Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_*`. Both sets are exported by the core on desktop as well; there are no `org.kotonoha.android` symbols left.
+
+The Avalonia desktop manager lives in
+[`desktop/KotonohaManager/`](desktop/KotonohaManager/README.md) and uses the
+same bridge and design tokens.
 
 ## Unified design system and UI feature parity
 

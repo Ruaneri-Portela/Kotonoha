@@ -17,26 +17,14 @@ from the repository root unless specified otherwise.
 | WebAssembly | [Emscripten](BUILD_WEB.md) |
 | Tests | [Build validation](BUILD_VALIDATION.md) |
 
-## CMake presets
+## Dependency providers
 
-`CMakePresets.json` covers 52 visible configure/build preset pairs with the
-canonical name `<platform>-<arch>-<toolchain>-<provider>-<config>`:
-
-| Family | Name pattern | Providers |
-| --- | --- | --- |
-| macOS native | `macos-{arm64,amd64}-native-{vcpkg,system}-{debug,release}` | Homebrew or vcpkg |
-| Linux native | `linux-{x64,arm64}-native-{vcpkg,system}-{debug,release}` | apt or vcpkg |
-| Windows MSVC | `windows-{x64,x86,arm64}-msvc-{vcpkg,system}-{debug,release}` | MSVC/native packages or vcpkg |
-| Windows MinGW native | `windows-{x64,x86,arm64}-mingw-{vcpkg,system}-{debug,release}` | MSYS2 UCRT/pacman or vcpkg |
-| Windows MinGW cross | `windows-{x64,x86,arm64}-mingw-cross-vcpkg-{debug,release}` | **vcpkg only** |
-| WebAssembly | `wasm-vcpkg-{debug,release}` | **vcpkg only** |
-
-All presets use Ninja (single-config: `CMAKE_BUILD_TYPE` is authoritative and
-the build preset `configuration` field is informational) and
-`out/build/<preset>` as the build directory. Compatibility aliases
-`mingw-{x64,x86,arm64}` (cross vcpkg Release) and `windows-ucrt-system` (native
-UCRT Release) keep historical names working. Native dependency providers are
-selected by `KOTONOHA_DEPS_PROVIDER`, `KOTONOHA_SDL_PROVIDER` and
+Configure CMake directly with `cmake -S . -B <build-dir>`; no preset file is
+checked in. Use Ninja with `-G Ninja` (single-config: `CMAKE_BUILD_TYPE` is
+authoritative) and add
+`-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"` when
+vcpkg supplies the native libraries. Select dependency sources with
+`KOTONOHA_DEPS_PROVIDER`, `KOTONOHA_SDL_PROVIDER` and
 `KOTONOHA_IMGUI_PROVIDER`; see [dependency providers](DEPENDENCIES.md).
 
 ## Desktop
@@ -47,7 +35,7 @@ cmake --build build --target Kotonoha
 ctest --test-dir build --output-on-failure
 ```
 
-Set `CMAKE_TOOLCHAIN_FILE` for vcpkg if needed. To compile individual ports use `-DKOTONOHA_BUILD_<OPTION>=ON`; options include `AMAGAMI`, `ZERO`, `SNOW`, `SUMMER`, `MEO`, `DDLC`, `KATAWA`, `SCHOOL_DAYS`, `REALLIVE`, `KIRIKIRI`, `LUCA_SYSTEM`, `PMAIL`, `PONSCRIPTER`, `N2SYSTEM`, and `ARTEMIS`. `-DKOTONOHA_BUILD_ALL=ON` requests all desktop ports and may require additional game-specific dependencies. See the [game index](../games/README.md). All 16 applications (including Example) have 32 entries in the Xcode target manifest; device/simulator build success still needs individual verification.
+Set `CMAKE_TOOLCHAIN_FILE` for vcpkg if needed. To compile individual ports use `-DKOTONOHA_BUILD_<OPTION>=ON`; options include `AMAGAMI`, `ZERO`, `SNOW`, `SUMMER`, `MEO`, `DDLC`, `KATAWA`, `SCHOOL_DAYS`, `REALLIVE`, `KIRIKIRI`, `LUCA_SYSTEM`, `PMAIL`, `PONSCRIPTER`, `N2SYSTEM`, and `ARTEMIS`. `-DKOTONOHA_BUILD_ALL=ON` requests all desktop ports and may require additional game-specific dependencies. See the [game index](../games/README.md). All 16 applications (including Example) plus `KotonohaLauncher` have macOS/iOS schemes in the checked-in Xcode project; device/simulator build success still needs individual verification.
 
 The desktop `KotonohaLauncher` target exists **only** with `-DKOTONOHA_BUILD_ALL=ON`; it links all 15 game-port runtime libraries except the independent Example demo and runs games in the same process. See [launcher guide](../launcher/README.md).
 

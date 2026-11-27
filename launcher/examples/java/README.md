@@ -160,7 +160,7 @@ Log completo do harness: `$TMPDIR/kotonoha-java-bridge/selftest.log`.
 | `KotonohaLauncherUpscalePresetsJson` | 15 presets (`index 0..14`) |
 | `KotonohaLauncherDefaultSchoolDaysRoute` | vazio no core; fallback para `games/school-days/game-assets/school-days-hq.ktnroute` |
 | `KotonohaLauncherValidateRoute` | `OK\|School Days route is valid` |
-| `KotonohaLauncherResolveSaveDirectory` | `.../Kotonoha-Profiles/bridge-test-profile/save` |
+| `KotonohaLauncherResolveSaveDirectory` | `.../Kotonoha/Profiles/bridge-test-profile/save` |
 | `KotonohaLauncherFreeString` | exercitado por `newOwnedString()` em toda string nativa |
 | `KotonohaLauncherLaunchGame` / `nativeLaunchJson` | `LAUNCH ok=27 fail=5 total=32` (launch real,Games completos) |
 

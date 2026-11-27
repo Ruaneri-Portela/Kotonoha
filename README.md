@@ -24,7 +24,7 @@ If using vcpkg explicitly, add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buil
 
 - **[Documentation index](docs/README.md)** — all guides and platform entry points.
 - **[Visual identity and icon style guide](design/README.md)** — canonical K, splash, colors, themes, and cross-platform icon build.
-- **[Build guides](docs/BUILD_GUIDES.md)** — desktop, Android, iOS, macOS, and WebAssembly.
+- **[Build guides](docs/BUILD_GUIDES.md)** — desktop, Android, iOS, macOS, WebAssembly, and the native Visual Studio solution.
 - **[CI and vcpkg](docs/CI_VCPKG.md)** — one-runner Linux/WASM pipeline, artifact builds, and cache policy.
 - **[Game ports](games/README.md)** — supported modules, limitations, and game-specific instructions.
 - **[Modules](modules/vms/README.md)** — script VMs; **[asset providers](modules/providers/README.md)** — file and archive access.
@@ -42,13 +42,13 @@ The [standalone unified launcher](launcher/README.md) is a desktop executable th
 
 | Path | Purpose |
 | --- | --- |
-| `launcher/` | Standalone multi-engine desktop launcher |
+| `launcher/` | Standalone multi-engine desktop launcher and Avalonia game manager (`desktop/KotonohaManager/`) |
 | `lib/` | Shared engine, public headers, and tests |
 | `modules/vms/` | Script virtual machines |
 | `modules/providers/` | Asset and archive providers |
 | `games/` | Individual game ports and demo |
 | `assets/` | Shared engine resources and third-party notices |
-| `buildsystems/` | CMake helpers, Android Gradle project, and native Xcode project |
+| `buildsystems/` | CMake helpers, Android Gradle project, native Xcode project, and independent Visual Studio solution (`visualstudio/Kotonoha.sln`) |
 | `docs/` | Cross-platform documentation |
 | `tools/` | Build and asset utilities |
 

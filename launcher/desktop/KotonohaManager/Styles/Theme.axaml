@@ -1,0 +1,72 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Tema WinUI 3 (Fluent2) com os tokens escuros do Windows 11. -->
+    <Style Selector="Window">
+        <Setter Property="Background" Value="#202020" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, Sans" />
+        <Setter Property="FontSize" Value="14" />
+    </Style>
+    <Style Selector="Border.Surface">
+        <Setter Property="Background" Value="#2C2C2C" />
+        <Setter Property="BorderBrush" Value="#3F3F3F" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+    </Style>
+    <Style Selector="Border.Header">
+        <Setter Property="Background" Value="#2C2C2C" />
+        <Setter Property="BorderBrush" Value="#3F3F3F" />
+        <Setter Property="BorderThickness" Value="0,0,0,1" />
+        <Setter Property="Padding" Value="20,14" />
+    </Style>
+    <Style Selector="Border.GameCard">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="Height" Value="124" />
+        <Setter Property="Background" Value="#323232" />
+        <Setter Property="BorderBrush" Value="#3F3F3F" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="10" />
+        <Setter Property="Margin" Value="0,0,0,8" />
+    </Style>
+    <Style Selector="Border.GameCard:pointerover /template/ Border#RootBorder">
+        <Setter Property="BorderBrush" Value="#0F6CBD" />
+    </Style>
+    <Style Selector="Border.Badge">
+        <Setter Property="Background" Value="#3F3F3F" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="8,3" />
+    </Style>
+    <Style Selector="TextBlock.Muted">
+        <Setter Property="Foreground" Value="#9E9E9E" />
+    </Style>
+    <Style Selector="TextBlock.Accent">
+        <Setter Property="Foreground" Value="#60CDFF" />
+    </Style>
+    <Style Selector="Button.Primary">
+        <Setter Property="Background" Value="#0F6CBD" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="14,7" />
+    </Style>
+    <Style Selector="Button.Primary:pointerover">
+        <Setter Property="Background" Value="#115EA3" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+    <Style Selector="Button.Ghost">
+        <Setter Property="Background" Value="#3F3F3F" />
+        <Setter Property="Foreground" Value="#FFFFFF" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="10,6" />
+    </Style>
+    <Style Selector="TextBox, ComboBox">
+        <Setter Property="CornerRadius" Value="4" />
+    </Style>
+    <Style Selector="ListBox > ListBoxItem">
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="8,0,8,0" />
+    </Style>
+    <Style Selector="ToggleSwitch">
+        <Setter Property="Foreground" Value="#FFFFFF" />
+    </Style>
+</Styles>

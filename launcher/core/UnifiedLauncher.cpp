@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <execution>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -115,7 +116,9 @@ std::uint64_t sourceFingerprint(const std::string &path) {
     return std::hash<std::string>{}(path) ^ std::uint64_t(hour);
 
   std::error_code error;
-  const fs::path root(path);
+  // Catalog keys are UTF-8. On Windows a narrow std::filesystem::path is
+  // interpreted as the ANSI code page, which throws for Japanese titles.
+  const fs::path root = fs::u8path(path);
   if (!fs::exists(root, error))
     return 0;
   std::uint64_t hash = 1469598103934665603ull;
@@ -124,7 +127,7 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   };
   mix(static_cast<std::uint64_t>(hour));
   auto sample = [&](const fs::path &file) {
-    mix(std::hash<std::string>{}(file.lexically_relative(root).string()));
+    mix(std::hash<std::string>{}(file.lexically_relative(root).u8string()));
     error.clear();
     const auto modified = fs::last_write_time(file, error);
     if (!error)
@@ -215,8 +218,10 @@ void persistScanCache(const std::map<std::string, CachedProbe> &cache) {
 }
 
 CachedProbe probeCached(const std::string &path) {
-  std::lock_guard<std::mutex> lock(scanCacheMutex());
+  // O fingerprint faz IO (stat de varios arquivos): calcular fora do mutex
+  // permite que os candidatos sejam sondados em paralelo de verdade.
   const auto fingerprint = sourceFingerprint(path);
+  std::lock_guard<std::mutex> lock(scanCacheMutex());
   auto &cache = scanCache();
   if (const auto found = cache.find(path);
       found != cache.end() && found->second.fingerprint == fingerprint)
@@ -247,7 +252,7 @@ CachedProbe probeCached(const std::string &path) {
 // are not games themselves: a detected game's `data/`, `game/` and `DISC1/`
 // subtrees must never be reported as separate titles. The depth and visit
 // caps keep a mistyped root (e.g. an entire disk) from stalling the hub.
-constexpr int kLibraryScanMaxDepth = 3;
+constexpr int kLibraryScanDefaultMaxDepth = 0;
 constexpr std::size_t kLibraryScanMaxCandidates = 512;
 
 struct LibraryScanState {
@@ -257,12 +262,14 @@ struct LibraryScanState {
 };
 
 void collectGamesInLibraryFolder(const fs::path &folder, int depth,
-                                 LibraryScanState &state) {
+                                 LibraryScanState &state, int maxDepth,
+                                 const GameFoundCallback &callback) {
   std::error_code ec;
   std::vector<fs::path> candidates;
   for (const auto &dirEntry : fs::directory_iterator(folder, ec)) {
     const auto &p = dirEntry.path();
-    const std::string name = p.filename().string();
+    // u8string() never converts through the system ANSI code page.
+    const std::string name = p.filename().u8string();
     if (name.empty() || name[0] == '.')
       continue;
     if (dirEntry.is_directory(ec) ||
@@ -270,24 +277,42 @@ void collectGamesInLibraryFolder(const fs::path &folder, int depth,
       candidates.push_back(p);
   }
   std::sort(candidates.begin(), candidates.end());
-  for (const auto &candidate : candidates) {
-    if (state.visited++ >= kLibraryScanMaxCandidates)
-      return;
-    const auto probe = probeCached(candidate.string());
+
+  // Probe os candidatos em paralelo: a deteccao faz IO e e a parte cara.
+  // O mutex serializationa apenas o estado e o callback.
+  std::mutex stateMutex;
+  auto process = [&](const fs::path &candidate) {
+    {
+      std::lock_guard<std::mutex> lock(stateMutex);
+      if (state.visited >= kLibraryScanMaxCandidates)
+        return;
+      ++state.visited;
+    }
+    const auto candidateUtf8 = candidate.u8string();
+    const auto probe = probeCached(candidateUtf8);
     if (probe.vnxPatch) {
+      std::lock_guard<std::mutex> lock(stateMutex);
       if (state.vnxPatchPath.empty())
-        state.vnxPatchPath = candidate.string();
-      continue;
+        state.vnxPatchPath = candidateUtf8;
+      return;
     }
     if (probe.engine.kind != EngineKind::Unknown) {
-      state.results.push_back(
-          buildDiscoveredGameEntry(candidate.string(), probe.engine));
+      auto entry = buildDiscoveredGameEntry(candidateUtf8, probe.engine);
+      {
+        std::lock_guard<std::mutex> lock(stateMutex);
+        state.results.push_back(entry);
+        if (callback)
+          callback(entry);
+      }
       // Internal folders of an installed game are not independent titles.
-      continue;
+      return;
     }
-    if (depth < kLibraryScanMaxDepth && fs::is_directory(candidate, ec))
-      collectGamesInLibraryFolder(candidate, depth + 1, state);
-  }
+    if (depth < maxDepth && fs::is_directory(candidate, ec))
+      collectGamesInLibraryFolder(candidate, depth + 1, state, maxDepth,
+                                  callback);
+  };
+  std::for_each(std::execution::par, candidates.begin(), candidates.end(),
+                process);
 }
 
 void flushScanCache() {
@@ -338,7 +363,7 @@ std::string resolveIsolatedUserDataRoot(const DiscoveredGameEntry &entry,
   const std::string profile = entry.saveProfileId.empty()
                                   ? sanitizeGameProfileId(entry.title)
                                   : entry.saveProfileId;
-  return (baseRoot / "Kotonoha-Profiles" / profile).lexically_normal().string();
+  return (baseRoot / "Kotonoha" / "Profiles" / profile).lexically_normal().string();
 }
 
 std::string resolveGameSaveDirectory(const DiscoveredGameEntry &entry,
@@ -780,10 +805,10 @@ DetectedEngine detectKotonohaEngineFromPath(const std::string &path) {
 DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
                                              const DetectedEngine &detected) {
   DiscoveredGameEntry entry;
-  const fs::path fsPath(path);
-  entry.title = fsPath.filename().string();
+  const fs::path fsPath = fs::u8path(path);
+  entry.title = fsPath.filename().u8string();
   if (entry.title.empty())
-    entry.title = fsPath.parent_path().filename().string();
+    entry.title = fsPath.parent_path().filename().u8string();
   entry.saveProfileId = sanitizeGameProfileId(entry.title);
   entry.path = path;
   entry.engine = detected;
@@ -805,21 +830,28 @@ DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
 }
 
 std::vector<DiscoveredGameEntry>
-scanGameLibrary(const std::string &libraryOrGamePath) {
+scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth,
+                GameFoundCallback callback) {
+  if (maxDepth < 0)
+    maxDepth = kLibraryScanDefaultMaxDepth;
   std::vector<DiscoveredGameEntry> results;
   if (libraryOrGamePath.empty())
     return results;
 
   std::error_code ec;
-  const fs::path rootPath(libraryOrGamePath);
+  const fs::path rootPath = fs::u8path(libraryOrGamePath);
   if (!fs::exists(rootPath, ec))
     return results;
 
   // First check if `libraryOrGamePath` itself is a single game folder or disc.
   {
-    const auto direct = detectKotonohaEngineFromPath(rootPath.string());
+    const auto rootUtf8 = rootPath.u8string();
+    const auto direct = detectKotonohaEngineFromPath(rootUtf8);
     if (direct.kind != EngineKind::Unknown) {
-      results.push_back(buildDiscoveredGameEntry(rootPath.string(), direct));
+      auto entry = buildDiscoveredGameEntry(rootUtf8, direct);
+      if (callback)
+        callback(entry);
+      results.push_back(std::move(entry));
       flushScanCache();
       return results;
     }
@@ -831,7 +863,7 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
   }
 
   LibraryScanState state;
-  collectGamesInLibraryFolder(rootPath, 0, state);
+  collectGamesInLibraryFolder(rootPath, 0, state, maxDepth, callback);
   results = std::move(state.results);
   const std::string &vnxPatchPath = state.vnxPatchPath;
 
@@ -853,7 +885,8 @@ scanGameLibrary(const std::string &libraryOrGamePath) {
 }
 
 std::vector<DiscoveredGameEntry>
-scanGameLibraryRoots(const std::vector<std::string> &roots) {
+scanGameLibraryRoots(const std::vector<std::string> &roots, int maxDepth,
+                     GameFoundCallback callback) {
   std::vector<DiscoveredGameEntry> merged;
   std::vector<std::string> seenKeys;
   std::string discoveredVnxPatch;
@@ -869,7 +902,7 @@ scanGameLibraryRoots(const std::vector<std::string> &roots) {
   for (const auto &root : roots) {
     if (root.empty())
       continue;
-    auto found = scanGameLibrary(root);
+    auto found = scanGameLibrary(root, maxDepth, callback);
     for (auto &entry : found) {
       if (!entry.overlayPath.empty() && discoveredVnxPatch.empty())
         discoveredVnxPatch = entry.overlayPath;
@@ -1069,16 +1102,13 @@ UnifiedLauncher::UnifiedLauncher(std::string settingsPath,
     }
 #endif
     if (startPath.empty()) {
-      // Default game library: the multi-game pack folder users keep on the
-      // server volume, with the external disk as a fallback. Users can still
-      // pick any other folder with "Library / Folder..." below.
-      for (const char *candidate : {"/Volumes/Server/data2/Games",
-                                    "/Volumes/Nero 2TB/KotonohaAssets"}) {
-        std::error_code ec;
-        if (fs::is_directory(candidate, ec)) {
-          startPath = candidate;
-          break;
-        }
+      // Default game library follows the platform storage policy instead of
+      // machine-specific absolute paths. Users can still pick any other
+      // folder with "Library / Folder..." below.
+      try {
+        const auto docs = Kotonoha::applicationStorageLocations().userData;
+        if (!docs.empty()) startPath = (docs / "games").string();
+      } catch (const std::exception &) {
       }
     }
   }
@@ -1258,8 +1288,10 @@ void UnifiedLauncher::drawGameOptions() {
 
       ImGui::TableSetColumnIndex(4);
       if (!item.overlayPath.empty()) {
+        const std::string overlayName =
+            fs::u8path(item.overlayPath).filename().u8string();
         ImGui::Text("%s (+ %s)", item.engine.evidence.c_str(),
-                    fs::path(item.overlayPath).filename().string().c_str());
+                    overlayName.c_str());
       } else {
         ImGui::TextUnformatted(item.engine.evidence.c_str());
       }

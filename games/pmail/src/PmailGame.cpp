@@ -1618,11 +1618,11 @@ void PmailGame::native(::Pmail::Vm &vm, int id,
         offset = 1;
       }
 
-      if (ints.size() >= offset + 1)
+      if (ints.size() >= static_cast<size_t>(offset + 1))
         s.x = ints[offset];
-      if (ints.size() >= offset + 2)
+      if (ints.size() >= static_cast<size_t>(offset + 2))
         s.y = ints[offset + 1];
-      if (ints.size() >= offset + 3)
+      if (ints.size() >= static_cast<size_t>(offset + 3))
         s.id = ints[offset + 2];
       for (size_t i = offset + 3; i < ints.size() && i - (offset + 3) < 3; ++i)
         s.tint[i - (offset + 3)] = ints[i];

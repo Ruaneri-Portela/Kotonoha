@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{E80B958E-1FE7-14CE-C67D-351C5D0F1FAB}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\artemis\src\main.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

@@ -41,7 +41,7 @@ void VNTextBox::replaceTranslation(const std::string &original,
     layoutValid_ = false;
     if (isComplete) {
       visibleDialogue = fullDialogue;
-      visibleChars = VNTextBoxUtility::CountUtf8Chars(fullDialogue);
+      visibleChars = static_cast<double>(VNTextBoxUtility::CountUtf8Chars(fullDialogue));
     } else {
       visibleChars = std::min(
           visibleChars, double(VNTextBoxUtility::CountUtf8Chars(fullDialogue)));

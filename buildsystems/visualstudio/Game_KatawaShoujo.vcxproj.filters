@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{0D1D5491-B639-7936-E5D5-782A486FB81D}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\katawa-shoujo\src\main.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

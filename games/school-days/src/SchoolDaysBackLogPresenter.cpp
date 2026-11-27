@@ -251,8 +251,11 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
     return Fail(error, "School Days BackLog text surface setup failed");
   }
   const auto clip = SchoolDaysBackLogRenderPlan::TextSurfaceClip();
-  const SDL_Rect safeArea{static_cast<int>(clip.x), static_cast<int>(clip.y),
-                          static_cast<int>(clip.w), static_cast<int>(clip.h)};
+  SDL_Rect safeArea{};
+  safeArea.x = static_cast<int>(clip.x);
+  safeArea.y = static_cast<int>(clip.y);
+  safeArea.w = static_cast<int>(clip.w);
+  safeArea.h = static_cast<int>(clip.h);
   if (!SDL_SetSurfaceClipRect(scratch, &safeArea)) {
     SDL_DestroySurface(scratch);
     return Fail(error, "School Days BackLog text clipping setup failed");

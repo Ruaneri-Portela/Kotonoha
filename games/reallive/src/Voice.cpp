@@ -223,7 +223,7 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
     const auto size = payload(std::filesystem::file_size(entry.local));
     if (!size)
       return std::nullopt;
-    std::vector<std::uint8_t> bytes(*size);
+    std::vector<std::uint8_t> bytes(static_cast<size_t>(*size));
     if (!input.read(reinterpret_cast<char *>(bytes.data()),
                     std::streamsize(bytes.size())))
       return std::nullopt;
@@ -238,7 +238,7 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
         return std::nullopt;
       if (!stream->seek(entry.offset))
         return std::nullopt;
-      std::vector<std::uint8_t> bytes(*size);
+      std::vector<std::uint8_t> bytes(static_cast<size_t>(*size));
       std::size_t got = 0;
       while (got < bytes.size()) {
         const std::size_t n =
@@ -256,8 +256,10 @@ std::optional<std::vector<std::uint8_t>> VoiceIndex::read(int id) const {
   const auto size = payload(bytes.size());
   if (!size)
     return std::nullopt;
-  return std::vector<std::uint8_t>(bytes.begin() + entry.offset,
-                                   bytes.begin() + entry.offset + *size);
+  const auto begin = static_cast<std::ptrdiff_t>(entry.offset);
+  return std::vector<std::uint8_t>(
+      bytes.begin() + begin,
+      bytes.begin() + begin + static_cast<std::ptrdiff_t>(*size));
 }
 std::optional<std::filesystem::path> VoiceIndex::find(int id) const {
   auto it = files_.find(id);
