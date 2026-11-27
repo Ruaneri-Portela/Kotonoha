@@ -118,7 +118,7 @@ public enum KotonohaLauncher {
         return decode([DiscoveredGame].self, from: json, fallback: [])
     }
 
-    /// Box usado pelo callback nativo (executado em threads de varredura).
+    /// Retains the final catalog and its handler during the synchronous scan.
     private final class ScanBox {
         let lock = NSLock()
         let handler: ((DiscoveredGame) -> Void)?
@@ -133,7 +133,7 @@ public enum KotonohaLauncher {
     }
 
     /// Scan com callback por jogo e profundidade configuravel (0 = padrao).
-    /// Cada jogo e entregue a `onGame` assim que e detectado.
+    /// Delivers each resolved entry to `onGame` on the calling thread.
     public static func scanRoots(
         _ roots: [String],
         splitSavesByGame: Bool = false,
