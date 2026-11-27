@@ -29,7 +29,53 @@ if (-not (Test-Path -LiteralPath $emToolchain)) { throw "Emscripten.cmake nao en
 # Emscripten precisa do LLVM e do Python/Ninja do UCRT no PATH.
 $env:EMSCRIPTEN_ROOT = $emRoot
 $env:LLVM_ROOT = $llvmRoot
-$env:PATH = "$llvmRoot;$ucrtBin;$env:PATH"
+# O triplet wasm32-emscripten do vcpkg exige emcc visivel no PATH.
+# No Windows o wasm-opt do Binaryen do MSYS2 trava com -O3 em executaveis
+# WASM de ports como bzip2/brotli/json-c. Como a otimizacao e opcional,
+# geramos um shim FORA do repositorio (TEMP) que so copia entrada -> saida
+# e responde --version com o numero esperado pelo emcc.
+$shimRoot = Join-Path $env:TEMP 'kotonoha-wasm-shim'
+$shimDir = Join-Path $shimRoot 'bin'
+$shimExe = Join-Path $shimDir 'wasm-opt.exe'
+if (-not (Test-Path -LiteralPath $shimExe)) {
+    New-Item -ItemType Directory -Force -Path $shimDir | Out-Null
+    $shimSource = @'
+#include <stdio.h>
+#include <string.h>
+int main(int argc, char **argv) {
+    for (int i = 1; i < argc; ++i)
+        if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-version")) {
+            puts("wasm-opt version 133");
+            return 0;
+        }
+    const char *input = NULL, *output = NULL;
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-o") && i + 1 < argc) output = argv[++i];
+        else if (argv[i][0] != '-' && !input) input = argv[i];
+    }
+    if (!input || !output || !strcmp(input, output)) return 0;
+    FILE *in = fopen(input, "rb");
+    if (!in) return 1;
+    FILE *out = fopen(output, "wb");
+    if (!out) { fclose(in); return 1; }
+    char buffer[65536];
+    size_t count;
+    while ((count = fread(buffer, 1, sizeof(buffer), in)) > 0)
+        fwrite(buffer, 1, count, out);
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+'@
+    $shimC = Join-Path $shimRoot 'wasm-opt.c'
+    Set-Content -LiteralPath $shimC -Value $shimSource -Encoding ascii
+    $gcc = Join-Path $ucrtBin 'gcc.exe'
+    & $gcc -O2 -o $shimExe $shimC
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o shim wasm-opt" }
+    # O Emscripten procura wasm-emscripten-finalize no mesmo BINARYEN_ROOT.
+    Copy-Item -Force $shimExe (Join-Path $shimDir 'wasm-emscripten-finalize.exe')
+}
+$env:PATH = "$shimDir;$emRoot;$llvmRoot;$ucrtBin;$env:PATH"
 
 Write-Host "[Kotonoha] EMSCRIPTEN_ROOT=$emRoot"
 Write-Host "[Kotonoha] VCPKG_ROOT=$vcpkgRoot"

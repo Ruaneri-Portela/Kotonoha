@@ -54,6 +54,52 @@ if ! valid_root "${EMSCRIPTEN_ROOT:-}"; then
     echo "cmake/Modules/Platform/Emscripten.cmake." >&2
     exit 1
 fi
+# vcpkg's wasm32-emscripten triplet probes `emcc` from PATH.
+export PATH="$EMSCRIPTEN_ROOT:$PATH"
+
+# MSYS2's wasm-opt hangs on -O3 during WASM tool builds. The optimizer is
+# optional, so on Windows generate a no-op shim OUTSIDE the repository.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*)
+    SHIM_ROOT="${TMPDIR:-/tmp}/kotonoha-wasm-shim"
+    SHIM_BIN="$SHIM_ROOT/bin"
+    mkdir -p "$SHIM_BIN"
+    if [ ! -x "$SHIM_BIN/wasm-opt.exe" ]; then
+      cat > "$SHIM_ROOT/wasm-opt.c" <<'SHIM'
+#include <stdio.h>
+#include <string.h>
+int main(int argc, char **argv) {
+    for (int i = 1; i < argc; ++i)
+        if (!strcmp(argv[i], "--version") || !strcmp(argv[i], "-version")) {
+            puts("wasm-opt version 133");
+            return 0;
+        }
+    const char *input = NULL, *output = NULL;
+    for (int i = 1; i < argc; ++i) {
+        if (!strcmp(argv[i], "-o") && i + 1 < argc) output = argv[++i];
+        else if (argv[i][0] != '-' && !input) input = argv[i];
+    }
+    if (!input || !output || !strcmp(input, output)) return 0;
+    FILE *in = fopen(input, "rb");
+    if (!in) return 1;
+    FILE *out = fopen(output, "wb");
+    if (!out) { fclose(in); return 1; }
+    char buffer[65536];
+    size_t count;
+    while ((count = fread(buffer, 1, sizeof(buffer), in)) > 0)
+        fwrite(buffer, 1, count, out);
+    fclose(in);
+    fclose(out);
+    return 0;
+}
+SHIM
+      gcc -O2 -o "$SHIM_BIN/wasm-opt.exe" "$SHIM_ROOT/wasm-opt.c"
+      cp -f "$SHIM_BIN/wasm-opt.exe" "$SHIM_BIN/wasm-emscripten-finalize.exe"
+    fi
+    export PATH="$SHIM_BIN:$PATH"
+    ;;
+esac
+
 : "${VCPKG_ROOT:?Set VCPKG_ROOT to the vcpkg checkout}"
 if ! command -v emcmake >/dev/null 2>&1; then
     echo "[Kotonoha] emcmake not found on PATH. Activate emsdk first." >&2
