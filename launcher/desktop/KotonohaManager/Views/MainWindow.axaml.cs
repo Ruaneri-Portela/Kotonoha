@@ -66,11 +66,12 @@ public partial class MainWindow : Window
 
     private async void Parameters_Click(object? sender, RoutedEventArgs e)
     {
-        if (Model.SelectedGame is null) return;
-        var vm = new GameParametersViewModel(Model.SelectedGame.Game, Model.CurrentSettings);
+        var selected = Model.SelectedGame;
+        if (selected is null) return;
+        var vm = new GameParametersViewModel(selected.Game, Model.CurrentSettings);
         var dialog = new GameParametersWindow { DataContext = vm };
         await dialog.ShowDialog(this);
-        if (vm.Saved == true) Model.SelectedGame.Refresh();
+        if (vm.Saved == true) selected.Refresh();
     }
 
     private async void Settings_Click(object? sender, RoutedEventArgs e)
