@@ -18,7 +18,11 @@
     <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'ARM64'">arm64-windows</KotonohaVcpkgTriplet>
     <!-- Uma raiz por arquitetura: vcpkg em modo manifesto remove os outros
          triplets da mesma raiz, entao x86/x64/arm64 nao podem compartilhar. -->
-    <KotonohaVcpkgRoot>$(MSBuildThisFileDirectory)vcpkg\$(KotonohaVcpkgArch)\$(KotonohaVcpkgTriplet)\</KotonohaVcpkgRoot>
+    <!-- Install root configuravel: por padrao fica ao lado da solucao, mas
+         KOTONOHA_VS_VCPKG_ROOT permite reutilizar um root compartilhado. -->
+    <KotonohaVcpkgInstallRoot Condition="'$(KOTONOHA_VS_VCPKG_ROOT)' != ''">$(KOTONOHA_VS_VCPKG_ROOT)</KotonohaVcpkgInstallRoot>
+    <KotonohaVcpkgInstallRoot Condition="'$(KotonohaVcpkgInstallRoot)' == ''">$(MSBuildThisFileDirectory)vcpkg</KotonohaVcpkgInstallRoot>
+    <KotonohaVcpkgRoot>$(KotonohaVcpkgInstallRoot)\$(KotonohaVcpkgArch)\$(KotonohaVcpkgTriplet)\</KotonohaVcpkgRoot>
     <!-- A solucao instala e resolve o vcpkg por si (PrepareVisualStudio.ps1). -->
     <VcpkgEnabled>false</VcpkgEnabled>
     <VcpkgEnableManifest>false</VcpkgEnableManifest>
@@ -36,6 +40,9 @@
     <KotonohaIncludeDir Include="$(RepoRoot)games\reallive\vendor;$(RepoRoot)games\reallive\vendor\machine;$(RepoRoot)games\reallive\vendor\libreallive" />
     <KotonohaIncludeDir Include="$(RepoRoot)launcher\include;$(RepoRoot)launcher\core;$(RepoRoot)launcher\bridge" />
     <KotonohaIncludeDir Include="$(KotonohaVcpkgRoot)include;$(KotonohaVcpkgRoot)include\python3.14" />
+    <!-- JNI (JavaBridge.cpp no LauncherCore) quando um JDK esta disponivel. -->
+    <KotonohaIncludeDir Include="$(JAVA_HOME)\include;$(JAVA_HOME)\include\win32"
+                        Condition="Exists('$(JAVA_HOME)\include\jni.h')" />
   </ItemGroup>
   <ItemDefinitionGroup>
     <ClCompile>

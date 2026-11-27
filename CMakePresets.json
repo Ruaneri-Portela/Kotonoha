@@ -126,6 +126,93 @@
         "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
         "KOTONOHA_SDL_PROVIDER": "SYSTEM"
       }
+    },
+    {
+      "name": "windows-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "KOTONOHA_BUILD_ALL": "ON",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "windows-x64-mingw-system",
+      "displayName": "Windows x86_64 - MinGW UCRT64 (system deps)",
+      "inherits": "windows-base",
+      "environment": {
+        "PKG_CONFIG_PATH": "C:/msys64/ucrt64/lib/pkgconfig;C:/msys64/ucrt64/share/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_C_COMPILER": "C:/msys64/ucrt64/bin/gcc.exe",
+        "CMAKE_CXX_COMPILER": "C:/msys64/ucrt64/bin/g++.exe",
+        "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM",
+        "KOTONOHA_IMGUI_PROVIDER": "SUBMODULES",
+        "CMAKE_PREFIX_PATH": "C:/msys64/ucrt64",
+        "PKG_CONFIG_EXECUTABLE": "C:/msys64/ucrt64/bin/pkg-config.exe"
+      }
+    },
+    {
+      "name": "windows-x86-msvc-vcpkg",
+      "displayName": "Windows x86 - MSVC + vcpkg",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x86-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "KOTONOHA_IMGUI_PROVIDER": "VCPKG"
+      }
+    },
+    {
+      "name": "windows-x64-msvc-vcpkg",
+      "displayName": "Windows x64 - MSVC + vcpkg",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "x64-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "KOTONOHA_IMGUI_PROVIDER": "VCPKG"
+      }
+    },
+    {
+      "name": "windows-arm64-msvc-vcpkg",
+      "displayName": "Windows arm64 - MSVC + vcpkg",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_TARGET_TRIPLET": "arm64-windows",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "KOTONOHA_IMGUI_PROVIDER": "VCPKG"
+      }
+    },
+    {
+      "name": "wasm-vcpkg",
+      "displayName": "WebAssembly - Emscripten + vcpkg",
+      "inherits": "windows-base",
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "C:/msys64/ucrt64/lib/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+        "VCPKG_TARGET_TRIPLET": "wasm32-emscripten",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "KOTONOHA_IMGUI_PROVIDER": "VCPKG",
+        "KOTONOHA_BUILD_EXAMPLE": "ON",
+        "BUILD_TESTING": "OFF"
+      }
     }
   ],
   "buildPresets": [
@@ -157,6 +244,31 @@
     {
       "name": "macos-amd64-brew",
       "configurePreset": "macos-amd64-brew",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x64-mingw-system",
+      "configurePreset": "windows-x64-mingw-system",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x86-msvc-vcpkg",
+      "configurePreset": "windows-x86-msvc-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-x64-msvc-vcpkg",
+      "configurePreset": "windows-x64-msvc-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "windows-arm64-msvc-vcpkg",
+      "configurePreset": "windows-arm64-msvc-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "wasm-vcpkg",
+      "configurePreset": "wasm-vcpkg",
       "configuration": "Release"
     }
   ]

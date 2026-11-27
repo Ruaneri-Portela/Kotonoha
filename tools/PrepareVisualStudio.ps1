@@ -337,8 +337,9 @@ function Invoke-Generate {
     # launcher/ - nucleo compilado apenas uma vez e vinculado as bibliotecas
     # estaticas de todos os jogos (o mesmo grafo do CMake).
     $coreGuid = New-Vcxproj -Name 'KotonohaLauncherCore' -Type 'DynamicLibrary' -Group 'launcher' -Lang 20 `
-        -AutoExport -ExtraDefines 'KOTONOHA_LAUNCHER_CORE_BUILD=1;KOTONOHA_LAUNCH_AMAGAMI=1;KOTONOHA_LAUNCH_ARTEMIS=1;KOTONOHA_LAUNCH_DDLC=1;KOTONOHA_LAUNCH_KATAWA=1;KOTONOHA_LAUNCH_KIRIKIRI=1;KOTONOHA_LAUNCH_LUCA_SYSTEM=1;KOTONOHA_LAUNCH_MEO=1;KOTONOHA_LAUNCH_N2SYSTEM=1;KOTONOHA_LAUNCH_PMAIL=1;KOTONOHA_LAUNCH_PONSCRIPTER=1;KOTONOHA_LAUNCH_REALLIVE=1;KOTONOHA_LAUNCH_SCHOOL_DAYS=1;KOTONOHA_LAUNCH_SNOW=1;KOTONOHA_LAUNCH_SUMMER=1;KOTONOHA_LAUNCH_ZERO=1' -Sources @(
-        (SourceItemXml '$(RepoRoot)launcher\core\*.cpp')
+        -AutoExport -ExtraDefines 'KOTONOHA_LAUNCHER_CORE_BUILD=1;KOTONOHA_JNI_BINDINGS=1;KOTONOHA_LAUNCH_AMAGAMI=1;KOTONOHA_LAUNCH_ARTEMIS=1;KOTONOHA_LAUNCH_DDLC=1;KOTONOHA_LAUNCH_KATAWA=1;KOTONOHA_LAUNCH_KIRIKIRI=1;KOTONOHA_LAUNCH_LUCA_SYSTEM=1;KOTONOHA_LAUNCH_MEO=1;KOTONOHA_LAUNCH_N2SYSTEM=1;KOTONOHA_LAUNCH_PMAIL=1;KOTONOHA_LAUNCH_PONSCRIPTER=1;KOTONOHA_LAUNCH_REALLIVE=1;KOTONOHA_LAUNCH_SCHOOL_DAYS=1;KOTONOHA_LAUNCH_SNOW=1;KOTONOHA_LAUNCH_SUMMER=1;KOTONOHA_LAUNCH_ZERO=1' -Sources @(
+        (SourceItemXml '$(RepoRoot)launcher\core\*.cpp'),
+        (SourceItemXml '$(RepoRoot)launcher\bridge\java\JavaBridge.cpp')
     ) -References (@('KotonohaEngine') + $moduleNames + $gameLibNames)
     $coreCount = @(Get-ChildItem -Path (Join-Path $Repo 'launcher\core') -Filter '*.cpp' -File -ErrorAction SilentlyContinue).Count
     $manifestTargets.Add(@{ name = 'KotonohaLauncherCore'; type = 'DynamicLibrary'; group = 'launcher'; guid = $coreGuid; sources = $coreCount })
@@ -465,11 +466,19 @@ function Invoke-Install {
         throw 'vcpkg nao encontrado. Defina VCPKG_ROOT ou instale o vcpkg via Visual Studio Installer.'
     }
     $exe = Join-Path $VcpkgRoot 'vcpkg.exe'
+    # O vcpkg do Visual Studio nao tem modo classico: cada triplet precisa de
+    # um install root proprio (modo manifesto remove os outros da mesma raiz).
+    # O cache binarios permanece o padrao do vcpkg (%LOCALAPPDATA%\vcpkg\archives).
+    $installRoot = if ($env:KOTONOHA_VS_VCPKG_ROOT) {
+        $env:KOTONOHA_VS_VCPKG_ROOT
+    } else {
+        Join-Path $VS 'vcpkg'
+    }
     foreach ($arch in $Architectures) {
         $triplet = $TripletMap[$arch]
-        Write-Host "[Kotonoha] vcpkg install $triplet"
+        Write-Host "[Kotonoha] vcpkg install $triplet -> $installRoot\$arch"
         & $exe install '--x-wait-for-lock' "--triplet=$triplet" "--x-manifest-root=$Repo" `
-            "--x-install-root=$(Join-Path $VS ('vcpkg\' + $arch))" `
+            "--x-install-root=$(Join-Path $installRoot $arch)" `
             "--overlay-ports=$(Join-Path $Repo 'vcpkg-overlays\ports')" `
             '--x-feature=sdl-vcpkg' '--x-feature=imgui-vcpkg'
         if ($LASTEXITCODE -ne 0) { throw "vcpkg falhou para $triplet (exit $LASTEXITCODE)" }

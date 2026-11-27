@@ -37,7 +37,10 @@ powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Bui
 `arm64-windows` with `--x-feature=sdl-vcpkg --x-feature=imgui-vcpkg` and the
 ffmpeg overlay ports. `-Mode Build` compiles all six Debug/Release ×
 platform combinations; restrict it with `-Architectures x64 -Configuration Release`
-when iterating. Artifacts go to `buildsystems/visualstudio/out/<Platform>/<Configuration>/`.
+when iterating. Artifacts go to `buildsystems/visualstudio/out/<Platform>/<Configuration>/`. The launcher core
+also compiles `launcher/bridge/java/JavaBridge.cpp` when a JDK is available, so
+the same DLL serves JNI clients; the Java example adds that directory to `PATH`
+so its dependent DLLs are found.
 
 Opening the `.sln` in Visual Studio works as well — vcpkg include/library paths
 are resolved from `buildsystems/visualstudio/vcpkg/<arch>/<triplet>/`, so no global `vcpkg integrate

@@ -336,14 +336,19 @@ public sealed class MainWindowViewModel : ViewModelBase
         }
         foreach (var state in _detachedGames.Values.ToList())
         {
-            bool alive;
-            try
+            // GetProcessById lanca uma ArgumentException de primeira chance
+            // quando o processo ja saiu; enumerar evita o ruido no debugger.
+            bool alive = false;
+            foreach (var candidate in Process.GetProcesses())
             {
-                alive = !Process.GetProcessById(state.Pid).HasExited;
-            }
-            catch (ArgumentException)
-            {
-                alive = false;
+                try
+                {
+                    if (candidate.Id != state.Pid) continue;
+                    alive = !candidate.HasExited;
+                    break;
+                }
+                catch (InvalidOperationException) { }
+                finally { candidate.Dispose(); }
             }
             if (!alive)
             {

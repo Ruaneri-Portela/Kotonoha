@@ -300,7 +300,7 @@ void VoiceDubbingApplet::importFile(const std::filesystem::path &path) {
   Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input)
     throw std::runtime_error("Cannot open imported audio");
-  std::vector<Uint8> bytes(size);
+  std::vector<Uint8> bytes(static_cast<std::size_t>(size));
   if (size && !input.read(reinterpret_cast<char *>(bytes.data()), size))
     throw std::runtime_error("Cannot read imported audio");
   take_ = asFloat(MediaDecoder::decodeAudio(bytes));
@@ -627,7 +627,8 @@ void VoiceDubbingApplet::fitSelection(bool stretch) {
   const std::size_t channels = take_.spec.channels;
   const std::size_t frameBytes = sizeof(float) * channels;
   const std::size_t targetFrames = std::max<std::size_t>(
-      1, std::llround(duration(original_) * take_.spec.freq));
+      1, static_cast<std::size_t>(
+             std::llround(duration(original_) * take_.spec.freq)));
   const std::size_t currentFrames = take_.data.size() / frameBytes;
   if (stretch) {
     const double speed = double(currentFrames) / double(targetFrames);

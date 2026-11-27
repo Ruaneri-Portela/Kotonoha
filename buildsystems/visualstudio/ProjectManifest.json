@@ -1,690 +1,690 @@
 {
-    "vcpkg_install_roots": {
-        "arm64": "buildsystems/visualstudio/vcpkg/arm64",
-        "x86": "buildsystems/visualstudio/vcpkg/x86",
-        "x64": "buildsystems/visualstudio/vcpkg/x64"
-    },
-    "vcpkg_triplets": {
-        "x64": "x64-windows",
-        "ARM64": "arm64-windows",
-        "Win32": "x86-windows"
-    },
-    "modules": {
-        "Providers": [
-            "Provider_Adv",
-            "Provider_Amagami",
-            "Provider_Artemis",
-            "Provider_Cmp",
-            "Provider_Gpk",
-            "Provider_N2",
-            "Provider_Pak",
-            "Provider_Pmail",
-            "Provider_Ponscripter",
-            "Provider_RealLive",
-            "Provider_Rpa",
-            "Provider_Xp3",
-            "Provider_Zero"
-        ],
-        "Formats": [
-            "Format_CZ",
-            "Format_TLG",
-            "Format_TIM2",
-            "Format_TEX",
-            "Format_CRGB",
-            "Format_EVD",
-            "Format_UIAtlas",
-            "Format_ADPCM",
-            "Format_CRI",
-            "Format_SPU",
-            "Format_BlockPCM",
-            "Format_SMFD",
-            "Format_ANM",
-            "Format_PSB"
-        ],
-        "VM": [
-            "VM_Amagami",
-            "VM_Artemis",
-            "VM_Kag",
-            "VM_Meo",
-            "VM_N2System",
-            "VM_Pmail",
-            "VM_Ponscripter",
-            "VM_RealLive",
-            "VM_RenPy",
-            "VM_SnowRadish",
-            "VM_SummerRadish",
-            "VM_Tjs2"
-        ]
-    },
-    "preparation": {
-        "script": "tools/PrepareVisualStudio.ps1",
-        "overlays": "vcpkg-overlays/ports",
-        "manifest": "vcpkg.json"
-    },
-    "vcpkg_features": [
-        "sdl-vcpkg",
-        "imgui-vcpkg"
-    ],
-    "project": "buildsystems/visualstudio/Kotonoha.sln",
-    "platforms": [
-        "Win32",
-        "x64",
-        "ARM64"
-    ],
-    "source_files": 317,
-    "include_directories": 117,
-    "games": {
-        "Game_SummerRadish": "summer-radish-vacation",
-        "Game_RealLive": "reallive",
-        "Game_SchoolDays": "school-days",
-        "Game_Pmail": "pmail",
-        "Game_N2System": "n2system",
-        "Game_LucaSystem": "luca-system",
-        "Game_MEO": "meo",
-        "Game_SnowRadish": "snow-radish-vacation",
-        "Game_KotonohaExample": "example",
-        "Game_Amagami": "amagami",
-        "Game_Kirikiri": "kirikiri",
-        "Game_Artemis": "artemis",
-        "Game_Ponscripter": "ponscripter",
-        "Game_ZeroNoTsukaima": "zero-no-tsukaima",
-        "Game_DokiDoki": "doki-doki-literature-club",
-        "Game_KatawaShoujo": "katawa-shoujo"
-    },
-    "targets": [
-        {
-            "sources": 85,
-            "group": "lib",
-            "guid": "{C9DE5DC1-B9B9-48E7-688A-9D9D76541551}",
-            "name": "KotonohaEngine",
-            "type": "DynamicLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\vms",
-            "guid": "{926F0FE9-C24C-22E2-C756-2B6348A250E5}",
-            "name": "VM_Amagami",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\vms",
-            "guid": "{401EE67D-92B0-F120-D7E9-40E650E7A14D}",
-            "name": "VM_Artemis",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\vms",
-            "guid": "{A77091D9-841D-697F-525C-B1058D14EA54}",
-            "name": "VM_Kag",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\vms",
-            "guid": "{623B96D7-ECCB-FD0E-49DE-98E65C03E49C}",
-            "name": "VM_Meo",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 13,
-            "group": "modules\\vms",
-            "guid": "{B77D12C7-5534-7661-F843-2C439996E79B}",
-            "name": "VM_N2System",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\vms",
-            "guid": "{B5A18B79-B15C-2B08-2FC8-967D7C2B1967}",
-            "name": "VM_Pmail",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 9,
-            "group": "modules\\vms",
-            "guid": "{36718B92-7E8A-1FDC-5304-3E4D5E576950}",
-            "name": "VM_Ponscripter",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\vms",
-            "guid": "{C29C4468-9110-9B72-C6C5-5DB6D797F033}",
-            "name": "VM_RealLive",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 3,
-            "group": "modules\\vms",
-            "guid": "{7ADCE1DE-630A-57EB-D92B-D2C9C2B2BF7D}",
-            "name": "VM_RenPy",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\vms",
-            "guid": "{F93E8597-870F-D0DF-9992-99604E5311EB}",
-            "name": "VM_SnowRadish",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\vms",
-            "guid": "{199301BC-F9AC-1768-08B0-622801D25071}",
-            "name": "VM_SummerRadish",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\vms",
-            "guid": "{A61D742E-61F4-82F8-5EF0-53F463479719}",
-            "name": "VM_Tjs2",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{CBCB2982-56D0-D16E-2AA8-8C4D6D375128}",
-            "name": "Format_CZ",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\formats",
-            "guid": "{F8D5E538-3CEB-0F20-FAE4-4AB52D2C2B2C}",
-            "name": "Format_TLG",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\formats",
-            "guid": "{2075F3D6-8292-0F7C-715D-27C0FDEEF9D0}",
-            "name": "Format_TIM2",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\formats",
-            "guid": "{9F84A53F-7084-8AD6-9695-7F4F6595458B}",
-            "name": "Format_TEX",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{17BFF716-4EDE-9003-8673-A472A6381CD9}",
-            "name": "Format_CRGB",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{A7298275-58A3-5A1B-D827-DA33FD230117}",
-            "name": "Format_EVD",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{A4DF219B-8848-77C9-DB19-12DE12915DDB}",
-            "name": "Format_UIAtlas",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\formats",
-            "guid": "{CAFA5CAC-DF68-CDC9-527E-68DE16405DE8}",
-            "name": "Format_ADPCM",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{06712496-B9FE-6B23-65BD-97E71857D551}",
-            "name": "Format_CRI",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{8D28F8CF-469E-7A4E-615F-52D71A8C29B9}",
-            "name": "Format_SPU",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{2F6DBA84-889C-1EAF-65BF-656FCF10203B}",
-            "name": "Format_BlockPCM",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{2A1038EE-D0B5-650A-B138-B8FC4E6D7607}",
-            "name": "Format_SMFD",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{9CD19263-D2F7-3C77-B45E-66870B4CE19B}",
-            "name": "Format_ANM",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\formats",
-            "guid": "{A9727C8C-8F0F-EAEB-625B-F3EB34676684}",
-            "name": "Format_PSB",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\providers",
-            "guid": "{46231C4E-7280-367B-37BD-4841053F7DE5}",
-            "name": "Provider_Adv",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 3,
-            "group": "modules\\providers",
-            "guid": "{441EB1C9-80CD-6564-FAA8-C0C4CBCB86CB}",
-            "name": "Provider_Amagami",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\providers",
-            "guid": "{2E7D8D2F-1A40-25D5-271B-3722926DC9B1}",
-            "name": "Provider_Artemis",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\providers",
-            "guid": "{5B7B1D26-4001-2E88-2622-5E9038C2B3A0}",
-            "name": "Provider_Cmp",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 4,
-            "group": "modules\\providers",
-            "guid": "{D8206AF9-F0D0-1008-34C6-1017A78E40C1}",
-            "name": "Provider_Gpk",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 2,
-            "group": "modules\\providers",
-            "guid": "{1EAAB529-043B-A065-2D99-CD7257DA0015}",
-            "name": "Provider_N2",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\providers",
-            "guid": "{DE30DA4D-B2A3-19AE-D53B-63FD268FE71A}",
-            "name": "Provider_Pak",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 3,
-            "group": "modules\\providers",
-            "guid": "{B5AD2D20-8D4F-5F90-A84D-9A80A52CE778}",
-            "name": "Provider_Pmail",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\providers",
-            "guid": "{A9600D17-9AAD-6FB1-B605-06C4C25DEE93}",
-            "name": "Provider_Ponscripter",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\providers",
-            "guid": "{79C07CB9-C7AF-6BA5-4DC4-A0B5AD9B6985}",
-            "name": "Provider_RealLive",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\providers",
-            "guid": "{2C19B9A0-7C84-2234-2BF7-81A8F2185C0A}",
-            "name": "Provider_Rpa",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 3,
-            "group": "modules\\providers",
-            "guid": "{CDC77FDC-BF00-522C-03C3-90C32F273A69}",
-            "name": "Provider_Xp3",
-            "type": "StaticLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "modules\\providers",
-            "guid": "{73536A9D-BBFC-DCB0-D361-FD0F5E0DD36F}",
-            "name": "Provider_Zero",
-            "type": "StaticLibrary"
-        },
-        {
-            "lib_for": "Game_KotonohaExample",
-            "name": "Game_KotonohaExampleLib",
-            "sources": 3,
-            "type": "StaticLibrary",
-            "slug": "example",
-            "guid": "{90E33C04-70C4-8530-6208-EBABD9EACAE5}",
-            "group": "games"
-        },
-        {
-            "name": "Game_KotonohaExample",
-            "sources": 1,
-            "lib": "Game_KotonohaExampleLib",
-            "type": "Application",
-            "slug": "example",
-            "guid": "{E85E7753-70F2-7538-CCA0-4D48119A94D7}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_Amagami",
-            "name": "Game_AmagamiLib",
-            "sources": 11,
-            "type": "StaticLibrary",
-            "slug": "amagami",
-            "guid": "{1111C841-3439-AD69-CD4C-AB62E58008AA}",
-            "group": "games"
-        },
-        {
-            "name": "Game_Amagami",
-            "sources": 1,
-            "lib": "Game_AmagamiLib",
-            "type": "Application",
-            "slug": "amagami",
-            "guid": "{9FCD9A0E-C74C-E3B1-B7F5-7A2832B69FF4}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_ZeroNoTsukaima",
-            "name": "Game_ZeroNoTsukaimaLib",
-            "sources": 15,
-            "type": "StaticLibrary",
-            "slug": "zero-no-tsukaima",
-            "guid": "{5B411483-8764-07EA-68D2-6E4DE954B6BC}",
-            "group": "games"
-        },
-        {
-            "name": "Game_ZeroNoTsukaima",
-            "sources": 1,
-            "lib": "Game_ZeroNoTsukaimaLib",
-            "type": "Application",
-            "slug": "zero-no-tsukaima",
-            "guid": "{4BA31EFC-E13F-A9E7-0AA6-AA8269D1DB36}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_SnowRadish",
-            "name": "Game_SnowRadishLib",
-            "sources": 5,
-            "type": "StaticLibrary",
-            "slug": "snow-radish-vacation",
-            "guid": "{68191963-1CED-0920-410C-64A649BF948E}",
-            "group": "games"
-        },
-        {
-            "name": "Game_SnowRadish",
-            "sources": 1,
-            "lib": "Game_SnowRadishLib",
-            "type": "Application",
-            "slug": "snow-radish-vacation",
-            "guid": "{E5D84FC7-D19C-6392-3EB2-9492A5273083}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_SummerRadish",
-            "name": "Game_SummerRadishLib",
-            "sources": 4,
-            "type": "StaticLibrary",
-            "slug": "summer-radish-vacation",
-            "guid": "{72A9D674-E9E5-6D49-DC44-00B5949CB98C}",
-            "group": "games"
-        },
-        {
-            "name": "Game_SummerRadish",
-            "sources": 1,
-            "lib": "Game_SummerRadishLib",
-            "type": "Application",
-            "slug": "summer-radish-vacation",
-            "guid": "{54B1726F-A82C-F2E7-40A2-BD3C0D789AE2}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_DokiDoki",
-            "name": "Game_DokiDokiLib",
-            "sources": 8,
-            "type": "StaticLibrary",
-            "slug": "doki-doki-literature-club",
-            "guid": "{ABAD9729-8126-E067-5673-6E7607D23E72}",
-            "group": "games"
-        },
-        {
-            "name": "Game_DokiDoki",
-            "sources": 1,
-            "lib": "Game_DokiDokiLib",
-            "type": "Application",
-            "slug": "doki-doki-literature-club",
-            "guid": "{C76E90DE-B487-6E52-2070-8EE47A585CEC}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_SchoolDays",
-            "name": "Game_SchoolDaysLib",
-            "sources": 54,
-            "type": "StaticLibrary",
-            "slug": "school-days",
-            "guid": "{DD4940E9-1711-4D72-1A1B-9F6810A5F125}",
-            "group": "games"
-        },
-        {
-            "name": "Game_SchoolDays",
-            "sources": 1,
-            "lib": "Game_SchoolDaysLib",
-            "type": "Application",
-            "slug": "school-days",
-            "guid": "{BFB93976-7E56-4720-1B77-0ED6849DCCE4}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_RealLive",
-            "name": "Game_RealLiveLib",
-            "sources": 6,
-            "type": "StaticLibrary",
-            "slug": "reallive",
-            "guid": "{C15C5B8A-0EE6-C619-E842-8E57A9FD4B21}",
-            "group": "games"
-        },
-        {
-            "name": "Game_RealLive",
-            "sources": 1,
-            "lib": "Game_RealLiveLib",
-            "type": "Application",
-            "slug": "reallive",
-            "guid": "{5C6CD7CD-3F33-E085-1B08-70FB1F0481FF}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_Kirikiri",
-            "name": "Game_KirikiriLib",
-            "sources": 2,
-            "type": "StaticLibrary",
-            "slug": "kirikiri",
-            "guid": "{0CCAD7E4-4399-6382-A88A-F920BE24F242}",
-            "group": "games"
-        },
-        {
-            "name": "Game_Kirikiri",
-            "sources": 1,
-            "lib": "Game_KirikiriLib",
-            "type": "Application",
-            "slug": "kirikiri",
-            "guid": "{58E90A37-BE4F-D746-A3D6-4FD9464C050C}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_LucaSystem",
-            "name": "Game_LucaSystemLib",
-            "sources": 3,
-            "type": "StaticLibrary",
-            "slug": "luca-system",
-            "guid": "{E7CC0860-1663-5DCA-A775-89A403764C67}",
-            "group": "games"
-        },
-        {
-            "name": "Game_LucaSystem",
-            "sources": 1,
-            "lib": "Game_LucaSystemLib",
-            "type": "Application",
-            "slug": "luca-system",
-            "guid": "{16B2FE19-2229-7B26-7AEF-E97C2F8E55D3}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_Pmail",
-            "name": "Game_PmailLib",
-            "sources": 14,
-            "type": "StaticLibrary",
-            "slug": "pmail",
-            "guid": "{449D4F2A-7958-7BE5-0763-56A8E39EF2F1}",
-            "group": "games"
-        },
-        {
-            "name": "Game_Pmail",
-            "sources": 1,
-            "lib": "Game_PmailLib",
-            "type": "Application",
-            "slug": "pmail",
-            "guid": "{004B4DA6-24FB-B9D4-B061-BC5AAFA26ED9}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_Ponscripter",
-            "name": "Game_PonscripterLib",
-            "sources": 1,
-            "type": "StaticLibrary",
-            "slug": "ponscripter",
-            "guid": "{DAF0BAD1-5FCC-0046-4A13-F5B60AF1D7D3}",
-            "group": "games"
-        },
-        {
-            "name": "Game_Ponscripter",
-            "sources": 1,
-            "lib": "Game_PonscripterLib",
-            "type": "Application",
-            "slug": "ponscripter",
-            "guid": "{0D16F062-CA93-F99D-B520-A0FCC81E0E95}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_N2System",
-            "name": "Game_N2SystemLib",
-            "sources": 1,
-            "type": "StaticLibrary",
-            "slug": "n2system",
-            "guid": "{45F793E2-927F-ACF6-4449-D1DF2A864E06}",
-            "group": "games"
-        },
-        {
-            "name": "Game_N2System",
-            "sources": 1,
-            "lib": "Game_N2SystemLib",
-            "type": "Application",
-            "slug": "n2system",
-            "guid": "{E50445E5-9C6F-1227-048D-62C549DAD70E}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_KatawaShoujo",
-            "name": "Game_KatawaShoujoLib",
-            "sources": 0,
-            "type": "StaticLibrary",
-            "slug": "katawa-shoujo",
-            "guid": "{8CC7981F-9287-8219-9CF6-C39770A28072}",
-            "group": "games"
-        },
-        {
-            "name": "Game_KatawaShoujo",
-            "sources": 1,
-            "lib": "Game_KatawaShoujoLib",
-            "type": "Application",
-            "slug": "katawa-shoujo",
-            "guid": "{FE275987-5377-713A-9C8B-28B5D71BFE35}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_MEO",
-            "name": "Game_MEOLib",
-            "sources": 0,
-            "type": "StaticLibrary",
-            "slug": "meo",
-            "guid": "{7E59A474-382B-9867-4076-7FD0DFD8BF12}",
-            "group": "games"
-        },
-        {
-            "name": "Game_MEO",
-            "sources": 1,
-            "lib": "Game_MEOLib",
-            "type": "Application",
-            "slug": "meo",
-            "guid": "{81BFBE6C-73E4-B34A-57CB-40B10F65B01E}",
-            "group": "games"
-        },
-        {
-            "lib_for": "Game_Artemis",
-            "name": "Game_ArtemisLib",
-            "sources": 2,
-            "type": "StaticLibrary",
-            "slug": "artemis",
-            "guid": "{31E69962-767F-0361-5E11-C5D5FFF8385C}",
-            "group": "games"
-        },
-        {
-            "name": "Game_Artemis",
-            "sources": 1,
-            "lib": "Game_ArtemisLib",
-            "type": "Application",
-            "slug": "artemis",
-            "guid": "{9BC3BAA8-952C-42A7-8F29-C7BA429494E9}",
-            "group": "games"
-        },
-        {
-            "sources": 3,
-            "group": "launcher",
-            "guid": "{286971DC-59D9-06C4-02B3-CE3872EA06CA}",
-            "name": "KotonohaLauncherCore",
-            "type": "DynamicLibrary"
-        },
-        {
-            "sources": 1,
-            "group": "launcher",
-            "guid": "{56890971-4432-E6CB-7FC9-1354A73EC8D8}",
-            "name": "KotonohaLauncher",
-            "type": "Application"
-        },
-        {
-            "sources": 1,
-            "group": "launcher",
-            "guid": "{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}",
-            "name": "KotonohaGameHost",
-            "type": "Application"
-        }
-    ],
-    "configurations": [
-        "Debug",
-        "Release"
-    ],
-    "note": "Native Visual Studio solution: sources are compiled directly; no CMake invocation."
+    "vcpkg_install_roots":  {
+                                "arm64":  "buildsystems/visualstudio/vcpkg/arm64",
+                                "x86":  "buildsystems/visualstudio/vcpkg/x86",
+                                "x64":  "buildsystems/visualstudio/vcpkg/x64"
+                            },
+    "vcpkg_triplets":  {
+                           "x64":  "x64-windows",
+                           "ARM64":  "arm64-windows",
+                           "Win32":  "x86-windows"
+                       },
+    "modules":  {
+                    "Providers":  [
+                                      "Provider_Adv",
+                                      "Provider_Amagami",
+                                      "Provider_Artemis",
+                                      "Provider_Cmp",
+                                      "Provider_Gpk",
+                                      "Provider_N2",
+                                      "Provider_Pak",
+                                      "Provider_Pmail",
+                                      "Provider_Ponscripter",
+                                      "Provider_RealLive",
+                                      "Provider_Rpa",
+                                      "Provider_Xp3",
+                                      "Provider_Zero"
+                                  ],
+                    "Formats":  [
+                                    "Format_CZ",
+                                    "Format_TLG",
+                                    "Format_TIM2",
+                                    "Format_TEX",
+                                    "Format_CRGB",
+                                    "Format_EVD",
+                                    "Format_UIAtlas",
+                                    "Format_ADPCM",
+                                    "Format_CRI",
+                                    "Format_SPU",
+                                    "Format_BlockPCM",
+                                    "Format_SMFD",
+                                    "Format_ANM",
+                                    "Format_PSB"
+                                ],
+                    "VM":  [
+                               "VM_Amagami",
+                               "VM_Artemis",
+                               "VM_Kag",
+                               "VM_Meo",
+                               "VM_N2System",
+                               "VM_Pmail",
+                               "VM_Ponscripter",
+                               "VM_RealLive",
+                               "VM_RenPy",
+                               "VM_SnowRadish",
+                               "VM_SummerRadish",
+                               "VM_Tjs2"
+                           ]
+                },
+    "preparation":  {
+                        "script":  "tools/PrepareVisualStudio.ps1",
+                        "overlays":  "vcpkg-overlays/ports",
+                        "manifest":  "vcpkg.json"
+                    },
+    "vcpkg_features":  [
+                           "sdl-vcpkg",
+                           "imgui-vcpkg"
+                       ],
+    "project":  "buildsystems/visualstudio/Kotonoha.sln",
+    "platforms":  [
+                      "Win32",
+                      "x64",
+                      "ARM64"
+                  ],
+    "source_files":  317,
+    "include_directories":  117,
+    "games":  {
+                  "Game_SummerRadish":  "summer-radish-vacation",
+                  "Game_RealLive":  "reallive",
+                  "Game_SchoolDays":  "school-days",
+                  "Game_Pmail":  "pmail",
+                  "Game_N2System":  "n2system",
+                  "Game_LucaSystem":  "luca-system",
+                  "Game_MEO":  "meo",
+                  "Game_SnowRadish":  "snow-radish-vacation",
+                  "Game_KotonohaExample":  "example",
+                  "Game_Amagami":  "amagami",
+                  "Game_Kirikiri":  "kirikiri",
+                  "Game_Artemis":  "artemis",
+                  "Game_Ponscripter":  "ponscripter",
+                  "Game_ZeroNoTsukaima":  "zero-no-tsukaima",
+                  "Game_DokiDoki":  "doki-doki-literature-club",
+                  "Game_KatawaShoujo":  "katawa-shoujo"
+              },
+    "targets":  [
+                    {
+                        "sources":  85,
+                        "group":  "lib",
+                        "guid":  "{C9DE5DC1-B9B9-48E7-688A-9D9D76541551}",
+                        "name":  "KotonohaEngine",
+                        "type":  "DynamicLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\vms",
+                        "guid":  "{926F0FE9-C24C-22E2-C756-2B6348A250E5}",
+                        "name":  "VM_Amagami",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\vms",
+                        "guid":  "{401EE67D-92B0-F120-D7E9-40E650E7A14D}",
+                        "name":  "VM_Artemis",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\vms",
+                        "guid":  "{A77091D9-841D-697F-525C-B1058D14EA54}",
+                        "name":  "VM_Kag",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\vms",
+                        "guid":  "{623B96D7-ECCB-FD0E-49DE-98E65C03E49C}",
+                        "name":  "VM_Meo",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  13,
+                        "group":  "modules\\vms",
+                        "guid":  "{B77D12C7-5534-7661-F843-2C439996E79B}",
+                        "name":  "VM_N2System",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\vms",
+                        "guid":  "{B5A18B79-B15C-2B08-2FC8-967D7C2B1967}",
+                        "name":  "VM_Pmail",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  9,
+                        "group":  "modules\\vms",
+                        "guid":  "{36718B92-7E8A-1FDC-5304-3E4D5E576950}",
+                        "name":  "VM_Ponscripter",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\vms",
+                        "guid":  "{C29C4468-9110-9B72-C6C5-5DB6D797F033}",
+                        "name":  "VM_RealLive",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  3,
+                        "group":  "modules\\vms",
+                        "guid":  "{7ADCE1DE-630A-57EB-D92B-D2C9C2B2BF7D}",
+                        "name":  "VM_RenPy",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\vms",
+                        "guid":  "{F93E8597-870F-D0DF-9992-99604E5311EB}",
+                        "name":  "VM_SnowRadish",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\vms",
+                        "guid":  "{199301BC-F9AC-1768-08B0-622801D25071}",
+                        "name":  "VM_SummerRadish",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\vms",
+                        "guid":  "{A61D742E-61F4-82F8-5EF0-53F463479719}",
+                        "name":  "VM_Tjs2",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{CBCB2982-56D0-D16E-2AA8-8C4D6D375128}",
+                        "name":  "Format_CZ",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\formats",
+                        "guid":  "{F8D5E538-3CEB-0F20-FAE4-4AB52D2C2B2C}",
+                        "name":  "Format_TLG",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\formats",
+                        "guid":  "{2075F3D6-8292-0F7C-715D-27C0FDEEF9D0}",
+                        "name":  "Format_TIM2",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\formats",
+                        "guid":  "{9F84A53F-7084-8AD6-9695-7F4F6595458B}",
+                        "name":  "Format_TEX",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{17BFF716-4EDE-9003-8673-A472A6381CD9}",
+                        "name":  "Format_CRGB",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{A7298275-58A3-5A1B-D827-DA33FD230117}",
+                        "name":  "Format_EVD",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{A4DF219B-8848-77C9-DB19-12DE12915DDB}",
+                        "name":  "Format_UIAtlas",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\formats",
+                        "guid":  "{CAFA5CAC-DF68-CDC9-527E-68DE16405DE8}",
+                        "name":  "Format_ADPCM",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{06712496-B9FE-6B23-65BD-97E71857D551}",
+                        "name":  "Format_CRI",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{8D28F8CF-469E-7A4E-615F-52D71A8C29B9}",
+                        "name":  "Format_SPU",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{2F6DBA84-889C-1EAF-65BF-656FCF10203B}",
+                        "name":  "Format_BlockPCM",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{2A1038EE-D0B5-650A-B138-B8FC4E6D7607}",
+                        "name":  "Format_SMFD",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{9CD19263-D2F7-3C77-B45E-66870B4CE19B}",
+                        "name":  "Format_ANM",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\formats",
+                        "guid":  "{A9727C8C-8F0F-EAEB-625B-F3EB34676684}",
+                        "name":  "Format_PSB",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\providers",
+                        "guid":  "{46231C4E-7280-367B-37BD-4841053F7DE5}",
+                        "name":  "Provider_Adv",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  3,
+                        "group":  "modules\\providers",
+                        "guid":  "{441EB1C9-80CD-6564-FAA8-C0C4CBCB86CB}",
+                        "name":  "Provider_Amagami",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\providers",
+                        "guid":  "{2E7D8D2F-1A40-25D5-271B-3722926DC9B1}",
+                        "name":  "Provider_Artemis",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\providers",
+                        "guid":  "{5B7B1D26-4001-2E88-2622-5E9038C2B3A0}",
+                        "name":  "Provider_Cmp",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  4,
+                        "group":  "modules\\providers",
+                        "guid":  "{D8206AF9-F0D0-1008-34C6-1017A78E40C1}",
+                        "name":  "Provider_Gpk",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  2,
+                        "group":  "modules\\providers",
+                        "guid":  "{1EAAB529-043B-A065-2D99-CD7257DA0015}",
+                        "name":  "Provider_N2",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\providers",
+                        "guid":  "{DE30DA4D-B2A3-19AE-D53B-63FD268FE71A}",
+                        "name":  "Provider_Pak",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  3,
+                        "group":  "modules\\providers",
+                        "guid":  "{B5AD2D20-8D4F-5F90-A84D-9A80A52CE778}",
+                        "name":  "Provider_Pmail",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\providers",
+                        "guid":  "{A9600D17-9AAD-6FB1-B605-06C4C25DEE93}",
+                        "name":  "Provider_Ponscripter",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\providers",
+                        "guid":  "{79C07CB9-C7AF-6BA5-4DC4-A0B5AD9B6985}",
+                        "name":  "Provider_RealLive",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\providers",
+                        "guid":  "{2C19B9A0-7C84-2234-2BF7-81A8F2185C0A}",
+                        "name":  "Provider_Rpa",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  3,
+                        "group":  "modules\\providers",
+                        "guid":  "{CDC77FDC-BF00-522C-03C3-90C32F273A69}",
+                        "name":  "Provider_Xp3",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "modules\\providers",
+                        "guid":  "{73536A9D-BBFC-DCB0-D361-FD0F5E0DD36F}",
+                        "name":  "Provider_Zero",
+                        "type":  "StaticLibrary"
+                    },
+                    {
+                        "lib_for":  "Game_KotonohaExample",
+                        "name":  "Game_KotonohaExampleLib",
+                        "sources":  3,
+                        "type":  "StaticLibrary",
+                        "slug":  "example",
+                        "guid":  "{90E33C04-70C4-8530-6208-EBABD9EACAE5}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_KotonohaExample",
+                        "sources":  1,
+                        "lib":  "Game_KotonohaExampleLib",
+                        "type":  "Application",
+                        "slug":  "example",
+                        "guid":  "{E85E7753-70F2-7538-CCA0-4D48119A94D7}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_Amagami",
+                        "name":  "Game_AmagamiLib",
+                        "sources":  11,
+                        "type":  "StaticLibrary",
+                        "slug":  "amagami",
+                        "guid":  "{1111C841-3439-AD69-CD4C-AB62E58008AA}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_Amagami",
+                        "sources":  1,
+                        "lib":  "Game_AmagamiLib",
+                        "type":  "Application",
+                        "slug":  "amagami",
+                        "guid":  "{9FCD9A0E-C74C-E3B1-B7F5-7A2832B69FF4}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_ZeroNoTsukaima",
+                        "name":  "Game_ZeroNoTsukaimaLib",
+                        "sources":  15,
+                        "type":  "StaticLibrary",
+                        "slug":  "zero-no-tsukaima",
+                        "guid":  "{5B411483-8764-07EA-68D2-6E4DE954B6BC}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_ZeroNoTsukaima",
+                        "sources":  1,
+                        "lib":  "Game_ZeroNoTsukaimaLib",
+                        "type":  "Application",
+                        "slug":  "zero-no-tsukaima",
+                        "guid":  "{4BA31EFC-E13F-A9E7-0AA6-AA8269D1DB36}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_SnowRadish",
+                        "name":  "Game_SnowRadishLib",
+                        "sources":  5,
+                        "type":  "StaticLibrary",
+                        "slug":  "snow-radish-vacation",
+                        "guid":  "{68191963-1CED-0920-410C-64A649BF948E}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_SnowRadish",
+                        "sources":  1,
+                        "lib":  "Game_SnowRadishLib",
+                        "type":  "Application",
+                        "slug":  "snow-radish-vacation",
+                        "guid":  "{E5D84FC7-D19C-6392-3EB2-9492A5273083}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_SummerRadish",
+                        "name":  "Game_SummerRadishLib",
+                        "sources":  4,
+                        "type":  "StaticLibrary",
+                        "slug":  "summer-radish-vacation",
+                        "guid":  "{72A9D674-E9E5-6D49-DC44-00B5949CB98C}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_SummerRadish",
+                        "sources":  1,
+                        "lib":  "Game_SummerRadishLib",
+                        "type":  "Application",
+                        "slug":  "summer-radish-vacation",
+                        "guid":  "{54B1726F-A82C-F2E7-40A2-BD3C0D789AE2}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_DokiDoki",
+                        "name":  "Game_DokiDokiLib",
+                        "sources":  8,
+                        "type":  "StaticLibrary",
+                        "slug":  "doki-doki-literature-club",
+                        "guid":  "{ABAD9729-8126-E067-5673-6E7607D23E72}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_DokiDoki",
+                        "sources":  1,
+                        "lib":  "Game_DokiDokiLib",
+                        "type":  "Application",
+                        "slug":  "doki-doki-literature-club",
+                        "guid":  "{C76E90DE-B487-6E52-2070-8EE47A585CEC}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_SchoolDays",
+                        "name":  "Game_SchoolDaysLib",
+                        "sources":  54,
+                        "type":  "StaticLibrary",
+                        "slug":  "school-days",
+                        "guid":  "{DD4940E9-1711-4D72-1A1B-9F6810A5F125}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_SchoolDays",
+                        "sources":  1,
+                        "lib":  "Game_SchoolDaysLib",
+                        "type":  "Application",
+                        "slug":  "school-days",
+                        "guid":  "{BFB93976-7E56-4720-1B77-0ED6849DCCE4}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_RealLive",
+                        "name":  "Game_RealLiveLib",
+                        "sources":  6,
+                        "type":  "StaticLibrary",
+                        "slug":  "reallive",
+                        "guid":  "{C15C5B8A-0EE6-C619-E842-8E57A9FD4B21}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_RealLive",
+                        "sources":  1,
+                        "lib":  "Game_RealLiveLib",
+                        "type":  "Application",
+                        "slug":  "reallive",
+                        "guid":  "{5C6CD7CD-3F33-E085-1B08-70FB1F0481FF}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_Kirikiri",
+                        "name":  "Game_KirikiriLib",
+                        "sources":  2,
+                        "type":  "StaticLibrary",
+                        "slug":  "kirikiri",
+                        "guid":  "{0CCAD7E4-4399-6382-A88A-F920BE24F242}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_Kirikiri",
+                        "sources":  1,
+                        "lib":  "Game_KirikiriLib",
+                        "type":  "Application",
+                        "slug":  "kirikiri",
+                        "guid":  "{58E90A37-BE4F-D746-A3D6-4FD9464C050C}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_LucaSystem",
+                        "name":  "Game_LucaSystemLib",
+                        "sources":  3,
+                        "type":  "StaticLibrary",
+                        "slug":  "luca-system",
+                        "guid":  "{E7CC0860-1663-5DCA-A775-89A403764C67}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_LucaSystem",
+                        "sources":  1,
+                        "lib":  "Game_LucaSystemLib",
+                        "type":  "Application",
+                        "slug":  "luca-system",
+                        "guid":  "{16B2FE19-2229-7B26-7AEF-E97C2F8E55D3}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_Pmail",
+                        "name":  "Game_PmailLib",
+                        "sources":  14,
+                        "type":  "StaticLibrary",
+                        "slug":  "pmail",
+                        "guid":  "{449D4F2A-7958-7BE5-0763-56A8E39EF2F1}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_Pmail",
+                        "sources":  1,
+                        "lib":  "Game_PmailLib",
+                        "type":  "Application",
+                        "slug":  "pmail",
+                        "guid":  "{004B4DA6-24FB-B9D4-B061-BC5AAFA26ED9}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_Ponscripter",
+                        "name":  "Game_PonscripterLib",
+                        "sources":  1,
+                        "type":  "StaticLibrary",
+                        "slug":  "ponscripter",
+                        "guid":  "{DAF0BAD1-5FCC-0046-4A13-F5B60AF1D7D3}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_Ponscripter",
+                        "sources":  1,
+                        "lib":  "Game_PonscripterLib",
+                        "type":  "Application",
+                        "slug":  "ponscripter",
+                        "guid":  "{0D16F062-CA93-F99D-B520-A0FCC81E0E95}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_N2System",
+                        "name":  "Game_N2SystemLib",
+                        "sources":  1,
+                        "type":  "StaticLibrary",
+                        "slug":  "n2system",
+                        "guid":  "{45F793E2-927F-ACF6-4449-D1DF2A864E06}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_N2System",
+                        "sources":  1,
+                        "lib":  "Game_N2SystemLib",
+                        "type":  "Application",
+                        "slug":  "n2system",
+                        "guid":  "{E50445E5-9C6F-1227-048D-62C549DAD70E}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_KatawaShoujo",
+                        "name":  "Game_KatawaShoujoLib",
+                        "sources":  0,
+                        "type":  "StaticLibrary",
+                        "slug":  "katawa-shoujo",
+                        "guid":  "{8CC7981F-9287-8219-9CF6-C39770A28072}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_KatawaShoujo",
+                        "sources":  1,
+                        "lib":  "Game_KatawaShoujoLib",
+                        "type":  "Application",
+                        "slug":  "katawa-shoujo",
+                        "guid":  "{FE275987-5377-713A-9C8B-28B5D71BFE35}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_MEO",
+                        "name":  "Game_MEOLib",
+                        "sources":  0,
+                        "type":  "StaticLibrary",
+                        "slug":  "meo",
+                        "guid":  "{7E59A474-382B-9867-4076-7FD0DFD8BF12}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_MEO",
+                        "sources":  1,
+                        "lib":  "Game_MEOLib",
+                        "type":  "Application",
+                        "slug":  "meo",
+                        "guid":  "{81BFBE6C-73E4-B34A-57CB-40B10F65B01E}",
+                        "group":  "games"
+                    },
+                    {
+                        "lib_for":  "Game_Artemis",
+                        "name":  "Game_ArtemisLib",
+                        "sources":  2,
+                        "type":  "StaticLibrary",
+                        "slug":  "artemis",
+                        "guid":  "{31E69962-767F-0361-5E11-C5D5FFF8385C}",
+                        "group":  "games"
+                    },
+                    {
+                        "name":  "Game_Artemis",
+                        "sources":  1,
+                        "lib":  "Game_ArtemisLib",
+                        "type":  "Application",
+                        "slug":  "artemis",
+                        "guid":  "{9BC3BAA8-952C-42A7-8F29-C7BA429494E9}",
+                        "group":  "games"
+                    },
+                    {
+                        "sources":  3,
+                        "group":  "launcher",
+                        "guid":  "{286971DC-59D9-06C4-02B3-CE3872EA06CA}",
+                        "name":  "KotonohaLauncherCore",
+                        "type":  "DynamicLibrary"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "launcher",
+                        "guid":  "{EC24196C-69F2-BB73-9D75-F12655AC63AB}",
+                        "name":  "KotonohaGameHost",
+                        "type":  "Application"
+                    },
+                    {
+                        "sources":  1,
+                        "group":  "launcher",
+                        "guid":  "{56890971-4432-E6CB-7FC9-1354A73EC8D8}",
+                        "name":  "KotonohaLauncher",
+                        "type":  "Application"
+                    }
+                ],
+    "configurations":  [
+                           "Debug",
+                           "Release"
+                       ],
+    "note":  "Native Visual Studio solution: sources are compiled directly; no CMake invocation."
 }

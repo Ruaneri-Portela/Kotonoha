@@ -12,6 +12,16 @@
              Link="Bridge/KotonohaLauncher.cs" />
   </ItemGroup>
 
+  <!-- O motor abre assets/fonts relativos ao diretorio de trabalho. -->
+  <Target Name="CopyEngineAssets" AfterTargets="Build">
+    <ItemGroup>
+      <EngineAsset Include="../../../assets/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(EngineAsset)"
+          DestinationFiles="@(EngineAsset->'$(OutDir)assets\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.2.0" />
     <PackageReference Include="Avalonia.Desktop" Version="12.2.0" />

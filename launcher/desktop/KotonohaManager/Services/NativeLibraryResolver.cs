@@ -48,6 +48,12 @@ public static class NativeLibraryResolver
             // Os assets (fontes/shaders) ficam no output do dotnet, nao no
             // output nativo: o SDL/engine os abre relativos ao diretorio atual.
             Directory.SetCurrentDirectory(AppContext.BaseDirectory);
+            // O host de jogo filho resolve DLLs do vcpkg pelo PATH herdado.
+            var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+            if (!path.Split(Path.PathSeparator).Contains(NativeDirectory,
+                    StringComparer.OrdinalIgnoreCase))
+                Environment.SetEnvironmentVariable("PATH",
+                    NativeDirectory + Path.PathSeparator + path);
             PreloadDependencies(NativeDirectory);
         }
 

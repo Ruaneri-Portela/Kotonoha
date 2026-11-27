@@ -53,7 +53,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup><LanguageStandard>stdcpp20</LanguageStandard></PropertyGroup>
   <ItemDefinitionGroup>
-    <ClCompile><PreprocessorDefinitions>%(PreprocessorDefinitions);KOTONOHA_LAUNCHER_CORE_BUILD=1;KOTONOHA_LAUNCH_AMAGAMI=1;KOTONOHA_LAUNCH_ARTEMIS=1;KOTONOHA_LAUNCH_DDLC=1;KOTONOHA_LAUNCH_KATAWA=1;KOTONOHA_LAUNCH_KIRIKIRI=1;KOTONOHA_LAUNCH_LUCA_SYSTEM=1;KOTONOHA_LAUNCH_MEO=1;KOTONOHA_LAUNCH_N2SYSTEM=1;KOTONOHA_LAUNCH_PMAIL=1;KOTONOHA_LAUNCH_PONSCRIPTER=1;KOTONOHA_LAUNCH_REALLIVE=1;KOTONOHA_LAUNCH_SCHOOL_DAYS=1;KOTONOHA_LAUNCH_SNOW=1;KOTONOHA_LAUNCH_SUMMER=1;KOTONOHA_LAUNCH_ZERO=1</PreprocessorDefinitions></ClCompile>
+    <ClCompile><PreprocessorDefinitions>%(PreprocessorDefinitions);KOTONOHA_LAUNCHER_CORE_BUILD=1;KOTONOHA_JNI_BINDINGS=1;KOTONOHA_LAUNCH_AMAGAMI=1;KOTONOHA_LAUNCH_ARTEMIS=1;KOTONOHA_LAUNCH_DDLC=1;KOTONOHA_LAUNCH_KATAWA=1;KOTONOHA_LAUNCH_KIRIKIRI=1;KOTONOHA_LAUNCH_LUCA_SYSTEM=1;KOTONOHA_LAUNCH_MEO=1;KOTONOHA_LAUNCH_N2SYSTEM=1;KOTONOHA_LAUNCH_PMAIL=1;KOTONOHA_LAUNCH_PONSCRIPTER=1;KOTONOHA_LAUNCH_REALLIVE=1;KOTONOHA_LAUNCH_SCHOOL_DAYS=1;KOTONOHA_LAUNCH_SNOW=1;KOTONOHA_LAUNCH_SUMMER=1;KOTONOHA_LAUNCH_ZERO=1</PreprocessorDefinitions></ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup>
     <Link><ModuleDefinitionFile>$(IntDir)KotonohaLauncherCore.def</ModuleDefinitionFile></Link>
@@ -64,6 +64,7 @@
   </Target>
   <ItemGroup>
     <ClCompile Include="$(RepoRoot)launcher\core\*.cpp" />
+    <ClCompile Include="$(RepoRoot)launcher\bridge\java\JavaBridge.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="KotonohaEngine.vcxproj">

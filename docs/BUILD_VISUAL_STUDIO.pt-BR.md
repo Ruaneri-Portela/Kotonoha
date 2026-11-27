@@ -39,7 +39,10 @@ powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Bui
 de overlay do ffmpeg. `-Mode Build` compila as seis combinações
 Debug/Release × plataforma; use `-Architectures x64 -Configuration Release`
 para iterar mais rápido. Os artefatos ficam em
-`buildsystems/visualstudio/out/<Platform>/<Configuration>/`.
+`buildsystems/visualstudio/out/<Platform>/<Configuration>/`. O core do launcher
+também compila `launcher/bridge/java/JavaBridge.cpp` quando há um JDK, para que
+a mesma DLL atenda clientes JNI; o exemplo Java acrescenta esse diretório ao
+`PATH` para encontrar as DLLs dependentes.
 
 Abrir o `.sln` no Visual Studio também funciona: os caminhos de include e
 bibliotecas do vcpkg vêm de `buildsystems/visualstudio/vcpkg/<arch>/<triplet>/`, portanto não é

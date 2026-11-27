@@ -96,7 +96,7 @@ def validate() -> dict:
     require("KotonohaCopyVcpkgRuntime" in targets_xml, "Directory.Build.targets: DLL deployment missing")
     for triplet in manifest["vcpkg_triplets"].values():
         require(triplet in props, f"props: missing triplet {triplet}")
-    require("$(MSBuildThisFileDirectory)vcpkg\\$(KotonohaVcpkgArch)" in props,
+    require("$(KotonohaVcpkgInstallRoot)\\$(KotonohaVcpkgArch)" in props,
             "props: vcpkg roots are not separated per architecture")
     require("GeneratedIncludeDirs.props" in props, "props: missing generated include import")
     include_props = (VS / "GeneratedIncludeDirs.props").read_text(encoding="utf-8")
@@ -141,6 +141,9 @@ def validate() -> dict:
     require("KOTONOHA_LAUNCH_LUCA_SYSTEM=1" in core_project and
             "KOTONOHA_LAUNCH_SCHOOL_DAYS=1" in core_project,
             "LauncherCore must link all in-process game runtimes")
+    require("JavaBridge.cpp" in core_project and
+            "KOTONOHA_JNI_BINDINGS=1" in core_project,
+            "LauncherCore must export the JNI bridge")
 
     engine_sources, engine_xml = project_sources("KotonohaEngine")
     disabled = {"MetalFXUpscaler.cpp", "MPVCompatibleUpscaler.cpp"}
@@ -194,7 +197,7 @@ def validate() -> dict:
             "Launcher main.cpp missing")
     for src in (ROOT / "launcher" / "core").glob("*.cpp"):
         require(src.resolve() in launcher, f"LauncherCore missing {src.name}")
-    require(len(launcher) == 3, "LauncherCore must compile only its own core sources")
+    require(len(launcher) == 4, "LauncherCore must compile its core sources and the JNI bridge")
     for name in game_map:
         require((name + "Lib.vcxproj") in launcher_xml,
                 f"LauncherCore does not link {name}Lib")
