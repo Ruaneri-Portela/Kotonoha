@@ -25,7 +25,7 @@ InputFile::Buffer::int_type InputFile::Buffer::underflow() {
   if (!file_)
     return traits_type::eof();
   const auto n = file_->read(buffer_.data(), buffer_.size());
-  if (n < 0)
+  if (n < 0 || static_cast<uint64_t>(n) > buffer_.size())
     throw std::ios_base::failure("Cannot read SDL input");
   if (n == 0)
     return traits_type::eof();
@@ -58,8 +58,12 @@ InputFile::Buffer::seekoff(off_type off, std::ios_base::seekdir dir,
   SeekOrigin origin = SeekOrigin::Begin;
   if (dir == std::ios::cur) {
     origin = SeekOrigin::Current;
-    if (gptr())
-      off -= static_cast<off_type>(egptr() - gptr());
+    if (gptr()) {
+      const auto unread = static_cast<off_type>(egptr() - gptr());
+      if (off < std::numeric_limits<off_type>::min() + unread)
+        return pos_type(off_type(-1));
+      off -= unread;
+    }
   } else if (dir == std::ios::end) {
     origin = SeekOrigin::End;
   } else if (dir != std::ios::beg) {

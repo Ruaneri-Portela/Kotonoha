@@ -263,7 +263,9 @@ function Write-IncludeDirsProps {
     [void]$sb.AppendLine('<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">')
     [void]$sb.AppendLine('  <ItemGroup>')
     [void]$sb.AppendLine('    <KotonohaGeneratedIncludeDir Include="' +
-        (XmlEscape ($roots -join ';')) + '" />')
+        (XmlEscape (($roots | ForEach-Object {
+            '$(RepoRoot)' + $_.Substring($Repo.Length + 1)
+        }) -join ';')) + '" />')
     [void]$sb.AppendLine('  </ItemGroup>')
     [void]$sb.AppendLine('</Project>')
     WriteUtf8 (Join-Path $VS 'GeneratedIncludeDirs.props') $sb.ToString()

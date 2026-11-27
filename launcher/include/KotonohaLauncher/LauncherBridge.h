@@ -56,9 +56,10 @@ KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherScanRootsJson(const char *const *
                                     int splitSavesByGame,
                                     const char *customSaveRoot);
 
-// Versao com callback: `callback` recebe um JSON por jogo no momento em que
-// ele e encontrado. A string deve ser liberada com KotonohaLauncherFreeString.
-// maxDepth=0 (padrao) visita apenas a raiz e seus filhos diretos.
+// Delivers one owned JSON object per final catalog entry on the calling
+// thread, after deduplication, overlay pairing and parameter resolution.
+// Release each object with KotonohaLauncherFreeString. maxDepth=0 visits
+// only the root and its direct children.
 KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherScanRootsJsonWithCallback(
     const char *const *roots, int rootCount, int splitSavesByGame,
     const char *customSaveRoot, int maxDepth,

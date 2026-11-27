@@ -69,6 +69,6 @@ A importação de ZIP protege contra path traversal e aplica os mesmos limites d
 dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release --no-restore
 ```
 
-O scan usa o callback nativo: cada jogo aparece na lista assim que e
-encontrado, e uma notificacao WinUI 3 mostra o total alguns segundos depois.
-A profundidade padrao e 0 (raiz e filhos diretos).
+A varredura carrega o catálogo nativo completo e sem duplicatas em uma tarefa
+assíncrona e atualiza a biblioteca na thread da interface, preservando os cartões
+dos jogos em execução. A profundidade padrão é 0 (raiz e filhos diretos).

@@ -154,7 +154,6 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public void RefreshFilter()
     {
-        var query = SearchQuery.Trim();
         VisibleGames.ReplaceWith(Games.Where(entry => MatchesSearch(entry.Game)));
         if (SelectedGame is not null && !VisibleGames.Contains(SelectedGame)) SelectedGame = null;
     }
@@ -180,39 +179,45 @@ public sealed class MainWindowViewModel : ViewModelBase
         try
         {
             var roots = _settings.LibraryRoots.ToArray();
-            var catalog = new List<CatalogGame>();
-            var gate = new object();
+            var splitSaves = _settings.SplitSavesByGame;
+            var saveRoot = _settings.CustomSaveRoot;
+            List<CatalogGame> catalog;
             await _nativeLock.WaitAsync();
             try
             {
-                // Callback nativo: cada jogo aparece na UI assim que e achado.
-                // maxDepth=0 mantem a varredura rapida (raiz + filhos diretos).
-                await Task.Run(() => KotonohaLauncher.ScanRoots(
-                    roots,
-                    json =>
-                    {
-                        var game = JsonSerializer.Deserialize<CatalogGame>(json, JsonOptions);
-                        if (game is null) return;
-                        lock (gate) catalog.Add(game);
-                        void publish()
-                        {
-                            if (MatchesSearch(game))
-                            {
-                                var entry = new GameEntryViewModel(game);
-                                Games.Add(entry);
-                                VisibleGames.Add(entry);
-                            }
-                            Status = $"{Strings.FoundOne}: {game.Title}";
-                        }
-                        if (marshalToUi) Dispatcher.UIThread.Post(publish);
-                        else publish();
-                    },
-                    _settings.SplitSavesByGame, _settings.CustomSaveRoot, 0));
+                // Publish a complete native snapshot instead of mixing
+                // provisional cards with the previous scan's collection.
+                catalog = await Task.Run(() =>
+                    JsonSerializer.Deserialize<List<CatalogGame>>(
+                        KotonohaLauncher.ScanRoots(roots, splitSaves, saveRoot),
+                        JsonOptions) ?? new List<CatalogGame>());
             }
             finally { _nativeLock.Release(); }
             void finish()
             {
-                Games.ReplaceWith(catalog.Select(game => new GameEntryViewModel(game)));
+                var existing = Games.ToDictionary(entry => entry.Game.Path,
+                    StringComparer.Ordinal);
+                var updated = new List<GameEntryViewModel>(catalog.Count);
+                foreach (var game in catalog)
+                {
+                    if (existing.Remove(game.Path, out var entry))
+                    {
+                        entry.UpdateGame(game);
+                        updated.Add(entry);
+                    }
+                    else
+                        updated.Add(new GameEntryViewModel(game));
+                }
+                // Keep an active process controllable even if its library
+                // root was removed during the scan.
+                foreach (var entry in existing.Values)
+                {
+                    if (entry.IsRunning)
+                        updated.Add(entry);
+                    else
+                        entry.Dispose();
+                }
+                Games.ReplaceWith(updated);
                 RefreshFilter();
                 Status = $"{Games.Count} {Strings.Found}";
                 ShowNotification($"{Games.Count} {Strings.Found}");
@@ -243,7 +248,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private Task LaunchAsync(GameEntryViewModel? game)
     {
-        if (game is null) return Task.CompletedTask;
+        if (game is null || game.IsRunning) return Task.CompletedTask;
         if (NativeLibraryResolver.NativeDirectory is null)
         {
             Status = NativeStatus;
@@ -259,7 +264,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             var dll = Path.Combine(NativeLibraryResolver.NativeDirectory,
                                    "KotonohaLauncherCore.dll");
             var process = KotonohaLauncher.LaunchGameDetached(request, dll);
-            process.EnableRaisingEvents = true;
             game.RunningProcess = process;
             game.IsRunning = true;
             IsBusy = true;
@@ -281,13 +285,22 @@ public sealed class MainWindowViewModel : ViewModelBase
             process.BeginErrorReadLine();
             process.Exited += (_, _) => Dispatcher.UIThread.Post(() =>
             {
-                game.RunningProcess = null;
-                game.IsRunning = false;
-                IsBusy = false;
-                Status = $"{game.Title} {Strings.Exited} ({process.ExitCode})";
-                ShowNotification(Status, delaySeconds: 0);
-                process.Dispose();
+                try
+                {
+                    // A stopped game may already have been relaunched.
+                    // Never clear the new process from an old exit event.
+                    if (!ReferenceEquals(game.RunningProcess, process))
+                        return;
+                    game.RunningProcess = null;
+                    game.IsRunning = false;
+                    IsBusy = false;
+                    Status = $"{game.Title} {Strings.Exited} ({process.ExitCode})";
+                    ShowNotification(Status, delaySeconds: 0);
+                }
+                finally { process.Dispose(); }
             });
+            // Subscribe before enabling events, including immediate exits.
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
