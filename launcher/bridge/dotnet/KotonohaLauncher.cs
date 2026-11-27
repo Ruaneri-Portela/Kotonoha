@@ -6,6 +6,7 @@
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 
 namespace Kotonoha.Launcher;
@@ -132,10 +133,10 @@ public static class KotonohaLauncher
                                    string? customSaveRoot = null)
     {
         var native = new IntPtr[roots.Length];
-        for (int i = 0; i < roots.Length; ++i)
-            native[i] = Marshal.StringToCoTaskMemUTF8(roots[i] ?? string.Empty);
         try
         {
+            for (int i = 0; i < roots.Length; ++i)
+                native[i] = Marshal.StringToCoTaskMemUTF8(roots[i] ?? string.Empty);
             return TakeString(KotonohaLauncherScanRootsJson(
                 native, native.Length, splitSavesByGame, customSaveRoot));
         }
@@ -146,28 +147,40 @@ public static class KotonohaLauncher
     }
 
     /// <summary>
-    /// Scan roots and invoke `onGame` for each game as soon as it is found.
-    /// maxDepth=0 visits only the root and its direct children.
+    /// Scan roots and invoke `onGame` for each final resolved catalog entry
+    /// on the calling thread. maxDepth=0 visits the root and direct children.
     /// </summary>
     public static void ScanRoots(string[] roots, Action<string> onGame,
                                  bool splitSavesByGame = false,
                                  string? customSaveRoot = null, int maxDepth = 0)
     {
+        ArgumentNullException.ThrowIfNull(onGame);
         var native = new IntPtr[roots.Length];
-        for (int i = 0; i < roots.Length; ++i)
-            native[i] = Marshal.StringToCoTaskMemUTF8(roots[i] ?? string.Empty);
+        ExceptionDispatchInfo? callbackError = null;
         GameFoundCallback callback = (json, _) =>
         {
             if (json == IntPtr.Zero) return;
-            try { onGame(Marshal.PtrToStringUTF8(json) ?? string.Empty); }
+            try
+            {
+                if (callbackError is null)
+                    onGame(Marshal.PtrToStringUTF8(json) ?? string.Empty);
+            }
+            catch (Exception ex)
+            {
+                // Managed exceptions must never unwind through the native ABI.
+                callbackError ??= ExceptionDispatchInfo.Capture(ex);
+            }
             finally { KotonohaLauncherFreeString(json); }
         };
         try
         {
+            for (int i = 0; i < roots.Length; ++i)
+                native[i] = Marshal.StringToCoTaskMemUTF8(roots[i] ?? string.Empty);
             KotonohaLauncherScanRootsJsonWithCallback(
                 native, native.Length, splitSavesByGame, customSaveRoot,
                 maxDepth, callback, IntPtr.Zero);
             GC.KeepAlive(callback);
+            callbackError?.Throw();
         }
         finally
         {
