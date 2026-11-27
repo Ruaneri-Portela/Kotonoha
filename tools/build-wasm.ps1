@@ -1,39 +1,53 @@
-# Build WebAssembly do Kotonoha (PowerShell puro, sem bash/MSYS2 shell).
-# Equivale a tools/build-wasm.sh, mas usando apenas cmdlets e o cmake.exe do
-# Visual Studio. O Emscripten do MSYS2 UCRT64 fornece o toolchain e o LLVM.
-#
-# Uso: & .\tools\build-wasm.ps1
-#      & .\tools\build-wasm.ps1 -DKOTONOHA_BUILD_ALL=ON
-#      $env:KOTONOHA_WASM_TARGET='RealLive'; & .\tools\build-wasm.ps1
+# Build WebAssembly do Kotonoha via CMake preset (PowerShell).
+# Ambiente-neutral: usa cmake/VCPKG_ROOT/EMSDK do ambiente, com fallbacks
+# apenas para uma instalacao MSYS2 UCRT64 tipica no Windows.
+param(
+    [string]$Preset = 'wasm-vcpkg',
+    [string]$Target = '',
+    [switch]$ConfigureOnly
+)
+
 $ErrorActionPreference = 'Stop'
-
 $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
-$buildDir = if ($env:KOTONOHA_WASM_BUILD_DIR) { $env:KOTONOHA_WASM_BUILD_DIR } else { Join-Path $root 'build-wasm' }
-$target = if ($env:KOTONOHA_WASM_TARGET) { $env:KOTONOHA_WASM_TARGET } else { 'Kotonoha' }
+$presetName = $Preset
 
-$emRoot = if ($env:EMSCRIPTEN_ROOT) { $env:EMSCRIPTEN_ROOT } else { 'C:\msys64\ucrt64\lib\emscripten' }
-$llvmRoot = if ($env:LLVM_ROOT) { $env:LLVM_ROOT } else { 'C:\msys64\ucrt64\opt\emscripten-llvm\bin' }
-$ucrtBin = if ($env:UCRT_BIN) { $env:UCRT_BIN } else { 'C:\msys64\ucrt64\bin' }
-$vcpkgRoot = if ($env:VCPKG_ROOT) { $env:VCPKG_ROOT } else { 'C:\Program Files\Microsoft Visual Studio\18\Community\VC\vcpkg' }
 $cmakeExe = (Get-Command cmake.exe -ErrorAction SilentlyContinue).Source
 if (-not $cmakeExe) {
-  $cmakeExe = Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
+    $cmakeExe = Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio\18\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe'
 }
 if (-not (Test-Path -LiteralPath $cmakeExe)) { throw "cmake.exe nao encontrado" }
 
-$vcpkgToolchain = Join-Path $vcpkgRoot 'scripts\buildsystems\vcpkg.cmake'
-$emToolchain = Join-Path $emRoot 'cmake\Modules\Platform\Emscripten.cmake'
-if (-not (Test-Path -LiteralPath $vcpkgToolchain)) { throw "vcpkg.cmake nao encontrado: $vcpkgToolchain" }
-if (-not (Test-Path -LiteralPath $emToolchain)) { throw "Emscripten.cmake nao encontrado: $emToolchain" }
+if (-not $env:VCPKG_ROOT) {
+    $env:VCPKG_ROOT = Join-Path ${env:ProgramFiles} 'Microsoft Visual Studio\18\Community\VC\vcpkg'
+}
+if (-not (Test-Path -LiteralPath (Join-Path $env:VCPKG_ROOT 'scripts\buildsystems\vcpkg.cmake'))) {
+    throw "vcpkg.cmake nao encontrado em VCPKG_ROOT=$env:VCPKG_ROOT"
+}
 
-# Emscripten precisa do LLVM e do Python/Ninja do UCRT no PATH.
+# Emscripten: SDK oficial (EMSDK) ou instalacao MSYS2 UCRT64.
+$emRoot = $env:EMSCRIPTEN_ROOT
+if (-not $emRoot -and $env:EMSDK) {
+    $emRoot = Join-Path $env:EMSDK 'upstream\emscripten'
+}
+if (-not $emRoot) { $emRoot = 'C:\msys64\ucrt64\lib\emscripten' }
+if (-not (Test-Path -LiteralPath $emRoot)) { throw "EMSCRIPTEN_ROOT nao encontrado: $emRoot" }
 $env:EMSCRIPTEN_ROOT = $emRoot
-$env:LLVM_ROOT = $llvmRoot
-# O triplet wasm32-emscripten do vcpkg exige emcc visivel no PATH.
-# No Windows o wasm-opt do Binaryen do MSYS2 trava com -O3 em executaveis
-# WASM de ports como bzip2/brotli/json-c. Como a otimizacao e opcional,
-# geramos um shim FORA do repositorio (TEMP) que so copia entrada -> saida
-# e responde --version com o numero esperado pelo emcc.
+if (-not $env:EMSDK) { $env:EMSDK = $emRoot }
+
+# LLVM/UCRT normalmente ja estao no PATH quando o ambiente esta ativado;
+# acrescentamos os diretorios padrao do MSYS2 apenas como fallback.
+$uCRT = $env:MINGW_PREFIX
+if (-not $uCRT) { $uCRT = 'C:\msys64\ucrt64' }
+$llvmBin = Join-Path $uCRT 'opt\emscripten-llvm\bin'
+if (Test-Path -LiteralPath $llvmBin) { $env:PATH = "$llvmBin;$env:PATH" }
+if (Test-Path -LiteralPath (Join-Path $uCRT 'bin')) {
+    $env:PATH = "$uCRT\bin;$env:PATH"
+}
+$env:PATH = "$emRoot;$env:PATH"
+
+# O wasm-opt do Binaryen MSYS2 trava com -O3 em ports como bzip2/brotli/json-c.
+# Geramos um shim FORA do repositorio (TEMP) que copia entrada -> saida e
+# responde --version com o numero esperado pelo emcc. A otimizacao e opcional.
 $shimRoot = Join-Path $env:TEMP 'kotonoha-wasm-shim'
 $shimDir = Join-Path $shimRoot 'bin'
 $shimExe = Join-Path $shimDir 'wasm-opt.exe'
@@ -69,44 +83,26 @@ int main(int argc, char **argv) {
 '@
     $shimC = Join-Path $shimRoot 'wasm-opt.c'
     Set-Content -LiteralPath $shimC -Value $shimSource -Encoding ascii
-    $gcc = Join-Path $ucrtBin 'gcc.exe'
-    & $gcc -O2 -o $shimExe $shimC
+    $gcc = Get-Command gcc.exe -ErrorAction SilentlyContinue
+    if (-not $gcc) { $gccExe = Join-Path $uCRT 'bin\gcc.exe' } else { $gccExe = $gcc.Source }
+    & $gccExe -O2 -o $shimExe $shimC
     if ($LASTEXITCODE -ne 0) { throw "Falha ao compilar o shim wasm-opt" }
     # O Emscripten procura wasm-emscripten-finalize no mesmo BINARYEN_ROOT.
     Copy-Item -Force $shimExe (Join-Path $shimDir 'wasm-emscripten-finalize.exe')
 }
-$env:PATH = "$shimDir;$emRoot;$llvmRoot;$ucrtBin;$env:PATH"
+$env:PATH = "$shimDir;$env:PATH"
 
-Write-Host "[Kotonoha] EMSCRIPTEN_ROOT=$emRoot"
-Write-Host "[Kotonoha] VCPKG_ROOT=$vcpkgRoot"
-Write-Host "[Kotonoha] build dir: $buildDir"
+Write-Host "[Kotonoha] preset=$presetName EMSCRIPTEN_ROOT=$emRoot VCPKG_ROOT=$env:VCPKG_ROOT"
 
-$cmakeArgs = @(
-  '-S', $root,
-  '-B', $buildDir,
-  '-G', 'Ninja',
-  "-DCMAKE_TOOLCHAIN_FILE=$vcpkgToolchain",
-  "-DVCPKG_CHAINLOAD_TOOLCHAIN_FILE=$emToolchain",
-  '-DVCPKG_TARGET_TRIPLET=wasm32-emscripten',
-  "-DVCPKG_OVERLAY_PORTS=$(Join-Path $root 'vcpkg-overlays\ports')",
-  '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg',
-  '-DKOTONOHA_SDL_PROVIDER=VCPKG',
-  '-DKOTONOHA_IMGUI_PROVIDER=VCPKG',
-  '-DKOTONOHA_BUILD_EXAMPLE=ON',
-  '-DBUILD_TESTING=OFF',
-  '-DCMAKE_BUILD_TYPE=Release'
-) + $args
-& $cmakeExe @cmakeArgs
-if ($LASTEXITCODE -ne 0) { throw "configuracao WASM falhou (exit $LASTEXITCODE)" }
-
-if ($env:KOTONOHA_WASM_CONFIGURE_ONLY -eq '1') {
-  Write-Host '[Kotonoha] configuracao concluida (KOTONOHA_WASM_CONFIGURE_ONLY=1)'
-  exit 0
+& $cmakeExe --preset $presetName
+if ($LASTEXITCODE -ne 0) { throw "configure WASM falhou (exit $LASTEXITCODE)" }
+if ($ConfigureOnly -or $env:KOTONOHA_WASM_CONFIGURE_ONLY -eq '1') {
+    Write-Host '[Kotonoha] configuracao WASM concluida'
+    exit 0
 }
 
-$buildArgs = @('--build', $buildDir, '--target', $target)
-if ($env:KOTONOHA_WASM_JOBS) { $buildArgs += @('--parallel', $env:KOTONOHA_WASM_JOBS) }
+$buildArgs = @('--build', '--preset', $presetName)
+if ($Target) { $buildArgs += @('--target', $Target) }
 & $cmakeExe @buildArgs
 if ($LASTEXITCODE -ne 0) { throw "build WASM falhou (exit $LASTEXITCODE)" }
-
-Write-Host "[Kotonoha] build-wasm concluido: $(Join-Path (Join-Path $buildDir 'outputs') $target)"
+Write-Host '[Kotonoha] build WASM concluido'

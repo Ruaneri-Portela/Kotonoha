@@ -103,7 +103,12 @@ if(_kotonoha_sdl_request MATCHES "^(AUTO|SYSTEM)$")
         find_package(PkgConfig QUIET)
         if(PkgConfig_FOUND)
             pkg_check_modules(KOTONOHA_SYSTEM_SDL3 QUIET IMPORTED_TARGET GLOBAL sdl3)
+            # MSYS2 UCRT64 installs the .pc file as sdl3-ttf; other distros use
+            # SDL3_ttf. Try both spellings before declaring it missing.
             pkg_check_modules(KOTONOHA_SYSTEM_SDL3_TTF QUIET IMPORTED_TARGET GLOBAL SDL3_ttf)
+            if(NOT KOTONOHA_SYSTEM_SDL3_TTF_FOUND)
+                pkg_check_modules(KOTONOHA_SYSTEM_SDL3_TTF QUIET IMPORTED_TARGET GLOBAL sdl3-ttf)
+            endif()
             if(KOTONOHA_SYSTEM_SDL3_FOUND)
                 set(_kotonoha_sdl_pkg_sdl3 ON)
             endif()

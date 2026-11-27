@@ -87,35 +87,48 @@
 
             <!-- Detalhes do jogo selecionado -->
             <ScrollViewer Grid.Column="2" Padding="24">
-                <StackPanel Spacing="14" IsVisible="{Binding HasSelection}">
-                    <TextBlock Text="{Binding SelectedGame.Title}" Classes="Accent"
-                               FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Border Classes="Badge">
-                            <TextBlock Text="{Binding SelectedGame.Engine}" />
-                        </Border>
-                        <Border Classes="Badge">
-                            <TextBlock Text="{Binding SelectedGame.KindBadge}" />
-                        </Border>
-                        <Border Classes="Badge" IsVisible="{Binding SelectedGame.HasOverrides}">
-                            <TextBlock Text="PARÂMETROS CUSTOM" />
-                        </Border>
-                    </StackPanel>
+                <StackPanel Spacing="14">
+                    <!-- ContentControl evita avaliar bindings de SelectedGame quando
+                         nenhum jogo esta selecionado (evita avisos "Value is null"). -->
+                    <ContentControl Content="{Binding SelectedGame}"
+                                    IsVisible="{Binding HasSelection}">
+                        <ContentControl.ContentTemplate>
+                            <DataTemplate DataType="vm:GameEntryViewModel">
+                                <StackPanel Spacing="14">
+                                    <TextBlock Text="{Binding Title}" Classes="Accent"
+                                               FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                        <Border Classes="Badge">
+                                            <TextBlock Text="{Binding Engine}" />
+                                        </Border>
+                                        <Border Classes="Badge">
+                                            <TextBlock Text="{Binding KindBadge}" />
+                                        </Border>
+                                        <Border Classes="Badge" IsVisible="{Binding HasOverrides}">
+                                            <TextBlock Text="PARÂMETROS CUSTOM" />
+                                        </Border>
+                                    </StackPanel>
 
-                    <Border Classes="Surface" Padding="16">
-                        <StackPanel Spacing="8">
-                            <TextBlock Text="{Binding Strings.Path}" Classes="Muted" />
-                            <TextBlock Text="{Binding SelectedGame.PathText}" TextWrapping="Wrap" />
-                            <TextBlock Text="{Binding Strings.SaveDirectory}" Classes="Muted" Margin="0,8,0,0" />
-                            <TextBlock Text="{Binding SelectedGame.SaveDirectory}" TextWrapping="Wrap" />
-                        </StackPanel>
-                    </Border>
+                                    <Border Classes="Surface" Padding="16">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="{Binding PathLabel}" Classes="Muted" />
+                                            <TextBlock Text="{Binding PathText}" TextWrapping="Wrap" />
+                                            <TextBlock Text="{Binding SaveDirectoryLabel}" Classes="Muted"
+                                                       Margin="0,8,0,0" />
+                                            <TextBlock Text="{Binding SaveDirectory}" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
 
-                    <StackPanel Orientation="Horizontal" Spacing="10">
-                        <Button Classes="Primary" Content="{Binding SelectedGame.ActionLabel}"
-                                FontSize="15" Click="PlayCard_Click" />
-                        <Button Classes="Ghost" Content="{Binding Strings.Parameters}" Click="Parameters_Click" />
-                    </StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="10">
+                                        <Button Classes="Primary" Content="{Binding ActionLabel}"
+                                                FontSize="15" Click="PlayCard_Click" />
+                                        <Button Classes="Ghost" Content="{Binding ParametersLabel}"
+                                                Click="Parameters_Click" />
+                                    </StackPanel>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ContentControl.ContentTemplate>
+                    </ContentControl>
 
                     <Border Classes="Surface" Padding="12">
                         <StackPanel Spacing="6">

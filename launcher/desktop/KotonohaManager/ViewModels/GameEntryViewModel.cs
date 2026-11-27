@@ -24,6 +24,10 @@ public sealed class GameEntryViewModel : ViewModelBase, IDisposable
     {
         OnPropertyChanged(nameof(StatusText));
         OnPropertyChanged(nameof(ActionLabel));
+        OnPropertyChanged(nameof(PathLabel));
+        OnPropertyChanged(nameof(SaveDirectoryLabel));
+        OnPropertyChanged(nameof(ParametersLabel));
+        OnPropertyChanged(nameof(ExecutionLogLabel));
     }
 
     public void UpdateGame(CatalogGame game)
@@ -78,6 +82,11 @@ public sealed class GameEntryViewModel : ViewModelBase, IDisposable
     public string ActionLabel =>
         IsRunning ? Localization.Instance.Stop : T("▶", "▶");
 
+    public string PathLabel => Localization.Instance.Path;
+    public string SaveDirectoryLabel => Localization.Instance.SaveDirectory;
+    public string ParametersLabel => Localization.Instance.Parameters;
+    public string ExecutionLogLabel => Localization.Instance.ExecutionLog;
+
     private static string T(string pt, string en) =>
         Localization.Instance.Language == "en" ? en : pt;
 
@@ -85,13 +94,26 @@ public sealed class GameEntryViewModel : ViewModelBase, IDisposable
 
     public void Stop()
     {
-        if (RunningProcess is { HasExited: false } process)
-        {
-            try { process.Kill(entireProcessTree: true); }
-            catch (InvalidOperationException) { }
-        }
+        var process = RunningProcess;
         RunningProcess = null;
         IsRunning = false;
+        if (process is null) return;
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or
+                                   System.ComponentModel.Win32Exception or
+                                   NotSupportedException)
+        {
+            // O processo ja tinha saido entre a leitura e o Kill.
+        }
+        finally
+        {
+            try { process.Dispose(); }
+            catch (InvalidOperationException) { }
+        }
     }
     public IBrush RowBackground => IsRunning
         ? new SolidColorBrush(Color.Parse("#525D84"))

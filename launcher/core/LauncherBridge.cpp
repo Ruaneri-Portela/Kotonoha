@@ -769,6 +769,8 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
 
 void KotonohaLauncherFreeString(char *ptr) { std::free(ptr); }
 
+} // extern "C"
+
 #if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
 namespace {
 
@@ -848,7 +850,7 @@ char *detachedResponse(bool ok, int pid, const char *host,
 const KotonohaGameLaunchRequest *g_hostRequest = nullptr;
 std::string g_detachedHostOverride;
 
-std::string currentExecutablePath() {
+static std::string currentExecutablePath() {
 #if defined(__APPLE__)
   char path[4096];
   std::uint32_t size = sizeof(path);
@@ -867,6 +869,8 @@ std::string currentExecutablePath() {
 
 } // namespace
 #endif
+
+extern "C" {
 
 char *KotonohaLauncherLaunchGameJson(const char *requestJson) {
 #if defined(__ANDROID__) || defined(__EMSCRIPTEN__)

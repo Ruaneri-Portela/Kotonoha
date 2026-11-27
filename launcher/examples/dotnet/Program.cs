@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Avalonia;
@@ -17,11 +18,25 @@ internal static class Program
         Environment.GetEnvironmentVariable("KOTONOHA_BUILD_ROOT") is { Length: > 0 } root
             ? root
             : Path.Combine(RepoRoot, "out", "build",
+                OperatingSystem.IsWindows() ? "windows-x64-msvc-vcpkg" :
                 RuntimeInformation.ProcessArchitecture == Architecture.Arm64
                     ? "macos-arm64-vcpkg" : "macos-amd64-vcpkg");
 
     public static readonly string NativeLibraryPath =
-        Path.Combine(BuildRoot, "lib", "libKotonohaLauncherCore.dylib");
+        Environment.GetEnvironmentVariable("KOTONOHA_NATIVE_DIR") is { Length: > 0 } nativeDir
+            ? ResolveNativeLibrary(nativeDir)
+            : ResolveNativeLibrary(BuildRoot);
+
+    private static string ResolveNativeLibrary(string root)
+    {
+        var name = OperatingSystem.IsWindows() ? "KotonohaLauncherCore.dll" :
+                   OperatingSystem.IsMacOS() ? "libKotonohaLauncherCore.dylib" :
+                   "libKotonohaLauncherCore.so";
+        var direct = Path.Combine(root, name);
+        if (File.Exists(direct)) return direct;
+        var nested = Path.Combine(root, "lib", name);
+        return File.Exists(nested) ? nested : direct;
+    }
 
     public static readonly string BuildBin = Path.Combine(BuildRoot, "bin");
 
@@ -30,17 +45,21 @@ internal static class Program
     public static bool AttachedMode { get; private set; }
 
     // Uma pasta com varios jogos: o scan e' recursivo no core.
-    public static readonly string[] DefaultRoots =
-    {
-        "/Volumes/Server/data2/Games",
-        "/Volumes/Nero 2TB/KotonohaAssets",
-    };
+    public static readonly string[] DefaultRoots = ResolveRoots("KOTONOHA_SCAN_ROOT",
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+                     "Documents", "Kotonoha", "games"));
 
     public static readonly string[] DdlcTestRoots =
+        ResolveRoots("KOTONOHA_DDLC_ROOT", Path.Combine(DefaultRoots.FirstOrDefault() ?? "", "DDLC"));
+
+    private static string[] ResolveRoots(string variable, string fallback)
     {
-        "/Volumes/Nero 2TB/KotonohaAssets/DDLC",
-        "/Volumes/Server/data2/Games/DDLC",
-    };
+        var configured = Environment.GetEnvironmentVariable(variable);
+        if (!string.IsNullOrWhiteSpace(configured))
+            return configured.Split(Path.PathSeparator,
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return new[] { fallback };
+    }
 
     [STAThread]
     public static int Main(string[] args)

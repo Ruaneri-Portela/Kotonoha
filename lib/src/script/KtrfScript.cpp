@@ -255,7 +255,7 @@ KtrfScript KtrfScript::load(const std::string &path,
       throw std::invalid_argument(
           "KTRF requires its game profile (not kotonoha.vn)");
     source.assign(reinterpret_cast<const char *>(section->payload),
-                  section->stored_size);
+                  static_cast<std::size_t>(section->stored_size));
   }
   if (source.size() >= static_cast<size_t>(std::numeric_limits<int>::max()))
     throw std::invalid_argument("KTRF JSON exceeds parser limit");

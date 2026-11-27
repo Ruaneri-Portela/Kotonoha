@@ -4,6 +4,10 @@
 // launcher + game sources as the CMake core library.
 #include "Launcher.macOS.xcconfig"
 
+// JNI symbols (JavaBridge.cpp) are compiled when JAVA_HOME points to a JDK.
+HEADER_SEARCH_PATHS = $(inherited) "$(JAVA_HOME)/include" "$(JAVA_HOME)/include/darwin"
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) KOTONOHA_JNI_BINDINGS=1
+
 PRODUCT_NAME = KotonohaLauncherCore
 PRODUCT_MODULE_NAME = KotonohaLauncherCore
 DEFINES_MODULE = YES

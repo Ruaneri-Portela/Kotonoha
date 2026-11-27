@@ -17,18 +17,33 @@ public final class NativeLibraries {
 
     public static String repo() {
         String fromEnv = System.getenv("KOTONOHA_REPO");
-        return fromEnv != null && !fromEnv.isEmpty()
-                ? fromEnv
-                : "/Users/nero/Codes/Kotonoha";
+        if (fromEnv != null && !fromEnv.isEmpty()) return fromEnv;
+        // launcher/examples/java -> raiz do repositorio
+        return new File(System.getProperty("user.dir"), "../../..")
+                .getAbsoluteFile().toPath().normalize().toString();
     }
 
     /** Absolute path of the native core used by this example. */
     public static String corePath() {
         String override = System.getProperty("kotonoha.coreLib");
-        if (override != null && !override.isEmpty())
-            return canonical(override);
-        return canonical(repo() + "/out/build/macos-arm64-vcpkg/lib/"
-                + coreFileName());
+        if (override != null && !override.isEmpty()) return canonical(override);
+        String nativeDir = System.getenv("KOTONOHA_NATIVE_DIR");
+        if (nativeDir != null && !nativeDir.isEmpty())
+            return canonical(new File(nativeDir, coreFileName()).getPath());
+        String build = isWindows() ? "windows-x64-msvc-vcpkg"
+                : isLinux() ? "linux-x64-vcpkg" : "macos-arm64-vcpkg";
+        File core = new File(repo(), "out/build/" + build + "/lib/" + coreFileName());
+        if (core.isFile()) return canonical(core.getPath());
+        return canonical(new File(repo(), "buildsystems/visualstudio/out/x64/Release/"
+                + coreFileName()).getPath());
+    }
+
+    private static boolean isWindows() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+    }
+
+    private static boolean isLinux() {
+        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux");
     }
 
     private static String coreFileName() {
@@ -63,19 +78,26 @@ public final class NativeLibraries {
         String lib = core.getParent();
         String build = new File(lib).getParent();
         String vcpkg = findVcpkgLib(build);
-        String[] dependencies = {
-                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Python3",
-                vcpkg + "/libSDL3.0.dylib",
-                vcpkg + "/libz.1.3.2.dylib",
-                lib + "/libKotonohaEngine.dylib",
-                vcpkg + "/libSDL3_ttf.0.2.2.dylib",
-                vcpkg + "/libavformat.63.1.102.dylib",
-                vcpkg + "/libavcodec.63.1.102.dylib",
-                vcpkg + "/libswscale.10.1.102.dylib",
-                vcpkg + "/libswresample.7.1.102.dylib",
-                vcpkg + "/libavutil.61.1.102.dylib",
-                lib + "/libImgui.dylib",
-        };
+        String[] dependencies;
+        if (isWindows() || isLinux()) {
+            // O carregador nativo resolve DLLs/so vizinhas ao core; nao ha
+            // @rpath e nao e preciso pre-carregar dependencias por caminho.
+            dependencies = new String[0];
+        } else {
+            dependencies = new String[] {
+                    "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Python3",
+                    vcpkg + "/libSDL3.0.dylib",
+                    vcpkg + "/libz.1.3.2.dylib",
+                    lib + "/libKotonohaEngine.dylib",
+                    vcpkg + "/libSDL3_ttf.0.2.2.dylib",
+                    vcpkg + "/libavformat.63.1.102.dylib",
+                    vcpkg + "/libavcodec.63.1.102.dylib",
+                    vcpkg + "/libswscale.10.1.102.dylib",
+                    vcpkg + "/libswresample.7.1.102.dylib",
+                    vcpkg + "/libavutil.61.1.102.dylib",
+                    lib + "/libImgui.dylib",
+            };
+        }
         for (String dependency : dependencies) {
             File file = new File(dependency);
             if (file.isFile())

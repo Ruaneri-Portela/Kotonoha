@@ -201,6 +201,11 @@ function(kotonoha_resolve_deps_provider)
                     endif()
                 endif()
             endif()
+            # IDE terminals (VS Code)startam sem MSYSTEM_PREFIX; tentar o
+            # prefixo UCRT64 padrao mantem SYSTEM utilizavel tambem ali.
+            if(NOT _msys_prefix_raw AND IS_DIRECTORY "C:/msys64/ucrt64")
+                set(_msys_prefix_raw "C:/msys64/ucrt64")
+            endif()
             if(_msys_prefix_raw)
                 file(TO_CMAKE_PATH "${_msys_prefix_raw}" _msys_prefix)
                 if(IS_DIRECTORY "${_msys_prefix}" AND
