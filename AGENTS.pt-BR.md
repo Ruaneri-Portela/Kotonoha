@@ -153,7 +153,7 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
 
 ### Android via Gradle
 - Localizado em `buildsystems/android/`.
-- Requer JDK 17, Android SDK 36, NDK 28.2.13676358, CMake 3.22.1.
+- Requer JDK 17, Android SDK 36, NDK 30.0.16248370, CMake 3.22.1.
 - Binários ELF usam alinhamento de página de 16 KiB (`-Wl,-z,max-page-size=16384`).
 - Comandos:
   ```sh

@@ -2118,7 +2118,8 @@ void DebugOverlay::drawLogs() {
           const auto &entry = *shown[static_cast<std::size_t>(i)];
           ImGui::TableNextRow();
           ImGui::TableSetColumnIndex(0);
-          ImGui::TextDisabled("%llu ms", entry.milliseconds);
+          ImGui::TextDisabled("%llu ms",
+                              static_cast<unsigned long long>(entry.milliseconds));
           ImGui::TableSetColumnIndex(1);
           const bool tinted = entry.priority != SDL_LOG_PRIORITY_INFO;
           if (tinted)

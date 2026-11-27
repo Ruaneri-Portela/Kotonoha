@@ -2,7 +2,7 @@
 
 **English (US)** | [Português (Brasil)](BUILD_ANDROID.pt-BR.md)
 
-Android uses `buildsystems/android/`, with one Gradle product flavor per game. Requirements: Android Studio (or SDK command-line tools), **JDK 17**, **SDK 36**, **NDK 28.2.13676358**, **CMake 3.22.1**, Git, and vcpkg.
+Android uses `buildsystems/android/`, with one Gradle product flavor per game. Requirements: Android Studio (or SDK command-line tools), **JDK 17**, **SDK 36**, **NDK 30.0.16248370**, **CMake 3.22.1**, Git, and vcpkg.
 
 ```sh
 export VCPKG_ROOT=/path/to/vcpkg
