@@ -2284,8 +2284,9 @@ struct RealLiveRuntime::Impl {
     clip.loop = loop;
     clip.startFrame = bgmSeekFrame(start, offsetMilliseconds, target.freq,
                                    clip.samples.size() / clip.channels);
-    clip.loopStart = std::min<size_t>(static_cast<size_t>(std::max<int64_t>(0, loopStart)),
-                                      clip.samples.size() / clip.channels);
+    clip.loopStart = static_cast<size_t>(std::min<uint64_t>(
+        static_cast<uint64_t>(std::max<int64_t>(0, loopStart)),
+        clip.samples.size() / clip.channels));
     if (!p.Play(engine->GetAudio().channel(channel), std::move(clip)))
       throw std::runtime_error(SDL_GetError());
     if (&p == &bgm)
