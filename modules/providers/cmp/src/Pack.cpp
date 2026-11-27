@@ -45,6 +45,27 @@ Bytes readSlice(Kotonoha::Filesystem::Filesystem &filesystem,
     readSliceInto(filesystem, id, offset, bytes.data(), size);
   return bytes;
 }
+// Validate before adding a relative offset to avoid signed integer overflow.
+int64_t boundedSeekTarget(int64_t offset, Kotonoha::Filesystem::SeekOrigin origin,
+                          int64_t cursor, int64_t size) {
+  int64_t base = 0;
+  switch (origin) {
+  case Kotonoha::Filesystem::SeekOrigin::Begin:
+    break;
+  case Kotonoha::Filesystem::SeekOrigin::Current:
+    base = cursor;
+    break;
+  case Kotonoha::Filesystem::SeekOrigin::End:
+    base = size;
+    break;
+  default:
+    return -1;
+  }
+  if (offset < -base || offset > size - base)
+    return -1;
+  return base + offset;
+}
+
 class CmpSliceFileHandle final : public Kotonoha::Filesystem::FileHandle {
   std::unique_ptr<Kotonoha::Filesystem::FileHandle> base_;
   int64_t baseOffset_ = 0;
@@ -81,19 +102,8 @@ public:
   }
   int64_t seek(int64_t offset,
                Kotonoha::Filesystem::SeekOrigin origin) override {
-    int64_t target = 0;
-    switch (origin) {
-    case Kotonoha::Filesystem::SeekOrigin::Begin:
-      target = offset;
-      break;
-    case Kotonoha::Filesystem::SeekOrigin::Current:
-      target = cursor_ + offset;
-      break;
-    case Kotonoha::Filesystem::SeekOrigin::End:
-      target = size_ + offset;
-      break;
-    }
-    if (target < 0 || target > size_)
+    const auto target = boundedSeekTarget(offset, origin, cursor_, size_);
+    if (target < 0)
       return -1;
     if (base_->seek(baseOffset_ + target,
                     Kotonoha::Filesystem::SeekOrigin::Begin) !=
@@ -122,19 +132,9 @@ public:
   }
   int64_t seek(int64_t offset,
                Kotonoha::Filesystem::SeekOrigin origin) override {
-    int64_t target = 0;
-    switch (origin) {
-    case Kotonoha::Filesystem::SeekOrigin::Begin:
-      target = offset;
-      break;
-    case Kotonoha::Filesystem::SeekOrigin::Current:
-      target = cursor_ + offset;
-      break;
-    case Kotonoha::Filesystem::SeekOrigin::End:
-      target = static_cast<int64_t>(data_.size()) + offset;
-      break;
-    }
-    if (target < 0 || target > static_cast<int64_t>(data_.size()))
+    const auto target = boundedSeekTarget(
+        offset, origin, cursor_, static_cast<int64_t>(data_.size()));
+    if (target < 0)
       return -1;
     cursor_ = target;
     return cursor_;
