@@ -8,7 +8,7 @@
       </BuildActionEntries>
       <PreActions>
          <ExecutionAction ActionType="Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
-            <ActionContent title="Prepare vcpkg dependencies" scriptText="set -eu&#10;if [ -n &quot;${PLATFORM_NAME:-}&quot; ]; then&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --only-vcpkg --sdk &quot;${PLATFORM_NAME}&quot;&#10;else&#10;  /usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --platform macos --only-vcpkg&#10;fi">
+            <ActionContent title="Prepare vcpkg dependencies" scriptText="/usr/bin/env python3 &quot;${SRCROOT}/../../tools/PrepareApple.py&quot; --xcode-pre-action">
                <EnvironmentBuildable>
                   <BuildableReference BuildableIdentifier="primary" BlueprintIdentifier="A37E00000000000000000001" BuildableName="ArtemisGame.app" BlueprintName="ArtemisGame-macOS" ReferencedContainer="container:Kotonoha.xcodeproj" />
                </EnvironmentBuildable>

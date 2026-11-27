@@ -84,7 +84,7 @@ Emit ast(std::string name,
   });
   return object(std::move(name), std::move(properties));
 }
-Emit label(std::string name, std::vector<Emit> block) {
+Emit mkLabel(std::string name, std::vector<Emit> block) {
   return ast("Label", {{"name", text(std::move(name))},
                        {"block", list(std::move(block))},
                        {"parameters", nothing()}});
@@ -139,7 +139,7 @@ struct Temp {
 
 int main() {
   try {
-    const auto start = label(
+    const auto start = mkLabel(
         "movie_test",
         {python("cutsceneResult = renpy.movie_cutscene('video/synthetic.mkv')"),
          say("after the cutscene"), ret()});

@@ -5,7 +5,7 @@
 #if !TARGET_OS_IPHONE
 #include "KotonohaMacLauncherBridge.h"
 
-typedef void (^KotonohaMacLaunchBlock)(
+typedef NSInteger (^KotonohaMacLaunchBlock)(
     NSString *gamePath, NSString *engineSlug, NSString *saveProfileId,
     BOOL splitSavesByGame, NSString *customSaveRoot, NSString *assetOverlayPath,
     NSString *translationPath, NSString *subtitleStylePath,
@@ -44,7 +44,7 @@ KotonohaMacPresentNativeLauncher(KotonohaMacLaunchCallback onLaunch,
       return;
     }
     [cls
-        presentWithOnLaunch:^(
+        presentWithOnLaunch:^NSInteger(
             NSString *gamePath, NSString *engineSlug, NSString *saveProfileId,
             BOOL splitSavesByGame, NSString *customSaveRoot,
             NSString *assetOverlayPath, NSString *translationPath,
@@ -53,7 +53,7 @@ KotonohaMacPresentNativeLauncher(KotonohaMacLaunchCallback onLaunch,
             NSString *rendererBackend, NSString *upscalerBackend,
             NSString *upscalerPreset, NSString *upscalerFactor) {
           if (!onLaunch)
-            return;
+            return (NSInteger)0;
           KotonohaGameLaunchRequest req = {};
           req.gamePath = gamePath.UTF8String ?: "";
           req.engineSlug = engineSlug.UTF8String ?: "";
@@ -71,7 +71,7 @@ KotonohaMacPresentNativeLauncher(KotonohaMacLaunchCallback onLaunch,
           req.upscalerBackend = upscalerBackend.UTF8String ?: "";
           req.upscalerPreset = upscalerPreset.UTF8String ?: "";
           req.upscalerFactor = upscalerFactor.UTF8String ?: "";
-          onLaunch(&req, userData);
+          return (NSInteger)onLaunch(&req, userData);
         }
         onQuit:^{
           if (onQuit)

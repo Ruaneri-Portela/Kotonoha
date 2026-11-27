@@ -9,9 +9,13 @@ export KOTONOHA_REPO="$(cd "$APP/../../.." && pwd)"
 JAVA_HOME="${JAVA_HOME:-$(/usr/libexec/java_home -v 21)}"
 export JAVA_HOME
 JH="$JAVA_HOME"
-CORE="$KOTONOHA_REPO/out/build/macos-arm64-vcpkg/lib/libKotonohaLauncherCore.dylib"
+CORE="${KOTONOHA_CORE:-$KOTONOHA_REPO/out/build/macos-arm64-vcpkg/lib/libKotonohaLauncherCore.dylib}"
 JFX_VERSION="21.0.2"
 JFX_BASE="https://repo1.maven.org/maven2/org/openjfx"
+case "$(uname -m)" in
+  arm64|aarch64) JFX_ARCH="mac-aarch64" ;;
+  *) JFX_ARCH="mac" ;;
+esac
 
 if [[ ! -f "$CORE" ]]; then
   echo "[build] Core nao encontrado: $CORE" >&2
@@ -23,10 +27,10 @@ mkdir -p lib out
 
 # JavaFX 21 (macOS arm64) sem Maven/Gradle; jars ficam em lib/ (ignorados).
 for module in javafx-base javafx-graphics javafx-controls javafx-media; do
-  jar="lib/$module-$JFX_VERSION-mac-aarch64.jar"
+  jar="lib/$module-$JFX_VERSION-$JFX_ARCH.jar"
   if [[ ! -s "$jar" ]]; then
     echo "[build] baixando $jar"
-    curl -fsSL "$JFX_BASE/$module/$JFX_VERSION/$module-$JFX_VERSION-mac-aarch64.jar" -o "$jar"
+    curl -fsSL "$JFX_BASE/$module/$JFX_VERSION/$module-$JFX_VERSION-$JFX_ARCH.jar" -o "$jar"
   fi
 done
 

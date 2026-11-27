@@ -171,14 +171,14 @@ jstring jniValidateRoute(JNIEnv *env, jstring ktrfPath) {
   return env->NewStringUTF((prefix + buf).c_str());
 }
 
-jstring jniLaunchGame(
+jstring jniLaunchGameImpl(
     JNIEnv *env, jstring gamePath, jstring engineSlug, jstring saveProfileId,
     jboolean splitSavesByGame, jstring customSaveRoot,
     jstring assetOverlayPath, jstring translationPath,
     jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
     jstring scriptsDir, jstring startScenario, jstring rendererBackend,
     jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
-    jboolean dryRun) {
+    jboolean dryRun, bool detached) {
   const std::string path = jstringToStd(env, gamePath);
   const std::string slug = jstringToStd(env, engineSlug);
   const std::string profile = jstringToStd(env, saveProfileId);
@@ -212,8 +212,25 @@ jstring jniLaunchGame(
   request.upscalerPreset = preset.c_str();
   request.upscalerFactor = factor.c_str();
   request.dryRun = dryRun ? 1 : 0;
-  char *json = KotonohaLauncherLaunchGame(&request);
+  char *json = detached ? KotonohaLauncherLaunchGameDetached(&request)
+                        : KotonohaLauncherLaunchGame(&request);
   return newOwnedString(env, json, "{}");
+}
+
+jstring jniLaunchGame(
+    JNIEnv *env, jstring gamePath, jstring engineSlug, jstring saveProfileId,
+    jboolean splitSavesByGame, jstring customSaveRoot,
+    jstring assetOverlayPath, jstring translationPath,
+    jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
+    jstring scriptsDir, jstring startScenario, jstring rendererBackend,
+    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
+    jboolean dryRun) {
+  return jniLaunchGameImpl(env, gamePath, engineSlug, saveProfileId,
+                           splitSavesByGame, customSaveRoot, assetOverlayPath,
+                           translationPath, subtitleStylePath,
+                           customDocumentsDir, ktrfPath, scriptsDir,
+                           startScenario, rendererBackend, upscalerBackend,
+                           upscalerPreset, upscalerFactor, dryRun, false);
 }
 
 } // namespace
@@ -382,6 +399,23 @@ Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_nativeLaunchJson(
                        ktrfPath, scriptsDir, startScenario, rendererBackend,
                        upscalerBackend, upscalerPreset, upscalerFactor,
                        dryRun);
+}
+
+JNIEXPORT jstring JNICALL
+Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_nativeLaunchDetachedJson(
+    JNIEnv *env, jclass, jstring gamePath, jstring engineSlug,
+    jstring saveProfileId, jboolean splitSavesByGame, jstring customSaveRoot,
+    jstring assetOverlayPath, jstring translationPath,
+    jstring subtitleStylePath, jstring customDocumentsDir, jstring ktrfPath,
+    jstring scriptsDir, jstring startScenario, jstring rendererBackend,
+    jstring upscalerBackend, jstring upscalerPreset, jstring upscalerFactor,
+    jboolean dryRun) {
+  return jniLaunchGameImpl(env, gamePath, engineSlug, saveProfileId,
+                           splitSavesByGame, customSaveRoot, assetOverlayPath,
+                           translationPath, subtitleStylePath,
+                           customDocumentsDir, ktrfPath, scriptsDir,
+                           startScenario, rendererBackend, upscalerBackend,
+                           upscalerPreset, upscalerFactor, dryRun, true);
 }
 
 } // extern "C"

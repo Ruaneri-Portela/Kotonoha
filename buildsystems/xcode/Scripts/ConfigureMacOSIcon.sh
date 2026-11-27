@@ -13,10 +13,10 @@ fatal() { printf 'error: [Kotonoha/Icon] %s\n' "$*" >&2; exit 1; }
 
 root="${KOTONOHA_ROOT:-${SRCROOT}/../..}"
 # design/generated/ is the versioned source of truth for the visual identity.
-# Regenerate it in place so the artwork stays visible in the repository; never
-# write it to TARGET_BUILD_DIR or treat it as a generic engine asset.
+# The Xcode pre-action (tools/PrepareApple.py) generates it once per build;
+# this phase only imports the specific files the macOS bundle needs. Never
+# write the design tree to TARGET_BUILD_DIR or treat it as a generic asset.
 brand="${root}/design/generated"
-python3 "${root}/tools/generate_brand_assets.py" --kind desktop --out "${brand}"
 icon="${brand}/generic/icon.icns"
 app="${TARGET_BUILD_DIR}/${WRAPPER_NAME}"
 resources="${app}/Contents/Resources"
@@ -32,8 +32,11 @@ plist="${app}/Contents/Info.plist"
 # assets/ as generic game/engine assets.
 /usr/bin/ditto "${icon}" "${resources}/icon.icns"
 # The universal splash is the single engine asset imported from design/.
+# Only copy when it actually changed so repeated builds never stage it twice.
 mkdir -p "${resources}/assets"
-/usr/bin/ditto "${brand}/splash/SPLASH.PNG" "${resources}/assets/SPLASH.PNG"
+if ! cmp -s "${brand}/splash/SPLASH.PNG" "${resources}/assets/SPLASH.PNG"; then
+  /usr/bin/ditto "${brand}/splash/SPLASH.PNG" "${resources}/assets/SPLASH.PNG"
+fi
 if /usr/libexec/PlistBuddy -c 'Print :CFBundleIconFile' "${plist}" >/dev/null 2>&1; then
   /usr/libexec/PlistBuddy -c 'Set :CFBundleIconFile icon.icns' "${plist}"
 else

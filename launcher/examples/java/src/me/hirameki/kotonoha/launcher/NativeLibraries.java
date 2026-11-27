@@ -42,12 +42,29 @@ public final class NativeLibraries {
         return new File(path).getAbsoluteFile().toPath().normalize().toString();
     }
 
+    /** vcpkg triplet install root belonging to the selected core build. */
+    private static String findVcpkgLib(String build) {
+        File installed = new File(build, "vcpkg_installed");
+        File[] triplets = installed.listFiles(
+                file -> file.isDirectory() && !file.getName().equals("debug"));
+        if (triplets != null) {
+            for (File triplet : triplets) {
+                File lib = new File(triplet, "lib");
+                if (lib.isDirectory())
+                    return canonical(lib.getPath());
+            }
+        }
+        return installed.getPath() + "/unknown/lib";
+    }
+
     /** Preloads @rpath dependencies, then the core with the JNI exports. */
     public static synchronized void loadCore() {
-        String build = repo() + "/out/build/macos-arm64-vcpkg";
-        String lib = build + "/lib";
-        String vcpkg = build + "/vcpkg_installed/macos-arm64-vcpkg/lib";
+        File core = new File(corePath());
+        String lib = core.getParent();
+        String build = new File(lib).getParent();
+        String vcpkg = findVcpkgLib(build);
         String[] dependencies = {
+                "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Python3",
                 vcpkg + "/libSDL3.0.dylib",
                 vcpkg + "/libz.1.3.2.dylib",
                 lib + "/libKotonohaEngine.dylib",

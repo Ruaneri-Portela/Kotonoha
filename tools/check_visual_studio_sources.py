@@ -76,7 +76,7 @@ def validate() -> dict:
     require(len(names) == len(set(names)), "Duplicate project names")
     guids = [t["guid"] for t in targets]
     require(len(guids) == len(set(guids)), "Duplicate project GUIDs")
-    require(len(targets) == 74, f"Expected 74 projects, got {len(targets)}")
+    require(len(targets) == 75, f"Expected 75 projects, got {len(targets)}")
     require(all(t["name"] != "KotonohaImGui" for t in targets),
             "Dear ImGui must come from vcpkg, not a local project")
     require(sln.count("Project(\"{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}\")") == len(targets),

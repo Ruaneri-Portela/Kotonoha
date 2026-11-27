@@ -8,6 +8,10 @@
 	<string>$(KOTONOHA_DISPLAY_NAME)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+	<!-- macOS icon installed by Scripts/ConfigureMacOSIcon.sh; declared here
+	     so Xcode's ProcessInfoPlistFile phase keeps the key in the bundle. -->
+	<key>CFBundleIconFile</key>
+	<string>icon.icns</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<!-- iOS icon names are installed by EmbedSDLFrameworks.sh for each game. -->

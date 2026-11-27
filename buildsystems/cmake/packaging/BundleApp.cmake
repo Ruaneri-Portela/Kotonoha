@@ -5,6 +5,17 @@ endif()
 if(NOT APP_GAME)
     message(FATAL_ERROR "App bundle game identifier is missing")
 endif()
+
+# Ship the universal detached host next to the app executable. The launcher
+# core discovers it there; for Ren'Py titles this also gives the host access
+# to the app bundle's own Python standard library.
+if(KOTONOHA_GAME_HOST AND EXISTS "${KOTONOHA_GAME_HOST}")
+    get_filename_component(app_executable_dir "${APP_EXECUTABLE}" DIRECTORY)
+    file(MAKE_DIRECTORY "${app_executable_dir}")
+    file(COPY "${KOTONOHA_GAME_HOST}" DESTINATION "${app_executable_dir}"
+         FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                          GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+endif()
 # Remove Python's nested helper application only from the staged bundle.
 include("${CMAKE_CURRENT_LIST_DIR}/PruneNestedPythonApp.cmake")
 # The unified hub links DDLC's runtime when built with BUILD_ALL.
@@ -129,8 +140,15 @@ endif()
 # Homebrew's Python.framework embeds a nested Python.app helper whose own
 # dependency on the homebrew Python binary is not relocatable. It is pruned
 # from the staged bundle after fixup, so ignore it during prerequisite checks.
-fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}"
-    IGNORE_ITEM "Python")
+if(KOTONOHA_SYSTEM_DEPS)
+    # System provider: dependencies remain in their native prefix and the
+    # executable keeps absolute paths. No relocation/copy is performed.
+    message(STATUS
+        "[Kotonoha] SYSTEM provider: using native libraries from the system prefix")
+else()
+    fixup_bundle("${APP_EXECUTABLE}" "${plugins}" "${DEPENDENCY_DIRS}"
+        IGNORE_ITEM "Python")
+endif()
 
 # fixup_bundle relocates dependencies with install_name_tool, which invalidates
 # the ad-hoc signature of every copied dylib. KotonohaLauncherCore is a shared

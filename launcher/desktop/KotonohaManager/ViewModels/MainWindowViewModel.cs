@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.Compression;
 using System.Text.Json;
 using System.Windows.Input;
@@ -23,6 +24,15 @@ public sealed class MainWindowViewModel : ViewModelBase
         if (_settings.LibraryRoots.Count == 0)
         {
             _settings.LibraryRoots.Add(DefaultGamesRoot());
+            _settings.Save();
+        }
+        // Explicit environment root wins for CI / manual launches: the caller
+        // can point the manager at a game library without editing settings.
+        var envRoot = Environment.GetEnvironmentVariable("KOTONOHA_LIBRARY_ROOT");
+        if (!string.IsNullOrWhiteSpace(envRoot) &&
+            !_settings.LibraryRoots.Contains(envRoot))
+        {
+            _settings.LibraryRoots.Add(envRoot);
             _settings.Save();
         }
         ScanCommand = new AsyncRelayCommand(_ => ScanAsync());
@@ -83,6 +93,17 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private DispatcherTimer? _notifyShowTimer;
     private DispatcherTimer? _notifyHideTimer;
+
+    private sealed class DetachedGame
+    {
+        public required int Pid { get; init; }
+        public required string LogPath { get; init; }
+        public required GameEntryViewModel Entry { get; init; }
+        public long LogOffset { get; set; }
+    }
+
+    private readonly Dictionary<int, DetachedGame> _detachedGames = new();
+    private DispatcherTimer? _gameHostTimer;
     private void ShowNotification(string text, double delaySeconds = 2,
                                   double durationSeconds = 4)
     {
@@ -240,6 +261,8 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     public void StopGame(GameEntryViewModel game)
     {
+        if (game.RunningProcess is { } stopped)
+            _detachedGames.Remove(stopped.Id);
         game.Stop();
         IsBusy = false;
         Status = $"{game.Title}: {Strings.Stop}";
@@ -261,46 +284,29 @@ public sealed class MainWindowViewModel : ViewModelBase
             var request = (game.Game.Parameters ?? new GameParameters()).ApplyTo(
                 new KotonohaGameLaunchRequest(), game.Game,
                 _settings.CustomSaveRoot, _settings.SplitSavesByGame);
-            var dll = Path.Combine(NativeLibraryResolver.NativeDirectory,
-                                   "KotonohaLauncherCore.dll");
-            var process = KotonohaLauncher.LaunchGameDetached(request, dll);
+            NativeLibraryResolver.EnsureDetachedHost();
+            var logPath = Path.Combine(Path.GetTempPath(),
+                $"kotonoha-game-{Guid.NewGuid():N}.log");
+            File.WriteAllText(logPath, string.Empty);
+            Environment.SetEnvironmentVariable("KOTONOHA_DETACHED_LOG", logPath);
+
+            var process = KotonohaLauncher.LaunchGameDetached(request);
             game.RunningProcess = process;
             game.IsRunning = true;
             IsBusy = true;
-            Status = $"{game.Title} {Strings.Running} (PID {process.Id})";
+            Status = process is null
+                ? $"{game.Title} {Strings.Running}"
+                : $"{game.Title} {Strings.Running} (PID {process.Id})";
+            if (process is null)
+                return Task.CompletedTask;
 
-            void append(string? line)
+            _detachedGames[process.Id] = new DetachedGame
             {
-                if (string.IsNullOrWhiteSpace(line)) return;
-                Dispatcher.UIThread.Post(() =>
-                {
-                    GameLog += line + Environment.NewLine;
-                    if (GameLog.Length > 16000)
-                        GameLog = GameLog.Substring(GameLog.Length - 16000);
-                });
-            }
-            process.OutputDataReceived += (_, e) => append(e.Data);
-            process.ErrorDataReceived += (_, e) => append(e.Data);
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            process.Exited += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                try
-                {
-                    // A stopped game may already have been relaunched.
-                    // Never clear the new process from an old exit event.
-                    if (!ReferenceEquals(game.RunningProcess, process))
-                        return;
-                    game.RunningProcess = null;
-                    game.IsRunning = false;
-                    IsBusy = false;
-                    Status = $"{game.Title} {Strings.Exited} ({process.ExitCode})";
-                    ShowNotification(Status, delaySeconds: 0);
-                }
-                finally { process.Dispose(); }
-            });
-            // Subscribe before enabling events, including immediate exits.
-            process.EnableRaisingEvents = true;
+                Pid = process.Id,
+                LogPath = logPath,
+                Entry = game,
+            };
+            StartGameHostPolling();
         }
         catch (Exception ex)
         {
@@ -310,6 +316,64 @@ public sealed class MainWindowViewModel : ViewModelBase
             ShowNotification(Status, delaySeconds: 0);
         }
         return Task.CompletedTask;
+    }
+
+    private void StartGameHostPolling()
+    {
+        if (_gameHostTimer is not null) return;
+        _gameHostTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _gameHostTimer.Tick += (_, _) => PollGameHosts();
+        _gameHostTimer.Start();
+    }
+
+    private void PollGameHosts()
+    {
+        if (_detachedGames.Count == 0)
+        {
+            _gameHostTimer?.Stop();
+            _gameHostTimer = null;
+            return;
+        }
+        foreach (var state in _detachedGames.Values.ToList())
+        {
+            bool alive;
+            try
+            {
+                alive = !Process.GetProcessById(state.Pid).HasExited;
+            }
+            catch (ArgumentException)
+            {
+                alive = false;
+            }
+            if (!alive)
+            {
+                state.Entry.RunningProcess = null;
+                state.Entry.IsRunning = false;
+                IsBusy = false;
+                Status = $"{state.Entry.Title} {Strings.Exited}";
+                ShowNotification(Status, delaySeconds: 0);
+                _detachedGames.Remove(state.Pid);
+            }
+            AppendHostLog(state);
+        }
+    }
+
+    private void AppendHostLog(DetachedGame state)
+    {
+        try
+        {
+            using var stream = new FileStream(state.LogPath, FileMode.Open,
+                FileAccess.Read, FileShare.ReadWrite);
+            stream.Seek(state.LogOffset, SeekOrigin.Begin);
+            using var reader = new StreamReader(stream);
+            var text = reader.ReadToEnd();
+            state.LogOffset = stream.Position;
+            if (string.IsNullOrEmpty(text)) return;
+            GameLog += text;
+            if (GameLog.Length > 16000)
+                GameLog = GameLog[^16000..];
+        }
+        catch (IOException) { }
     }
 
     private async Task ImportZipAsync(string? zipPath)

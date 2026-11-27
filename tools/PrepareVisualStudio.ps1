@@ -125,7 +125,7 @@ $Games = @(
 
 $AllModules = @($VMs) + @($Formats) + @($Providers)
 $AllTargets = @('KotonohaEngine') + @($AllModules | ForEach-Object { $_.Name }) +
-              @($Games | ForEach-Object { $_.Name }) + @('KotonohaLauncherCore', 'KotonohaLauncher')
+              @($Games | ForEach-Object { $_.Name }) + @('KotonohaLauncherCore', 'KotonohaGameHost', 'KotonohaLauncher')
 
 # ---------------------------------------------------------------------------
 # Geracao dos .vcxproj
@@ -342,6 +342,12 @@ function Invoke-Generate {
     ) -References (@('KotonohaEngine') + $moduleNames + $gameLibNames)
     $coreCount = @(Get-ChildItem -Path (Join-Path $Repo 'launcher\core') -Filter '*.cpp' -File -ErrorAction SilentlyContinue).Count
     $manifestTargets.Add(@{ name = 'KotonohaLauncherCore'; type = 'DynamicLibrary'; group = 'launcher'; guid = $coreGuid; sources = $coreCount })
+
+    # Host isolado universal (Windows/Linux/macOS via CMake/MSBuild/Xcode).
+    $gameHostGuid = New-Vcxproj -Name 'KotonohaGameHost' -Type 'Application' -Group 'launcher' -Lang 20 -Sources @(
+        (SourceItemXml '$(RepoRoot)launcher\host\GameHost.cpp')
+    ) -References @('KotonohaLauncherCore')
+    $manifestTargets.Add(@{ name = 'KotonohaGameHost'; type = 'Application'; group = 'launcher'; guid = $gameHostGuid; sources = 1 })
 
     $launcherGuid = New-Vcxproj -Name 'KotonohaLauncher' -Type 'Application' -Group 'launcher' -Sources @(
         (SourceItemXml '$(RepoRoot)launcher\app\main.cpp')

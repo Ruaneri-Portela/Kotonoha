@@ -233,11 +233,11 @@ def ensure_xcframework(
     if platform == "ios":
         expected = checksum or IOS_SHA256
         name = IOS_ARCHIVE_NAME
-        cached = ROOT / "build/iOS-deps/python/Python-iOS.tar.gz"
+        cached = ROOT / "out/deps/iOS-deps/python/Python-iOS.tar.gz"
     else:
         name = MACOS_ARCHIVE_NAME
         expected = checksum or fetch_release_digest(name)
-        cached = ROOT / "build/macOS-deps/python/Python-macOS.tar.gz"
+        cached = ROOT / "out/deps/macOS-deps/python/Python-macOS.tar.gz"
     if archive is not None:
         archive = archive.resolve()
         if not archive.is_file():
@@ -255,9 +255,100 @@ def ensure_xcframework(
     return xc
 
 
-def run(command: list[str]) -> None:
+def run(command: list[str], *, env: dict[str, str] | None = None) -> None:
     say("Running: " + " ".join(command))
-    subprocess.run(command, check=True)
+    subprocess.run(command, check=True, env=env)
+
+
+def apple_tool_env() -> dict[str, str]:
+    """Environment for nested vcpkg/xcodebuild calls from an Xcode pre-action.
+
+    Apple's git prints warnings for Xcode-only SWIFT_DEBUG_INFORMATION_* vars;
+    vcpkg captures git output when checking out a baseline, which corrupts the
+    cached baseline.json. Strip those vars and expose MacPorts tools (nasm).
+    """
+    env = {
+        key: value for key, value in os.environ.items()
+        if not key.startswith("SWIFT_DEBUG_INFORMATION")
+        # Xcode pre-actions export several deployment targets at once; clang
+        # rejects the conflicting values when vcpkg probes the iOS toolchain.
+        and "DEPLOYMENT_TARGET" not in key
+    }
+    local_bin = Path("/opt/local/bin")
+    if local_bin.is_dir():
+        env["PATH"] = f"{local_bin}{os.pathsep}{env.get('PATH', '')}"
+    return env
+
+
+# SDL3 / SDL3_ttf are built from the pinned Xcode submodules. The macOS app
+# targets look for them in build/<CONFIGURATION>/ next to each subproject,
+# so the scheme pre-action must prepare them for the configuration being
+# built (Debug and Release are separate products).
+SDL_FRAMEWORK_PROJECTS = (
+    ("SDL3", ROOT / "lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj",
+     ROOT / "lib/submodules/SDL/Xcode/SDL/build"),
+    ("SDL3_ttf", ROOT / "lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj",
+     ROOT / "lib/submodules/SDL_ttf/Xcode/build"),
+)
+MACOS_SDL_ARCHS = ("arm64", "x86_64")
+
+
+def binary_archs(binary: Path) -> set[str]:
+    try:
+        result = subprocess.run(["xcrun", "lipo", "-archs", str(binary)],
+                                check=True, capture_output=True, text=True)
+        return set(result.stdout.split())
+    except (OSError, subprocess.CalledProcessError):
+        return set()
+
+
+def prepare_sdl_frameworks(*, configuration: str, sdk: str | None) -> None:
+    """Build the SDL frameworks needed by the active Xcode configuration.
+
+    Xcode's scheme pre-actions run before the app targets, so this keeps
+    SDL3.framework / SDL3_ttf.framework in sync with the Configuration
+    popup in the Xcode UI. A universal pair is built once per configuration
+    and reused on later builds.
+    """
+    if sdk not in (None, "macosx"):
+        return
+    suffix = os.environ.get("EFFECTIVE_PLATFORM_NAME", "")
+    derived_root = ROOT / "out" / "sdl-frameworks" / configuration
+    for name, project, symroot in SDL_FRAMEWORK_PROJECTS:
+        binary = (symroot / f"{configuration}{suffix}" /
+                  f"{name}.framework" / name)
+        if binary_archs(binary).issuperset(MACOS_SDL_ARCHS):
+            say(f"Verified {name}.framework ({configuration}): {binary}")
+            continue
+        say(f"Preparing {name}.framework ({configuration}, "
+            f"{' '.join(MACOS_SDL_ARCHS)})")
+        derived_root.mkdir(parents=True, exist_ok=True)
+        run(["xcodebuild", "-project", str(project), "-scheme", name,
+             "-configuration", configuration, "-sdk", "macosx",
+             "ARCHS=" + " ".join(MACOS_SDL_ARCHS), "ONLY_ACTIVE_ARCH=NO",
+             "CODE_SIGNING_ALLOWED=NO", f"SYMROOT={symroot}",
+             "-derivedDataPath", str(derived_root / name), "build"],
+             env=apple_tool_env())
+        if not binary_archs(binary).issuperset(MACOS_SDL_ARCHS):
+            raise RuntimeError(
+                f"{name}.framework for {configuration} is missing architectures "
+                f"(expected {', '.join(MACOS_SDL_ARCHS)}): {binary}")
+
+
+def prepare_visual_assets(*, platform: str) -> None:
+    """Generate the visual identity into the versioned design/generated tree.
+
+    Xcode's bundle scripts import only the files they need from that tree;
+    generating here (once, via the brand tool's own stamp/lock) prevents the
+    splash and icons from being produced and copied twice per build.
+    """
+    kind = VISUAL_ASSET_KINDS.get(platform, "all")
+    output = ROOT / "design/generated"
+    generator = ROOT / "tools/generate_brand_assets.py"
+    say(f"Preparing visual assets ({kind}) in {output}")
+    subprocess.run([sys.executable, str(generator), "--kind", kind,
+                    "--out", str(output)], check=True, cwd=ROOT,
+                   env=apple_tool_env())
 
 
 def ios_library_source(xc: Path) -> Path:
@@ -273,7 +364,7 @@ def ios_library_source(xc: Path) -> Path:
 
 def prepare_ios(xc: Path, force_prepare: bool = False) -> None:
     source_stdlib = ios_library_source(xc)
-    dest_base = ROOT / "build/iOS-deps/python/native"
+    dest_base = ROOT / "out/deps/iOS-deps/python/native"
     dest_base.mkdir(parents=True, exist_ok=True)
     for sdk, folder in (
         ("iphoneos", "ios-arm64"),
@@ -340,7 +431,7 @@ def prepare_macos(xc: Path, force_prepare: bool = False) -> None:
     framework = xc / "macos-arm64_x86_64/Python.framework"
     if not framework.is_dir():
         raise RuntimeError(f"Missing universal macOS Python.framework: {framework}")
-    destination = ROOT / "build/macOS-deps/Frameworks/Python.framework"
+    destination = ROOT / "out/deps/macOS-deps/Frameworks/Python.framework"
     if destination.is_dir() and not force_prepare:
         say(f"Already prepared macOS: {destination}")
         return
@@ -356,11 +447,32 @@ def prepare_macos(xc: Path, force_prepare: bool = False) -> None:
 
 
 # vcpkg manifest is maintained by the main Kotonoha repository, not copied
-# into the Xcode integration ZIP. Keep the existing Xcode installation layout.
+# into the Xcode integration ZIP. Each SDK may have one install per target
+# architecture; macOS has a dedicated dynamic triplet/install root for arm64
+# and x86_64 so the Xcode .xcconfig and CMake presets share the same artifacts.
+# Visual identity is generated once, here, from design/tokens.json into the
+# versioned design/generated/ tree. Xcode's bundle scripts only import the
+# specific files they need; they never regenerate or copy the splash twice.
+VISUAL_ASSET_KINDS = {
+    "macos": "desktop",
+    "ios": "apple",
+    "all": "all",
+}
+
 VCPKG_INSTALLS = {
-    "macosx": ("arm64-osx", "macos"),
-    "iphoneos": ("arm64-ios", "ios"),
-    "iphonesimulator": ("arm64-ios-simulator", "simulator"),
+    "macosx": {
+        "arm64": ("macos-arm64-vcpkg",
+                  ROOT / "out/build/macos-arm64-vcpkg/vcpkg_installed"),
+        "x86_64": ("macos-amd64-vcpkg",
+                   ROOT / "out/build/macos-amd64-vcpkg/vcpkg_installed"),
+    },
+    "iphoneos": {
+        "arm64": ("arm64-ios", ROOT / "buildsystems/xcode/vcpkg/ios"),
+    },
+    "iphonesimulator": {
+        "arm64": ("arm64-ios-simulator",
+                  ROOT / "buildsystems/xcode/vcpkg/simulator"),
+    },
 }
 
 # These are the third-party libraries linked by Config/Common.xcconfig.
@@ -387,15 +499,26 @@ def sdk_variants(platform: str, sdk: str | None) -> list[str]:
     return [sdk] if sdk else ["macosx", "iphoneos", "iphonesimulator"]
 
 
-def vcpkg_install_root(sdk: str) -> Path:
-    _, folder = VCPKG_INSTALLS[sdk]
-    return ROOT / "buildsystems/xcode/vcpkg" / folder
+def vcpkg_archs(sdk: str) -> list[str]:
+    """Architectures the current Xcode build needs for the given SDK."""
+    if sdk != "macosx":
+        return ["arm64"]
+    requested = os.environ.get("ARCHS", "").split()
+    selected = [arch for arch in ("arm64", "x86_64") if arch in requested]
+    return selected or ["arm64", "x86_64"]
 
 
-def missing_vcpkg_libraries(sdk: str) -> list[str]:
-    triplet, _ = VCPKG_INSTALLS[sdk]
-    root = vcpkg_install_root(sdk) / triplet
-    includes, libs = root / "include", root / "lib"
+def vcpkg_variant(sdk: str, arch: str) -> tuple[str, Path]:
+    try:
+        return VCPKG_INSTALLS[sdk][arch]
+    except KeyError as exc:
+        raise RuntimeError(
+            f"No vcpkg install configured for SDK {sdk!r}, arch {arch!r}") from exc
+
+
+def missing_vcpkg_libraries(triplet: str, root: Path) -> list[str]:
+    triplet_root = root / triplet
+    includes, libs = triplet_root / "include", triplet_root / "lib"
     if not includes.is_dir() or not libs.is_dir():
         return list(VCPKG_LINK_LIBRARIES)
 
@@ -417,7 +540,8 @@ def resolve_vcpkg(explicit: Path | None, *, allow_bootstrap: bool) -> Path:
         exe_in_path = shutil.which("vcpkg")
         if exe_in_path:
             candidates.append(Path(exe_in_path))
-        candidates.extend((ROOT / "vcpkg/vcpkg", ROOT / "tools/vcpkg/vcpkg", ROOT / "build/tools/vcpkg/vcpkg"))
+        candidates.append(Path.home() / ".local/vcpkg/vcpkg")
+        candidates.extend((ROOT / "vcpkg/vcpkg", ROOT / "tools/vcpkg/vcpkg", ROOT / "out/tools/vcpkg/vcpkg"))
     for path in candidates:
         if path.is_file() and os.access(path, os.X_OK):
             return path.resolve()
@@ -460,33 +584,46 @@ def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path
         say("vcpkg preparation skipped by --vcpkg skip")
         return
     manifest = ROOT / "vcpkg.json"
-    variants = sdk_variants(platform, sdk)
-    for selected_sdk in variants:
-        triplet, _ = VCPKG_INSTALLS[selected_sdk]
-        root = vcpkg_install_root(selected_sdk)
-        with install_lock(selected_sdk):
-            missing = missing_vcpkg_libraries(selected_sdk)
-            if mode != "install" and not missing:
-                say(f"Verified vcpkg ({selected_sdk}, {triplet}): {root}")
-                continue
-            if mode == "check":
-                raise RuntimeError(f"Missing vcpkg libraries for {triplet}: {', '.join(missing)}. Run with --vcpkg auto.")
-            if not manifest.is_file():
-                raise FileNotFoundError(f"Missing {manifest}; copy the integration to the root of the original Kotonoha repository")
-            tool = resolve_vcpkg(executable, allow_bootstrap=True)
-            say(f"Preparing vcpkg ({selected_sdk}, {triplet}) in {root}")
-            # --x-install-root puts each triplet at the same directory referenced
-            # by the Xcode .xcconfig files. The repo vcpkg.json drives packages.
-            cmd = [str(tool), "install", f"--triplet={triplet}",
-                   f"--x-manifest-root={ROOT}", f"--x-install-root={root}"]
-            run(cmd)
-            missing = missing_vcpkg_libraries(selected_sdk)
-            if missing:
-                raise RuntimeError(
-                    f"vcpkg completed for {triplet}, but required libraries are still missing: "
-                    f"{', '.join(missing)}. Check the root vcpkg.json, target triplet and Xcode linker flags."
-                )
-            say(f"vcpkg ready ({selected_sdk}, {triplet})")
+    env = apple_tool_env()
+    overlays = ROOT / "vcpkg-overlays"
+    for selected_sdk in sdk_variants(platform, sdk):
+        for arch in vcpkg_archs(selected_sdk):
+            triplet, root = vcpkg_variant(selected_sdk, arch)
+            with install_lock(f"{selected_sdk}-{arch}"):
+                missing = missing_vcpkg_libraries(triplet, root)
+                if mode != "install" and not missing:
+                    say(f"Verified vcpkg ({selected_sdk}/{arch}, {triplet}): {root}")
+                    continue
+                if mode == "check":
+                    raise RuntimeError(
+                        f"Missing vcpkg libraries for {triplet} ({selected_sdk}/{arch}): "
+                        f"{', '.join(missing)}. Run with --vcpkg auto.")
+                if not manifest.is_file():
+                    raise FileNotFoundError(
+                        f"Missing {manifest}; copy the integration to the root of the original Kotonoha repository")
+                tool = resolve_vcpkg(executable, allow_bootstrap=True)
+                say(f"Preparing vcpkg ({selected_sdk}/{arch}, {triplet}) in {root}")
+                # --x-install-root puts each triplet at the path referenced by the
+                # Xcode .xcconfig files. The repo vcpkg.json drives packages.
+                cmd = [str(tool), "install", f"--triplet={triplet}",
+                       f"--x-manifest-root={ROOT}", f"--x-install-root={root}"]
+                # All SDKs must use the repository overlays (the ffmpeg port
+                # carries the iOS <stdbit.h> compatibility flag).
+                cmd.extend((f"--overlay-triplets={overlays / 'triplets'}",
+                            f"--overlay-ports={overlays / 'ports'}"))
+                if selected_sdk == "macosx":
+                    cmd.extend(("--x-feature=sdl-vcpkg",
+                                "--x-feature=imgui-vcpkg"))
+                    if arch == "x86_64":
+                        env["PKG_CONFIG_LIBDIR"] = str(root / triplet / "lib/pkgconfig")
+                run(cmd, env=env)
+                missing = missing_vcpkg_libraries(triplet, root)
+                if missing:
+                    raise RuntimeError(
+                        f"vcpkg completed for {triplet}, but required libraries are still missing: "
+                        f"{', '.join(missing)}. Check the root vcpkg.json, target triplet and Xcode linker flags."
+                    )
+                say(f"vcpkg ready ({selected_sdk}/{arch}, {triplet})")
 
 
 def main() -> int:
@@ -499,6 +636,10 @@ def main() -> int:
     parser.add_argument("--vcpkg", choices=("auto", "install", "check", "skip"), default="auto",
                         help="auto reuses complete installs; install runs vcpkg; check only verifies; skip disables")
     parser.add_argument("--vcpkg-executable", type=Path, help="Use an existing vcpkg executable")
+    parser.add_argument("--configuration", default=os.environ.get("CONFIGURATION", "Debug"),
+                        help="Xcode configuration for the SDL frameworks (default: $CONFIGURATION or Debug)")
+    parser.add_argument("--xcode-pre-action", action="store_true",
+                        help="Read platform/SDK/architecture/configuration from the Xcode build environment")
     parser.add_argument("--archive", type=Path, help="Existing iOS BeeWare tar.gz (compatible with legacy command)")
     parser.add_argument("--macos-archive", type=Path, help="Existing macOS BeeWare tar.gz")
     parser.add_argument("--sha256", help="Override iOS Python SHA-256 for a custom archive")
@@ -506,6 +647,25 @@ def main() -> int:
     parser.add_argument("--force-download", action="store_true", help="Redownload Python archives")
     parser.add_argument("--force-prepare", action="store_true", help="Rebuild prepared Python files")
     args = parser.parse_args()
+    if args.xcode_pre_action:
+        platform_name = os.environ.get("PLATFORM_NAME", "")
+        if not platform_name:
+            # Aggregate iOS schemes (notably the launcher) do not export
+            # PLATFORM_NAME to the pre-action. Infer it from SDKROOT so we
+            # never pull device dependencies into a Simulator build.
+            sdkroot = os.environ.get("SDKROOT", "")
+            if "iphonesimulator" in sdkroot:
+                platform_name = "iphonesimulator"
+            elif "iphoneos" in sdkroot:
+                platform_name = "iphoneos"
+            elif "macosx" in sdkroot:
+                platform_name = "macosx"
+            else:
+                platform_name = "iphonesimulator"
+        args.platform = ("macos" if platform_name == "macosx" else "ios")
+        args.sdk = platform_name
+        args.only_vcpkg = True
+        args.configuration = os.environ.get("CONFIGURATION", "Debug")
     if args.only_python and args.only_vcpkg:
         parser.error("--only-vcpkg and --only-python are mutually exclusive")
     if args.only_vcpkg and (args.archive or args.macos_archive):
@@ -514,10 +674,25 @@ def main() -> int:
     if selected is None:
         selected = ("ios" if args.archive and not args.macos_archive else
                     "macos" if args.macos_archive and not args.archive else "all")
+    if selected == "ios" and args.sdk is None:
+        # Direct-target build phases call `--platform ios` without an SDK.
+        # Infer it from the Xcode environment so a Simulator build never
+        # prepares/pushes device-only dependencies.
+        platform_name = os.environ.get("PLATFORM_NAME", "")
+        sdkroot = os.environ.get("SDKROOT", "")
+        if platform_name in ("iphoneos", "iphonesimulator"):
+            args.sdk = platform_name
+        elif "iphonesimulator" in sdkroot:
+            args.sdk = "iphonesimulator"
+        elif "iphoneos" in sdkroot:
+            args.sdk = "iphoneos"
+        else:
+            args.sdk = "iphonesimulator"
     if args.sdk:
         sdk_variants(selected, args.sdk)
     try:
         say(f"Preparing Apple dependencies, platform={selected}, SDK={args.sdk or 'all'}")
+        prepare_visual_assets(platform=selected)
         if not args.only_vcpkg:
             if selected in ("ios", "all"):
                 ios = ensure_xcframework(
@@ -533,6 +708,8 @@ def main() -> int:
                 prepare_macos(macos, force_prepare=args.force_prepare or args.force_download or args.macos_archive is not None)
         if not args.only_python:
             prepare_vcpkg(platform=selected, sdk=args.sdk, mode=args.vcpkg, executable=args.vcpkg_executable)
+            if selected in ("macos", "all"):
+                prepare_sdl_frameworks(configuration=args.configuration, sdk=args.sdk)
     except (OSError, RuntimeError, ValueError, tarfile.TarError, urllib.error.URLError,
             subprocess.CalledProcessError) as exc:
         print(f"error: [Kotonoha/PrepareApple] {exc}", file=sys.stderr)

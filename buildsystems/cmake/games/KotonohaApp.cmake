@@ -206,11 +206,22 @@ function(kotonoha_configure_app target)
         kotonoha_copy_assets(${target} GAME "${APP_GAME}"
             GAME_ASSET_SOURCE "${_game_asset_source}")
 
+        # With a system package provider the bundle is intentionally not
+        # relocated: binaries keep absolute /opt/local (or Homebrew) paths and
+        # resolve through the native installation. vcpkg builds are self
+        # contained and go through CMake's normal fixup_bundle.
+        set(_kotonoha_system_deps OFF)
+        if(KOTONOHA_DEPS_PROVIDER_RESOLVED STREQUAL "SYSTEM")
+            set(_kotonoha_system_deps ON)
+        endif()
+
         add_custom_command(TARGET ${target} POST_BUILD
             COMMAND "${CMAKE_COMMAND}"
                 "-DAPP_EXECUTABLE=$<TARGET_FILE:${target}>"
                 "-DBUNDLE_CONTENTS=$<TARGET_BUNDLE_CONTENT_DIR:${target}>"
                 "-DAPP_GAME=${APP_GAME}"
+                "-DKOTONOHA_SYSTEM_DEPS=${_kotonoha_system_deps}"
+                "-DKOTONOHA_GAME_HOST=$<IF:$<AND:$<STREQUAL:${APP_GAME},launcher>,$<TARGET_EXISTS:KotonohaGameHost>>,$<TARGET_FILE:KotonohaGameHost>,>"
                 "-DDEPENDENCY_DIRS=${_kotonoha_dependency_dirs}"
                 "-DPYTHON_STDLIB=${APP_PYTHON_STDLIB}"
                 "-DPYTHON_VERSION=${APP_PYTHON_VERSION}"

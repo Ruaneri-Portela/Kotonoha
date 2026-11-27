@@ -78,6 +78,38 @@ public struct UpscalePreset: Codable, Sendable {
     public let name: String
 }
 
+/// Collects entries delivered by the native scan callback. The callback may
+/// run on a scanner thread, so all mutations are protected by the lock.
+private final class ScanBox {
+    let lock = NSLock()
+    let handler: ((DiscoveredGame) -> Void)?
+    var entries: [DiscoveredGame] = []
+
+    init(_ handler: ((DiscoveredGame) -> Void)?) { self.handler = handler }
+
+    func add(_ entry: DiscoveredGame) {
+        lock.lock()
+        entries.append(entry)
+        lock.unlock()
+        handler?(entry)
+    }
+}
+
+/// A C function pointer may only be formed from a closure with no captured
+/// context; per-scan state travels in `userData`.
+private let scanRootsCallback:
+    @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void =
+    { json, data in
+        guard let json, let data else { return }
+        let value = String(cString: json)
+        KotonohaLauncherFreeString(UnsafeMutablePointer(mutating: json))
+        let decoded = KotonohaLauncher.decode(
+            [DiscoveredGame].self, from: "[" + value + "]", fallback: [])
+        if let entry = decoded.first {
+            Unmanaged<ScanBox>.fromOpaque(data).takeUnretainedValue().add(entry)
+        }
+    }
+
 /// Thread-safe facade; every heap string from C is released after conversion.
 public enum KotonohaLauncher {
     private static let decoder = JSONDecoder()
@@ -88,7 +120,7 @@ public enum KotonohaLauncher {
         return String(cString: pointer)
     }
 
-    private static func decode<T: Decodable>(
+    fileprivate static func decode<T: Decodable>(
         _ type: T.Type, from json: String, fallback: T
     ) -> T {
         guard let data = json.data(using: .utf8),
@@ -118,20 +150,6 @@ public enum KotonohaLauncher {
         return decode([DiscoveredGame].self, from: json, fallback: [])
     }
 
-    /// Retains the final catalog and its handler during the synchronous scan.
-    private final class ScanBox {
-        let lock = NSLock()
-        let handler: ((DiscoveredGame) -> Void)?
-        var entries: [DiscoveredGame] = []
-        init(_ handler: ((DiscoveredGame) -> Void)?) { self.handler = handler }
-        func add(_ entry: DiscoveredGame) {
-            lock.lock()
-            entries.append(entry)
-            lock.unlock()
-            handler?(entry)
-        }
-    }
-
     /// Scan com callback por jogo e profundidade configuravel (0 = padrao).
     /// Delivers each resolved entry to `onGame` on the calling thread.
     public static func scanRoots(
@@ -150,20 +168,10 @@ public enum KotonohaLauncher {
 
         let box = ScanBox(onGame)
         let userData = Unmanaged.passUnretained(box).toOpaque()
-        let callback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { json, data in
-            guard let json, let data else { return }
-            let value = String(cString: json)
-            KotonohaLauncherFreeString(UnsafeMutablePointer(mutating: json))
-            let array = decode([DiscoveredGame].self,
-                               from: "[" + value + "]", fallback: [])
-            if let entry = array.first {
-                Unmanaged<ScanBox>.fromOpaque(data).takeUnretainedValue().add(entry)
-            }
-        }
         KotonohaLauncherScanRootsJsonWithCallback(
             pointers.baseAddress, Int32(roots.count),
             splitSavesByGame ? 1 : 0, customSaveRoot, Int32(maxDepth),
-            callback, userData)
+            scanRootsCallback, userData)
         return box.entries.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
     }
 
@@ -181,6 +189,37 @@ public enum KotonohaLauncher {
             return nil
         }
         return entry
+    }
+
+    /// Starts the game in a detached host process. The core selects the
+    /// platform mechanism (RUNDLL32 on Windows, disowned fork elsewhere),
+    /// so callers never detect the operating system. Returns native JSON
+    /// with `ok`, `pid`, `host` and `message`.
+    public static func launchGameDetached(_ request: LaunchRequest) -> String {
+        let payload: [String: Any] = [
+            "GamePath": request.gamePath,
+            "EngineSlug": request.engineSlug,
+            "SaveProfileId": request.saveProfileId,
+            "SplitSavesByGame": request.splitSavesByGame,
+            "CustomSaveRoot": request.customSaveRoot,
+            "AssetOverlayPath": request.assetOverlayPath,
+            "TranslationPath": request.translationPath,
+            "SubtitleStylePath": request.subtitleStylePath,
+            "CustomDocumentsDir": request.customDocumentsDir,
+            "KtrfPath": request.ktrfPath,
+            "ScriptsDir": request.scriptsDir,
+            "StartScenario": request.startScenario,
+            "RendererBackend": request.rendererBackend,
+            "UpscalerBackend": request.upscalerBackend,
+            "UpscalerPreset": request.upscalerPreset,
+            "UpscalerFactor": request.upscalerFactor,
+            "DryRun": false
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: payload),
+              let json = String(data: data, encoding: .utf8) else {
+            return "{\"ok\":false,\"pid\":0,\"host\":\"none\",\"message\":\"Invalid launch request\"}"
+        }
+        return take(KotonohaLauncherLaunchGameDetachedJson(json))
     }
 
     /// Load persisted per-game parameters as raw JSON.

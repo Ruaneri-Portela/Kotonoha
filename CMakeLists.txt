@@ -34,6 +34,27 @@ if(NOT VCPKG_TARGET_TRIPLET AND
     unset(_kotonoha_windows_arch)
 endif()
 
+# vcpkg builds target the portable macOS 15 baseline from CMakePresets.
+# SYSTEM-provider builds (Homebrew/MacPorts) link dylibs installed by the host,
+# so they must target the host's own macOS version to avoid linker warnings
+# about dependencies built for a newer OS.
+if(CMAKE_HOST_SYSTEM_NAME STREQUAL "Darwin" AND
+   KOTONOHA_DEPS_PROVIDER STREQUAL "SYSTEM" AND
+   NOT CMAKE_SYSTEM_NAME MATCHES "iOS")
+    execute_process(
+        COMMAND sw_vers -productVersion
+        OUTPUT_VARIABLE KOTONOHA_HOST_MACOS_VERSION
+        OUTPUT_STRIP_TRAILING_WHITESPACE)
+    string(REGEX MATCH "^[0-9]+" KOTONOHA_HOST_MACOS_MAJOR
+           "${KOTONOHA_HOST_MACOS_VERSION}")
+    if(KOTONOHA_HOST_MACOS_MAJOR)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "${KOTONOHA_HOST_MACOS_MAJOR}"
+            CACHE STRING "macOS deployment target" FORCE)
+        message(STATUS "[Kotonoha] SYSTEM provider: macOS deployment target "
+                       "${CMAKE_OSX_DEPLOYMENT_TARGET} (host OS)")
+    endif()
+endif()
+
 project(Kotonoha VERSION 0.1.0 LANGUAGES CXX)
 
 # Windows app targets embed the shared generated K icon as a native WinRes.

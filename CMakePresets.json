@@ -1,0 +1,163 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "macos-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/out/build/${presetName}",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_DEPLOYMENT_TARGET": "15.0",
+        "KOTONOHA_BUILD_ALL": "ON",
+        "KOTONOHA_BUILD_MACOS_BUNDLES": "ON",
+        "KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS": "OFF",
+        "KOTONOHA_IMGUI_PROVIDER": "SUBMODULES",
+        "BUILD_TESTING": "ON"
+      }
+    },
+    {
+      "name": "macos-arm64-vcpkg",
+      "displayName": "macOS arm64 - vcpkg (all games, bundles)",
+      "inherits": "macos-base",
+      "environment": {
+        "VCPKG_ROOT": "$env{HOME}/.local/vcpkg",
+        "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/macos-arm64-vcpkg/vcpkg_installed/macos-arm64-vcpkg/lib/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/.local/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "VCPKG_TARGET_TRIPLET": "macos-arm64-vcpkg",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-overlays/triplets",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "Python3_EXECUTABLE": "/usr/bin/python3",
+        "Python3_ROOT_DIR": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks",
+        "Python3_FIND_FRAMEWORK": "FIRST",
+        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+      }
+    },
+    {
+      "name": "macos-amd64-vcpkg",
+      "displayName": "macOS x86_64 - vcpkg (all games, bundles)",
+      "inherits": "macos-base",
+      "environment": {
+        "VCPKG_ROOT": "$env{HOME}/.local/vcpkg",
+        "PKG_CONFIG_LIBDIR": "${sourceDir}/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/.local/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "VCPKG_TARGET_TRIPLET": "macos-amd64-vcpkg",
+        "VCPKG_OVERLAY_TRIPLETS": "${sourceDir}/vcpkg-overlays/triplets",
+        "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
+        "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
+        "KOTONOHA_DEPS_PROVIDER": "VCPKG",
+        "KOTONOHA_SDL_PROVIDER": "VCPKG",
+        "Python3_EXECUTABLE": "/usr/bin/python3",
+        "Python3_ROOT_DIR": "/Applications/Xcode.app/Contents/Developer/Library/Frameworks",
+        "Python3_FIND_FRAMEWORK": "FIRST",
+        "CMAKE_EXE_LINKER_FLAGS": "-Wl,-rpath,/Applications/Xcode.app/Contents/Developer/Library/Frameworks"
+      }
+    },
+    {
+      "name": "macos-amd64-macports",
+      "displayName": "macOS x86_64 - MacPorts (all games, bundles)",
+      "inherits": "macos-base",
+      "environment": {
+        "PKG_CONFIG_PATH": "/opt/local/lib/pkgconfig:/opt/local/share/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "CMAKE_PREFIX_PATH": "/opt/local",
+        "CMAKE_LIBRARY_PATH": "/opt/local/lib",
+        "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM"
+      }
+    },
+    {
+      "name": "macos-arm64-macports",
+      "displayName": "macOS arm64 - MacPorts only on native Apple Silicon",
+      "inherits": "macos-base",
+      "environment": {
+        "PKG_CONFIG_PATH": "/opt/local/lib/pkgconfig:/opt/local/share/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_PREFIX_PATH": "/opt/local",
+        "CMAKE_LIBRARY_PATH": "/opt/local/lib",
+        "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM"
+      }
+    },
+    {
+      "name": "macos-arm64-brew",
+      "displayName": "macOS arm64 - Homebrew (Apple Silicon)",
+      "inherits": "macos-base",
+      "environment": {
+        "PKG_CONFIG_PATH": "/opt/homebrew/lib/pkgconfig:/opt/homebrew/share/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "arm64",
+        "CMAKE_PREFIX_PATH": "/opt/homebrew",
+        "CMAKE_LIBRARY_PATH": "/opt/homebrew/lib",
+        "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM"
+      }
+    },
+    {
+      "name": "macos-amd64-brew",
+      "displayName": "macOS x86_64 - Homebrew (Intel, if installed)",
+      "inherits": "macos-base",
+      "environment": {
+        "PKG_CONFIG_PATH": "/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig"
+      },
+      "cacheVariables": {
+        "CMAKE_OSX_ARCHITECTURES": "x86_64",
+        "CMAKE_PREFIX_PATH": "/usr/local",
+        "CMAKE_LIBRARY_PATH": "/usr/local/lib",
+        "KOTONOHA_DEPS_PROVIDER": "SYSTEM",
+        "KOTONOHA_SDL_PROVIDER": "SYSTEM"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "macos-arm64-vcpkg",
+      "configurePreset": "macos-arm64-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-amd64-vcpkg",
+      "configurePreset": "macos-amd64-vcpkg",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-amd64-macports",
+      "configurePreset": "macos-amd64-macports",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-arm64-macports",
+      "configurePreset": "macos-arm64-macports",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-arm64-brew",
+      "configurePreset": "macos-arm64-brew",
+      "configuration": "Release"
+    },
+    {
+      "name": "macos-amd64-brew",
+      "configurePreset": "macos-amd64-brew",
+      "configuration": "Release"
+    }
+  ]
+}

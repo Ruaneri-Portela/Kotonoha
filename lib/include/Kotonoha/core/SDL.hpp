@@ -2,9 +2,15 @@
 
 #include <SDL3/SDL.h>
 #include <SDL3_ttf/SDL_ttf.h>
+#include <cstdlib>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <unordered_map>
+
+#if defined(__APPLE__)
+#include <sys/sysctl.h>
+#endif
 
 namespace Kotonoha {
 
@@ -110,5 +116,30 @@ public:
   TTFSession(const TTFSession &) = delete;
   TTFSession &operator=(const TTFSession &) = delete;
 };
+
+// SDL enables Metal's validation/debug layer (MTL_DEBUG_LAYER=1) for GPU
+// renderers created in debug mode. Under Rosetta that layer drives the RGFX
+// Metal shim through selectors its proxy objects do not implement
+// (e.g. -[RgfxCmdBuffer isStatEnabled]), which throws
+// NSInvalidArgumentException during a Core Animation commit. GPU validation
+// is a developer tool, not a runtime requirement, so leave it off unless the
+// caller explicitly opted in via SDL_RENDER_GPU_DEBUG / the environment.
+inline void DisableGpuDebugByDefault() noexcept {
+  if (!SDL_GetHint(SDL_HINT_RENDER_GPU_DEBUG)) {
+    SDL_SetHint(SDL_HINT_RENDER_GPU_DEBUG, "0");
+  }
+}
+
+// Metal's validation layer must be disabled before the first MTLDevice is
+// created (Xcode/intentional env vars otherwise enable it globally). Once
+// active, Core Animation's Metal commit path calls -isStatEnabled on the
+// Rosetta RGFX proxy and crashes when a SwiftUI sheet opens.
+inline void DisableMetalDebugEnvironment() noexcept {
+#if defined(__APPLE__)
+  ::unsetenv("MTL_DEBUG_LAYER");
+  ::unsetenv("MTL_CAPTURE_ENABLED");
+  ::unsetenv("MTL_HUD_ENABLED");
+#endif
+}
 
 } // namespace Kotonoha

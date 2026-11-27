@@ -309,6 +309,55 @@ struct Application {
     }
   }
 
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) &&                       \
+    !(defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+  // Desktop macOS/Linux launches run in a disowned child process created by
+  // KotonohaLauncherCore. The core owns the platform mechanism; this app only
+  // supplies the request and keeps its native hub responsive.
+  // Launches using the request assembled by the SwiftUI hub and returns the
+  // PID of the detached host so the hub can show "Running" and an End button.
+  int detachRequest(const KotonohaGameLaunchRequest &request) {
+    char *result = KotonohaLauncherLaunchGameDetached(&request);
+    if (!result)
+      return 0;
+    const std::string text(result);
+    KotonohaLauncherFreeString(result);
+    const auto pos = text.find("\"pid\":");
+    if (pos == std::string::npos)
+      return 0;
+    int pid = 0;
+    const auto parsed = std::from_chars(
+        text.data() + pos + 6, text.data() + text.size(), pid);
+    return parsed.ec == std::errc() ? pid : 0;
+  }
+
+  bool startDetached(const KotonohaLauncher::DiscoveredGameEntry &entry) {
+    KotonohaGameLaunchRequest request{};
+    request.gamePath = entry.path.c_str();
+    request.engineSlug = entry.engine.slug.c_str();
+    request.saveProfileId = entry.saveProfileId.c_str();
+    request.splitSavesByGame = splitSavesByGame ? 1 : 0;
+    request.customSaveRoot = customSaveRoot.c_str();
+    request.assetOverlayPath = entry.params.assetOverlayPath.c_str();
+    request.translationPath = entry.params.translationPath.c_str();
+    request.subtitleStylePath = entry.params.subtitleStylePath.c_str();
+    request.customDocumentsDir = entry.params.customDocumentsDir.c_str();
+    request.ktrfPath = entry.params.ktrfPath.c_str();
+    request.scriptsDir = entry.params.scriptsDir.c_str();
+    request.startScenario = entry.params.startScenario.c_str();
+    request.rendererBackend = entry.params.rendererBackend.c_str();
+    request.upscalerBackend = entry.params.upscalerBackend.c_str();
+    request.upscalerPreset = entry.params.upscalerPreset.c_str();
+    request.upscalerFactor = entry.params.upscalerFactor.c_str();
+    char *result = KotonohaLauncherLaunchGameDetached(&request);
+    const bool ok = result &&
+                    std::string(result).find("\"ok\":true") != std::string::npos;
+    if (result)
+      KotonohaLauncherFreeString(result);
+    return ok;
+  }
+#endif
+
   void stopGame() {
     if (runtime && shutdownRuntime) {
       try {
@@ -350,14 +399,12 @@ struct Application {
 #endif
 
 #if defined(KOTONOHA_MAC_NATIVE_LAUNCHER)
-  static void onMacNativeLaunch(const KotonohaGameLaunchRequest *req,
-                                void *userData) {
+  static int onMacNativeLaunch(const KotonohaGameLaunchRequest *req,
+                               void *userData) {
     auto *self = static_cast<Application *>(userData);
     if (!self || !req)
-      return;
-    PendingNativeLaunch launch = fromLaunchRequest(*req);
-    std::lock_guard<std::mutex> lock(self->macLaunchMutex);
-    self->pendingMacLaunch = std::move(launch);
+      return 0;
+    return self->detachRequest(*req);
   }
 
   static void onMacNativeQuit(void *userData) {
@@ -418,6 +465,7 @@ struct KotonohaPortCallbacks final {
 SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
                                           char **argv) {
   *appstate = nullptr;
+  Kotonoha::DisableMetalDebugEnvironment();
   KOTONOHA_SET_APP_METADATA("Kotonoha",
                             "me.hirameki.kotonoha");
   try {
@@ -626,11 +674,8 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
         entry.params = pending->params;
         app.splitSavesByGame = pending->splitSavesByGame;
         app.customSaveRoot = pending->customSaveRoot;
-        KotonohaMacDismissNativeLauncher();
-        app.macNativeHubActive = false;
-        app.macHubWindow.reset();
-        if (!app.startInProcess(entry))
-          throw std::runtime_error("Selected game runtime is not linked");
+        if (!app.startDetached(entry))
+          throw std::runtime_error("Unable to start the detached game host");
         return SDL_APP_CONTINUE;
       }
       SDL_Delay(8);
@@ -713,10 +758,16 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *state) {
         app.options.settings = app.launcher->settings();
         app.splitSavesByGame = app.launcher->splitSavesByGame();
         app.customSaveRoot = app.launcher->customSaveRoot();
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__) &&                       \
+    !(defined(__APPLE__) && defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE)
+        const bool started = app.startDetached(choice);
+#else
+        const bool started = app.startInProcess(choice);
+#endif
         app.launcher->close();
         app.launcher.reset();
-        if (!app.startInProcess(choice))
-          throw std::runtime_error("Selected game runtime is not linked");
+        if (!started)
+          throw std::runtime_error("Unable to start the detached game host");
         return SDL_APP_CONTINUE;
       }
       return result;

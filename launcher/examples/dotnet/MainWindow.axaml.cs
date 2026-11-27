@@ -6,10 +6,13 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Kotonoha.Launcher;
 
 namespace KotonohaBridgeTest;
@@ -20,7 +23,15 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<GameEntry> _games = new();
     // Log de cada jogo, indexado pelo caminho do scan (sobrevive a re-scans).
     private readonly Dictionary<string, StringBuilder> _gameLogs = new();
-    private bool _launchInFlight;
+    private sealed class HostState
+    {
+        public required int Pid { get; init; }
+        public required GameEntry Game { get; init; }
+        public required string LogPath { get; init; }
+        public long Offset { get; set; }
+    }
+    private readonly Dictionary<int, HostState> _hosts = new();
+    private DispatcherTimer? _hostTimer;
 
     public MainWindow()
     {
@@ -295,6 +306,22 @@ public partial class MainWindow : Window
             LaunchStatusTextBlock.Text = "Nenhum jogo selecionado";
             return;
         }
+        // Segundo clique no mesmo jogo encerra o host isolado.
+        var running = _hosts.Values.FirstOrDefault(host => host.Game == game);
+        if (running is not null)
+        {
+            try
+            {
+                using var process = System.Diagnostics.Process.GetProcessById(running.Pid);
+                process.Kill(entireProcessTree: true);
+                LogFor(game, $"Encerrando jogo (PID {running.Pid})");
+            }
+            catch (ArgumentException) { }
+            game.IsRunning = false;
+            _hosts.Remove(running.Pid);
+            LaunchStatusTextBlock.Text = "Game encerrado: " + game.Title;
+            return;
+        }
         await LaunchOneAsync(game, false);
     }
 
@@ -324,33 +351,74 @@ public partial class MainWindow : Window
             LaunchStatusTextBlock.Text = "Request validada: " + game.Title;
             return;
         }
-        if (_launchInFlight)
+        if (Program.AttachedMode)
         {
-            Log("[AVISO] Launch ja em andamento: feche o jogo antes de iniciar outro.");
+            var window = (Application.Current?.ApplicationLifetime as
+                IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            window?.Hide();
+            try
+            {
+                var attached = await Task.Run(
+                    () => KotonohaLauncher.LaunchGame(request));
+                LogFor(game, "ATTACHED " + attached);
+                ShowJson("LaunchGame (attached)", attached);
+            }
+            finally { window?.Show(); }
             return;
         }
-        _launchInFlight = true;
-        // Verde somente enquanto o jogo esta aberto; limpa qualquer jogo anterior.
-        ClearRunning();
+        if (_hosts.Values.Any(host => host.Game == game))
+        {
+            Log($"[AVISO] {game.Title} ja esta em execucao.");
+            return;
+        }
+        // Cada jogo tem seu proprio host; varios podem rodar ao mesmo tempo.
         game.IsRunning = true;
         LogFor(game, $"Launch game: {game.Path} engine={request.EngineSlug} " +
             $"profile={request.SaveProfileId} dryRun={request.DryRun}");
         LaunchStatusTextBlock.Text = request.DryRun
             ? "Validando request..."
             : "Aguardando jogo... feche a janela para voltar...";
+        System.Diagnostics.Process? process = null;
         try
         {
-            // Bloqueia ate' o jogo fechar (ou ate' o dry-run terminar); so'
-            // entao' o controle volta para a UI gerenciada.
-            var result = await Task.Run(() => KotonohaLauncher.LaunchGame(request));
-            bool ok = result.Contains("\"ok\":true", StringComparison.Ordinal);
-            bool playable = result.Contains("\"playable\":true",
-                StringComparison.Ordinal);
+            // O nucleo inicia o jogo em KotonohaGameHost; a UI nao bloqueia.
+            var logPath = Path.Combine(Path.GetTempPath(),
+                $"kotonoha-game-{Guid.NewGuid():N}.log");
+            File.WriteAllText(logPath, string.Empty);
+            Environment.SetEnvironmentVariable("KOTONOHA_DETACHED_LOG", logPath);
+            process = await Task.Run(
+                () => KotonohaLauncher.LaunchGameDetached(request));
+            bool ok = process is not null;
+            var result = JsonSerializer.Serialize(new
+            {
+                ok,
+                pid = process?.Id ?? 0,
+                host = "core",
+                message = ok ? "Game started in a detached host"
+                             : "Detached host did not report a PID"
+            });
+            bool playable = ok;
+            if (ok && process is not null)
+            {
+                _hosts[process.Id] = new HostState
+                {
+                    Pid = process.Id, Game = game, LogPath = logPath
+                };
+                if (_hostTimer is null)
+                {
+                    _hostTimer = new DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromSeconds(1)
+                    };
+                    _hostTimer.Tick += (_, _) => PollHosts();
+                    _hostTimer.Start();
+                }
+            }
             LogFor(game, $"Launch {(ok ? "OK  " : "ERRO")} {game.Title} " +
                 $"playable={playable} => {result}");
             // JSON final (inclui "Game exited cleanly"/frames) entra no log do jogo.
             LogFor(game, "RESULT " + result);
-            ShowJson("LaunchGame", result);
+            ShowJson("LaunchGameDetached", result);
             GamesList.SelectedItem = game;
             GamesList.ScrollIntoView(game);
             LaunchStatusTextBlock.Text = (ok ? "Launched OK: " : "Launch ERRO: ")
@@ -369,10 +437,57 @@ public partial class MainWindow : Window
         }
         finally
         {
-            // Jogo fechou (ou falhou): a barra verde some, inclusive em erro.
-            game.IsRunning = false;
-            _launchInFlight = false;
+            // Em caso de sucesso o evento Exited limpa o estado; aqui so'
+            // tratamos a falha de spawn.
+            if (process is null)
+                game.IsRunning = false;
             ShowGameLog(game);
+        }
+    }
+
+    private void PollHosts()
+    {
+        if (_hosts.Count == 0)
+        {
+            _hostTimer?.Stop();
+            _hostTimer = null;
+            return;
+        }
+        foreach (var state in _hosts.Values.ToList())
+        {
+            bool alive;
+            try
+            {
+                alive = !System.Diagnostics.Process.GetProcessById(state.Pid).HasExited;
+            }
+            catch (ArgumentException) { alive = false; }
+            var exitedInLog = false;
+            try
+            {
+                exitedInLog = File.Exists(state.LogPath) &&
+                    File.ReadAllText(state.LogPath)
+                        .Contains("[Kotonoha] game result:", StringComparison.Ordinal);
+            }
+            catch (IOException) { }
+            if (!alive || exitedInLog)
+            {
+                state.Game.IsRunning = false;
+                LaunchStatusTextBlock.Text = "Game exited: " + state.Game.Title;
+                LogFor(state.Game, $"Game host {state.Pid} exited");
+                _hosts.Remove(state.Pid);
+            }
+            try
+            {
+                using var stream = new FileStream(state.LogPath, FileMode.Open,
+                    FileAccess.Read, FileShare.ReadWrite);
+                stream.Seek(state.Offset, SeekOrigin.Begin);
+                using var reader = new StreamReader(stream);
+                var text = reader.ReadToEnd();
+                state.Offset = stream.Position;
+                if (!string.IsNullOrEmpty(text))
+                    LogFor(state.Game, text.TrimEnd());
+            }
+            catch (IOException) { }
         }
     }
 

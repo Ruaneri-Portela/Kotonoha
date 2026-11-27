@@ -14,12 +14,20 @@ internal static class Program
     public static readonly string RepoRoot = ResolveRepoRoot();
 
     private static readonly string BuildRoot =
-        Path.Combine(RepoRoot, "out", "build", "macos-arm64-vcpkg");
+        Environment.GetEnvironmentVariable("KOTONOHA_BUILD_ROOT") is { Length: > 0 } root
+            ? root
+            : Path.Combine(RepoRoot, "out", "build",
+                RuntimeInformation.ProcessArchitecture == Architecture.Arm64
+                    ? "macos-arm64-vcpkg" : "macos-amd64-vcpkg");
 
     public static readonly string NativeLibraryPath =
         Path.Combine(BuildRoot, "lib", "libKotonohaLauncherCore.dylib");
 
     public static readonly string BuildBin = Path.Combine(BuildRoot, "bin");
+
+    // --attached runs the game inside the example process; the window is
+    // hidden while SDL owns the main thread and restored when the game exits.
+    public static bool AttachedMode { get; private set; }
 
     // Uma pasta com varios jogos: o scan e' recursivo no core.
     public static readonly string[] DefaultRoots =
@@ -37,6 +45,7 @@ internal static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        AttachedMode = Array.Exists(args, a => a == "--attached");
         // O motor procura assets/fonts no diretorio de trabalho.
         if (Directory.Exists(BuildBin))
             Directory.SetCurrentDirectory(BuildBin);
@@ -66,11 +75,27 @@ internal static class Program
     private static void EnsureNativeDependencies()
     {
         string lib = Path.Combine(BuildRoot, "lib");
+        // This example is hosted by dotnet, so tell the core which executable
+        // understands --kotonoha-detached-run when it spawns the game host.
+        var hostCandidates = new[]
+        {
+            Path.Combine(BuildRoot, "outputs", "KotonohaLauncher.app",
+                "Contents", "MacOS", "KotonohaGameHost"),
+            Path.Combine(BuildRoot, "bin", "KotonohaGameHost.exe"),
+            Path.Combine(BuildRoot, "bin", "KotonohaGameHost"),
+        };
+        foreach (string host in hostCandidates)
+        {
+            if (!File.Exists(host)) continue;
+            Environment.SetEnvironmentVariable("KOTONOHA_DETACHED_HOST", host);
+            break;
+        }
         string vcpkg = Path.Combine(
-            BuildRoot, "vcpkg_installed", "macos-arm64-vcpkg", "lib");
+            BuildRoot, "vcpkg_installed", Path.GetFileName(BuildRoot), "lib");
 
         string[] dependencies =
         {
+            "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/Python3",
             Path.Combine(vcpkg, "libSDL3.0.dylib"),
             Path.Combine(vcpkg, "libz.1.3.2.dylib"),
             Path.Combine(lib, "libKotonohaEngine.dylib"),

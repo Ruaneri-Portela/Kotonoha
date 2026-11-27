@@ -15,7 +15,22 @@
 #include <pthread.h>
 #endif
 
+#if defined(_WIN32)
+#include <windows.h>
+#elif !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#include <csignal>
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/types.h>
+#include <unistd.h>
+#if defined(__APPLE__)
+#include <mach-o/dyld.h>
+#endif
+extern "C" char **environ;
+#endif
+
 #include <algorithm>
+#include <cerrno>
 #include <cctype>
 #include <condition_variable>
 #include <cstdio>
@@ -355,6 +370,8 @@ void KotonohaLauncherScanRootsJsonWithCallback(
   }
 }
 
+char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request);
+
 #if defined(__APPLE__)
 namespace {
 // SDL's Cocoa video driver refuses to init unless [NSThread isMainThread].
@@ -380,18 +397,10 @@ void runLaunchOnNativeMainThread(void *userData) {
 } // namespace
 #endif
 
-char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
-#if defined(__APPLE__)
-  if (!pthread_main_np()) {
-    NativeMainLaunch call;
-    call.request = request;
-    dispatch_async_f(dispatch_get_main_queue(), &call,
-                     &runLaunchOnNativeMainThread);
-    std::unique_lock<std::mutex> lock(call.mutex);
-    call.cv.wait(lock, [&] { return call.done; });
-    return call.result;
-  }
-#endif
+// Runs the game on the calling thread. Detached host processes call this
+// directly: after fork() the surviving thread is the process' only thread,
+// so dispatching to a main queue that no longer runs would deadlock.
+static char *launchGameDirect(const KotonohaGameLaunchRequest *request) {
   try {
     if (!request || !request->gamePath || request->gamePath[0] == '\0')
       return launchResponseJson(false, "request", "gamePath is required", 0,
@@ -583,6 +592,21 @@ char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
   }
 }
 
+char *KotonohaLauncherLaunchGame(const KotonohaGameLaunchRequest *request) {
+#if defined(__APPLE__)
+  if (!pthread_main_np()) {
+    NativeMainLaunch call;
+    call.request = request;
+    dispatch_async_f(dispatch_get_main_queue(), &call,
+                     &runLaunchOnNativeMainThread);
+    std::unique_lock<std::mutex> lock(call.mutex);
+    call.cv.wait(lock, [&] { return call.done; });
+    return call.result;
+  }
+#endif
+  return launchGameDirect(request);
+}
+
 char *KotonohaLauncherDetectPathJson(const char *path, int splitSavesByGame,
                                      const char *customSaveRoot) {
   try {
@@ -745,21 +769,17 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
 
 void KotonohaLauncherFreeString(char *ptr) { std::free(ptr); }
 
-char *KotonohaLauncherLaunchGameJson(const char *requestJson) {
-#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
-  (void)requestJson;
-  return launchResponseJson(false, "error", "JSON launch is unavailable", 0,
-                            false, "", "");
-#else
-  if (!requestJson || !*requestJson)
-    return launchResponseJson(false, "error", "Empty launch request", 0,
-                              false, "", "");
-  json_object *root =
-      json_tokener_parse(requestJson);
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+namespace {
+
+json_object *parseLaunchRequest(const char *json,
+                                 KotonohaGameLaunchRequest &request) {
+  if (!json || !*json)
+    return nullptr;
+  json_object *root = json_tokener_parse(json);
   if (!root)
-    return launchResponseJson(false, "error", "Invalid launch JSON", 0,
-                              false, "", "");
-  KotonohaGameLaunchRequest request{};
+    return nullptr;
+  request = {};
   request.gamePath = jsonString(root, "GamePath");
   request.engineSlug = jsonString(root, "EngineSlug");
   request.saveProfileId = jsonString(root, "SaveProfileId");
@@ -777,29 +797,267 @@ char *KotonohaLauncherLaunchGameJson(const char *requestJson) {
   request.upscalerPreset = jsonString(root, "UpscalerPreset");
   request.upscalerFactor = jsonString(root, "UpscalerFactor");
   request.dryRun = jsonBool(root, "DryRun") ? 1 : 0;
+  return root;
+}
+
+void serializeLaunchRequest(const KotonohaGameLaunchRequest *request,
+                            std::string &jsonText) {
+  json_object *root = json_object_new_object();
+  const auto add = [root](const char *key, const char *value) {
+    json_object_object_add(root, key,
+                           json_object_new_string(value ? value : ""));
+  };
+  add("GamePath", request ? request->gamePath : nullptr);
+  add("EngineSlug", request ? request->engineSlug : nullptr);
+  add("SaveProfileId", request ? request->saveProfileId : nullptr);
+  add("CustomSaveRoot", request ? request->customSaveRoot : nullptr);
+  add("AssetOverlayPath", request ? request->assetOverlayPath : nullptr);
+  add("TranslationPath", request ? request->translationPath : nullptr);
+  add("SubtitleStylePath", request ? request->subtitleStylePath : nullptr);
+  add("CustomDocumentsDir", request ? request->customDocumentsDir : nullptr);
+  add("KtrfPath", request ? request->ktrfPath : nullptr);
+  add("ScriptsDir", request ? request->scriptsDir : nullptr);
+  add("StartScenario", request ? request->startScenario : nullptr);
+  add("RendererBackend", request ? request->rendererBackend : nullptr);
+  add("UpscalerBackend", request ? request->upscalerBackend : nullptr);
+  add("UpscalerPreset", request ? request->upscalerPreset : nullptr);
+  add("UpscalerFactor", request ? request->upscalerFactor : nullptr);
+  json_object_object_add(
+      root, "SplitSavesByGame",
+      json_object_new_boolean(request && request->splitSavesByGame));
+  json_object_object_add(root, "DryRun",
+                         json_object_new_boolean(request && request->dryRun));
+  jsonText = json_object_to_json_string_ext(root, JSON_C_TO_STRING_PLAIN);
+  json_object_put(root);
+}
+
+char *detachedResponse(bool ok, int pid, const char *host,
+                       const char *message) {
+  std::ostringstream out;
+  out << "{\"ok\":" << (ok ? "true" : "false") << ",\"pid\":" << pid
+      << ",\"host\":";
+  appendJsonString(out, host);
+  out << ",\"message\":";
+  appendJsonString(out, message);
+  out << '}';
+  return dupCString(out.str());
+}
+
+// The grandchild inherits this pointer from the parent before fork(), so it
+// can launch without JSON parsing or a main queue that no longer runs.
+const KotonohaGameLaunchRequest *g_hostRequest = nullptr;
+std::string g_detachedHostOverride;
+
+std::string currentExecutablePath() {
+#if defined(__APPLE__)
+  char path[4096];
+  std::uint32_t size = sizeof(path);
+  if (_NSGetExecutablePath(path, &size) == 0)
+    return std::string(path);
+#elif defined(__linux__)
+  char path[4096];
+  const ssize_t size = ::readlink("/proc/self/exe", path, sizeof(path) - 1);
+  if (size > 0) {
+    path[size] = '\0';
+    return std::string(path);
+  }
+#endif
+  return {};
+}
+
+} // namespace
+#endif
+
+char *KotonohaLauncherLaunchGameJson(const char *requestJson) {
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+  (void)requestJson;
+  return launchResponseJson(false, "error", "JSON launch is unavailable", 0,
+                            false, "", "");
+#else
+  if (!requestJson || !*requestJson)
+    return launchResponseJson(false, "error", "Empty launch request", 0,
+                              false, "", "");
+  KotonohaGameLaunchRequest request{};
+  json_object *root = parseLaunchRequest(requestJson, request);
+  if (!root)
+    return launchResponseJson(false, "error", "Invalid launch JSON", 0,
+                              false, "", "");
   char *result = KotonohaLauncherLaunchGame(&request);
   json_object_put(root);
   return result;
 #endif
 }
 
+// Shared host entry point. Windows calls it through RUNDLL32; on POSIX the
+// disowned grandchild calls it directly after fork().
+
+void KotonohaLauncherSetDetachedHost(const char *path) {
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+  (void)path;
+#else
+  g_detachedHostOverride = path ? path : "";
+#endif
+}
+
+char *KotonohaLauncherLaunchGameDetached(
+    const KotonohaGameLaunchRequest *request) {
 #if defined(_WIN32)
-void CALLBACK KotonohaLauncherRunDll(void *, void *, char *commandLine, int) {
-  // O "fork" do Windows: o RUNDLL32 hospeda o jogo na propria main thread.
-  const char *request = nullptr;
-  if (const char *env = std::getenv("KOTONOHA_LAUNCH_REQUEST_JSON"))
-    if (*env)
-      request = env;
-  if (!request && commandLine && *commandLine)
-    request = commandLine;
-  if (!request)
+  // Windows: spawn the same universal helper used on POSIX. The JSON request
+  // travels in the environment so no fragile command-line quoting is needed.
+  if (!request || !request->gamePath || !request->gamePath[0])
+    return detachedResponse(false, 0, "process", "gamePath is required");
+  const char *hostEnv = std::getenv("KOTONOHA_DETACHED_HOST");
+  std::string executable = !g_detachedHostOverride.empty()
+                               ? g_detachedHostOverride
+                           : hostEnv && *hostEnv ? std::string(hostEnv)
+                                                 : std::string();
+  if (executable.empty()) {
+    HMODULE module = nullptr;
+    GetModuleHandleExA(
+        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+            GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+        reinterpret_cast<LPCSTR>(&KotonohaLauncherLaunchGameDetached), &module);
+    char directory[MAX_PATH]{};
+    if (module && GetModuleFileNameA(module, directory, MAX_PATH)) {
+      fs::path candidate = fs::path(directory).parent_path() / "KotonohaGameHost.exe";
+      if (fs::exists(candidate))
+        executable = candidate.string();
+    }
+  }
+  if (executable.empty() || !fs::exists(executable))
+    return detachedResponse(false, 0, "process",
+                            "KotonohaGameHost.exe is missing");
+  std::string json;
+  serializeLaunchRequest(request, json);
+  SetEnvironmentVariableA("KOTONOHA_LAUNCH_REQUEST_JSON", json.c_str());
+  std::string commandLine =
+      "\"" + executable + "\" --kotonoha-detached-run";
+  STARTUPINFOA startup{};
+  startup.cb = sizeof(startup);
+  PROCESS_INFORMATION process{};
+  if (!CreateProcessA(nullptr, commandLine.data(), nullptr, nullptr, FALSE, 0,
+                      nullptr, nullptr, &startup, &process))
+    return detachedResponse(false, 0, "process",
+                            "Failed to start KotonohaGameHost");
+  CloseHandle(process.hThread);
+  CloseHandle(process.hProcess);
+  return detachedResponse(true, static_cast<int>(process.dwProcessId),
+                          "process", "Game started in KotonohaGameHost");
+#elif !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+  // POSIX: spawn a fresh host process with posix_spawn(). Forking the AppKit
+  // / SDL process and then initialising SDL or CoreAudio in the child is not
+  // safe: system frameworks may have locked dispatch queues at fork time and
+  // crash with EXC_BAD_ACCESS in the child. A spawned host starts clean and
+  // single-threaded, like RUNDLL32 does on Windows.
+  if (!request || !request->gamePath || !request->gamePath[0])
+    return detachedResponse(false, 0, "process", "gamePath is required");
+  // Frontends embedded in another host (.NET, Java) point this at the Kotonoha
+  // app executable, which understands --kotonoha-detached-run.
+  const char *hostEnv = std::getenv("KOTONOHA_DETACHED_HOST");
+  std::string executable = !g_detachedHostOverride.empty()
+                               ? g_detachedHostOverride
+                           : hostEnv && *hostEnv ? std::string(hostEnv)
+                                                 : std::string();
+  if (executable.empty()) {
+    const std::string self = currentExecutablePath();
+    // Bundled helper sits next to the app executable (Contents/MacOS on
+    // macOS). Running it from there lets the Ren'Py VM find the app's own
+    // bundled Python standard library.
+    if (!self.empty()) {
+      const fs::path sibling = fs::path(self).parent_path() / "KotonohaGameHost";
+#if defined(_WIN32)
+      auto withExtension = sibling;
+      withExtension += ".exe";
+      if (fs::exists(withExtension))
+        executable = withExtension.string();
+      else
+#endif
+          if (fs::exists(sibling))
+        executable = sibling.string();
+    }
+  }
+  if (executable.empty() || !fs::exists(executable))
+    return detachedResponse(
+        false, 0, "process",
+        "KotonohaGameHost is missing; detached launch requires the helper");
+  std::string json;
+  serializeLaunchRequest(request, json);
+  const std::string switchName = "--kotonoha-detached-run";
+  char *const args[] = {const_cast<char *>(executable.c_str()),
+                        const_cast<char *>(switchName.c_str()),
+                        const_cast<char *>(json.c_str()), nullptr};
+  pid_t gamePid = 0;
+  const int spawned = ::posix_spawn(&gamePid, executable.c_str(), nullptr,
+                                    nullptr, args, environ);
+  if (spawned != 0)
+    return detachedResponse(false, 0, "process", "posix_spawn() failed");
+  return detachedResponse(true, static_cast<int>(gamePid), "process",
+                          "Game started in a detached host process");
+#else
+  (void)request;
+  return detachedResponse(false, 0, "none",
+                          "Detached launch is unavailable on this platform");
+#endif
+}
+
+void KotonohaLauncherRunGameJson(const char *requestJson) {
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+  (void)requestJson;
+#else
+  if (!requestJson || !*requestJson)
     return;
-  char *result = KotonohaLauncherLaunchGameJson(request);
+  KotonohaGameLaunchRequest request{};
+  json_object *root = parseLaunchRequest(requestJson, request);
+  if (!root)
+    return;
+  char *result = launchGameDirect(&request);
   if (result) {
     std::fprintf(stderr, "[Kotonoha] game result: %s\n", result);
     KotonohaLauncherFreeString(result);
   }
-}
+  json_object_put(root);
 #endif
+}
+
+char *KotonohaLauncherTerminateGame(int pid) {
+  if (pid <= 0)
+    return dupCString("{\"ok\":false,\"message\":\"Invalid PID\"}");
+#if defined(_WIN32)
+  HANDLE process = ::OpenProcess(PROCESS_TERMINATE, FALSE,
+                                 static_cast<DWORD>(pid));
+  if (!process)
+    return dupCString("{\"ok\":false,\"message\":\"OpenProcess failed\"}");
+  const BOOL ok = ::TerminateProcess(process, 0);
+  ::CloseHandle(process);
+  return dupCString(ok ? "{\"ok\":true,\"message\":\"Game terminated\"}"
+                       : "{\"ok\":false,\"message\":\"TerminateProcess failed\"}");
+#elif !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+  if (::kill(static_cast<pid_t>(pid), SIGTERM) != 0)
+    return dupCString("{\"ok\":false,\"message\":\"kill() failed\"}");
+  return dupCString("{\"ok\":true,\"message\":\"Game terminated\"}");
+#else
+  (void)pid;
+  return dupCString("{\"ok\":false,\"message\":\"Unsupported platform\"}");
+#endif
+}
+
+char *KotonohaLauncherLaunchGameDetachedJson(const char *requestJson) {
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+  (void)requestJson;
+  return dupCString(
+      "{\"ok\":false,\"pid\":0,\"host\":\"none\","
+      "\"message\":\"Detached launch is unavailable on this platform\"}");
+#else
+  if (!requestJson || !*requestJson)
+    return detachedResponse(false, 0, "none", "Empty launch request");
+  KotonohaGameLaunchRequest request{};
+  json_object *root = parseLaunchRequest(requestJson, request);
+  if (!root)
+    return detachedResponse(false, 0, "none", "Invalid launch JSON");
+  char *result = KotonohaLauncherLaunchGameDetached(&request);
+  json_object_put(root);
+  return result;
+#endif
+}
 
 } // extern "C"

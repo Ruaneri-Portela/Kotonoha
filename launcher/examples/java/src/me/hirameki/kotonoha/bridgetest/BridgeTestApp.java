@@ -1,11 +1,22 @@
 package me.hirameki.kotonoha.bridgetest;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -46,6 +57,9 @@ import me.hirameki.kotonoha.launcher.KotonohaLauncherBridge;
 public final class BridgeTestApp extends Application {
     private static final String SERVER_ROOT = "/Volumes/Server/data2/Games";
     private static final String EXTERNAL_ROOT = "/Volumes/Nero 2TB/KotonohaAssets";
+    private static boolean attachedMode;
+    private Stage primaryStage;
+
     private static final String GREEN_ROW =
             "-fx-background-color: #b9f6c6; -fx-text-fill: #0b5a20;";
     private static final String GREEN_CELL =
@@ -59,7 +73,14 @@ public final class BridgeTestApp extends Application {
     private final TextArea gameLogArea = new TextArea();
     // Log de cada jogo, indexado pelo caminho do scan (sobrevive a re-scans).
     private final Map<String, StringBuilder> gameLogs = new LinkedHashMap<>();
-    private boolean launchScheduled;
+    private static final class HostState {
+        final GameRow row;
+        final Path logPath;
+        long offset;
+        HostState(GameRow row, Path logPath) { this.row = row; this.logPath = logPath; }
+    }
+    private final Map<Long, HostState> hosts = new LinkedHashMap<>();
+    private Timeline hostPoll;
     private final TextField newRootField = new TextField();
     private final TextField detectField = new TextField();
     private final TextField profileField = new TextField("bridge-test-profile");
@@ -86,6 +107,7 @@ public final class BridgeTestApp extends Application {
 
     @Override
     public void start(Stage stage) {
+        primaryStage = stage;
         boolean loaded = KotonohaLauncherBridge.ensureLoaded();
         if (loaded) {
             log("JNI carregado diretamente do core: OK");
@@ -500,14 +522,23 @@ public final class BridgeTestApp extends Application {
             status("Request validada: " + row.title.get());
             return;
         }
-        if (launchScheduled) {
-            log("Launch ja em andamento: feche o jogo antes de iniciar outro");
+        if (attachedMode) {
+            primaryStage.hide();
+            try {
+                String attached = request.launch();
+                logFor(row, "ATTACHED " + attached);
+                showText(attached);
+            } finally {
+                primaryStage.show();
+            }
             return;
         }
-        // Verde somente enquanto o jogo esta aberto: limpa qualquer jogo anterior.
-        clearRunning();
+        if (hosts.values().stream().anyMatch(host -> host.row == row)) {
+            log(row.title.get() + " ja esta em execucao");
+            return;
+        }
+        // Cada jogo tem seu proprio host; varios podem rodar ao mesmo tempo.
         row.running.set(true);
-        launchScheduled = true;
         logFor(row, "Launch game: " + row.path.get() + " engine="
                 + request.engineSlug + " profile=" + request.saveProfileId
                 + " dryRun=" + request.dryRun);
@@ -518,37 +549,80 @@ public final class BridgeTestApp extends Application {
         Platform.runLater(() -> doLaunch(row, request));
     }
 
-    /** Chamada bloqueante; sempre devolve a linha ao estado normal (finally). */
+    /** Spawns KotonohaGameHost and polls its PID until the game exits. */
     private void doLaunch(GameRow row, LaunchRequest request) {
         try {
-            String result = request.launch();
+            String result = request.launchDetached();
             boolean ok = result != null && result.contains("\"ok\":true");
-            boolean playable = JsonUtil.boolField(result, "playable");
+            long pid = -1;
+            if (ok && result != null) {
+                Matcher matcher = Pattern.compile("\"pid\":(\\d+)").matcher(result);
+                if (matcher.find()) pid = Long.parseLong(matcher.group(1));
+            }
             logFor(row, "Launch " + (ok ? "OK  " : "ERRO") + " " + row.title.get()
-                    + " playable=" + playable + " => " + result);
-            // JSON final (inclui "Game exited cleanly"/frames) vai para o log do jogo.
-            logFor(row, "RESULT " + JsonUtil.pretty(result));
+                    + " pid=" + pid + " => " + result);
             showText(result);
             gamesTable.getSelectionModel().select(row);
-            status((ok ? "Launched OK: " : "Launch ERRO: ") + row.title.get()
-                    + " (playable=" + playable + ")");
-            if (result != null && result.contains("\"dryRun\":true")) {
-                logFor(row, "launch request validated; graphical launch requires SDL app");
-            } else if (!ok) {
-                logFor(row, "launch request validated; graphical launch requires SDL app"
-                        + " (launch real falhou; veja o JSON acima)");
+            if (!ok || pid <= 0) {
+                status("Launch ERRO: " + row.title.get());
                 logFor(row, "REQUEST " + request.describe().replace('\n', ' '));
+                row.running.set(false);
+                    gamesTable.refresh();
+                return;
             }
+            String configuredLog = System.getenv("KOTONOHA_DETACHED_LOG");
+            Path log = configuredLog != null && !configuredLog.isBlank()
+                    ? Paths.get(configuredLog)
+                    : Paths.get(System.getProperty("java.io.tmpdir"),
+                                "kotonoha-game-" + pid + ".log");
+            hosts.put(pid, new HostState(row, log));
+            startHostPolling();
+            status("Launched OK: " + row.title.get() + " (PID " + pid + ")");
         } catch (Throwable t) {
             fail("Launch game", t);
             logFor(row, "Launch game ERRO: " + t);
-        } finally {
-            // Jogo fechou (ou falhou): a barra verde some, mesmo em erro.
             row.running.set(false);
-            launchScheduled = false;
-            gamesTable.refresh();
-            showGameLog(row);
+        } finally {
         }
+    }
+
+    private void startHostPolling() {
+        if (hostPoll != null) return;
+        hostPoll = new Timeline(new KeyFrame(Duration.seconds(1), event -> pollHosts()));
+        hostPoll.setCycleCount(Timeline.INDEFINITE);
+        hostPoll.play();
+    }
+
+    private void pollHosts() {
+        for (Map.Entry<Long, HostState> entry : hosts.entrySet()) {
+            HostState state = entry.getValue();
+            boolean alive = ProcessHandle.of(entry.getKey())
+                    .map(ProcessHandle::isAlive).orElse(false);
+            if (!alive) {
+                state.row.running.set(false);
+                status("Game exited: " + state.row.title.get());
+                logFor(state.row, "Game host " + entry.getKey() + " exited");
+                hosts.remove(entry.getKey());
+                if (hosts.isEmpty() && hostPoll != null) {
+                    hostPoll.stop();
+                    hostPoll = null;
+                }
+            }
+            tailHostLog(state);
+        }
+        gamesTable.refresh();
+    }
+
+    private void tailHostLog(HostState state) {
+        try {
+            if (!Files.exists(state.logPath)) return;
+            byte[] all = Files.readAllBytes(state.logPath);
+            if (all.length <= state.offset) return;
+            String text = new String(all, (int) state.offset,
+                    all.length - (int) state.offset, StandardCharsets.UTF_8);
+            state.offset = all.length;
+            logFor(state.row, text.stripTrailing());
+        } catch (IOException ignored) { }
     }
 
     private void clearRunning() {
@@ -605,6 +679,7 @@ public final class BridgeTestApp extends Application {
     }
 
     public static void main(String[] args) {
+        attachedMode = Arrays.asList(args).contains("--attached");
         launch(args);
     }
 }

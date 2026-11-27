@@ -38,9 +38,9 @@ install_framework() {
 case "$platform" in
   macosx)
     # The Python XCFramework build phase is authoritative. The user's
-    # preparation script also creates build/macOS-deps/Frameworks/Python.framework.
+    # preparation script also creates out/deps/macOS-deps/Frameworks/Python.framework.
     [[ -f "${frameworks}/Python.framework/Python" ]] || {
-      prepared="${repo}/build/macOS-deps/Frameworks/Python.framework"
+      prepared="${repo}/out/deps/macOS-deps/Frameworks/Python.framework"
       if [[ ! -f "${prepared}/Python" ]]; then
         [[ -f "${repo}/tools/PrepareApple.py" ]] || fatal 'tools/PrepareApple.py is missing'
         /usr/bin/env python3 "${repo}/tools/PrepareApple.py" --platform macos
@@ -52,7 +52,7 @@ case "$platform" in
     # stdlib (especially encodings) must also live inside the .app.
     stdlib="${frameworks}/Python.framework/Versions/Current/lib/python3.15/encodings/__init__.py"
     if [[ ! -f "$stdlib" ]]; then
-      prepared="${repo}/build/macOS-deps/Frameworks/Python.framework"
+      prepared="${repo}/out/deps/macOS-deps/Frameworks/Python.framework"
       if [[ ! -f "${prepared}/Versions/Current/lib/python3.15/encodings/__init__.py" ]]; then
         /usr/bin/env python3 "${repo}/tools/PrepareApple.py" --platform macos
       fi
@@ -64,7 +64,7 @@ case "$platform" in
     note 'Python.framework and its CPython 3.15 standard library are bundled'
     ;;
   iphoneos|iphonesimulator)
-    prepared="${repo}/build/iOS-deps/python/native/${platform}"
+    prepared="${repo}/out/deps/iOS-deps/python/native/${platform}"
     if [[ ! -d "${prepared}/python/lib/python3.15" ]]; then
       [[ -f "${repo}/tools/PrepareApple.py" ]] || fatal 'tools/PrepareApple.py is missing'
       /usr/bin/env python3 "${repo}/tools/PrepareApple.py" --platform ios

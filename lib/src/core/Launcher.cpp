@@ -134,7 +134,17 @@ void Launcher::open() {
     if (!window)
       throw std::runtime_error(SDL_GetError());
 
+    Kotonoha::DisableGpuDebugByDefault();
+    // The launcher never forces a renderer; SDL_RENDER_DRIVER / UI settings
+    // decide. Retry with OpenGL only after an explicit creation failure.
     renderer.reset(SDL_CreateRenderer(window.get(), nullptr));
+    if (!renderer && std::string(SDL_GetPlatform()) == "Mac OS X") {
+      SDL_LogWarn(LogCore,
+                  "Metal renderer could not be created (%s); retrying with opengl",
+                  SDL_GetError());
+      SDL_SetHint(SDL_HINT_RENDER_DRIVER, "opengl");
+      renderer.reset(SDL_CreateRenderer(window.get(), nullptr));
+    }
     if (!renderer)
       throw std::runtime_error(SDL_GetError());
     SDL_SetRenderVSync(renderer.get(), 1);
