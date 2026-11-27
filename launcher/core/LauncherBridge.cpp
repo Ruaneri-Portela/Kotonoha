@@ -1,5 +1,7 @@
 // Copyright 2026 Kotonoha contributors. SPDX-License-Identifier: MIT
 #include <KotonohaLauncher/LauncherBridge.h>
+
+#include "PathUtf8.hpp"
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
 #include <Kotonoha/core/Engine.hpp>
@@ -721,7 +723,7 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
   try {
     KotonohaLauncher::DiscoveredGameEntry entry;
     entry.path = safeString(gamePath);
-    entry.title = fs::u8path(entry.path).filename().u8string();
+    entry.title = KotonohaLauncher::detail::pathUtf8(fs::u8path(entry.path).filename());
     entry.saveProfileId =
         saveProfileId && saveProfileId[0] != '\0'
             ? std::string(saveProfileId)
