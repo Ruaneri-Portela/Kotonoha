@@ -140,9 +140,17 @@ if(APPLE)
     # libraries may still call iconv_open/iconv/iconv_close. Link the SDK
     # libiconv explicitly for Apple CMake targets as well as Xcode targets.
     find_library(KOTONOHA_COREFOUNDATION CoreFoundation REQUIRED)
-    find_library(KOTONOHA_APPLE_ICONV NAMES iconv REQUIRED)
-    target_link_libraries(KotonohaEngine PUBLIC "${KOTONOHA_APPLE_ICONV}")
     target_link_libraries(KotonohaEngine PRIVATE "${KOTONOHA_COREFOUNDATION}")
+    if(VCPKG_INSTALLED_DIR AND VCPKG_TARGET_TRIPLET)
+        # macOS já fornece iconv_open/iconv/iconv_close no libSystem. Em um
+        # build vcpkg nao linkar nenhum libiconv externo: find_library
+        # escolheria a copia do MacPorts/Homebrew (/opt/local), quebrando a
+        # regra de que tudo vem do vcpkg.
+        message(STATUS "[Kotonoha] vcpkg: usando iconv nativo do macOS (libSystem)")
+    else()
+        find_library(KOTONOHA_APPLE_ICONV NAMES iconv REQUIRED)
+        target_link_libraries(KotonohaEngine PUBLIC "${KOTONOHA_APPLE_ICONV}")
+    endif()
 endif()
 
 if (EMSCRIPTEN AND VCPKG_INSTALLED_DIR)

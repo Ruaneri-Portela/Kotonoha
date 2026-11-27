@@ -6,6 +6,12 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <!-- Fonte unica da ponte C ABI, compartilhada com o gerenciador Avalonia. -->
+  <ItemGroup>
+    <Compile Include="../../bridge/dotnet/KotonohaLauncher.cs"
+             Link="Bridge/KotonohaLauncher.cs" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.2.0" />
     <PackageReference Include="Avalonia.Desktop" Version="12.2.0" />

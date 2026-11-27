@@ -208,13 +208,38 @@ void configureBundledPython(PyConfig &config) {
                          (baseDirectory.filename() == "MacOS" ||
                           baseDirectory.filename() == "Resources");
   if (macBundle) {
-    const auto framework =
-        contents / "Frameworks" / "Python.framework" / "Versions" / "Current";
-    const auto encodings =
-        framework / "lib" / pythonVersion / "encodings" / "__init__.py";
-    home = std::filesystem::is_regular_file(encodings)
-               ? framework
-               : contents / "Frameworks" / "python";
+    home = contents / "Frameworks" / "python";
+    // Xcode bundles ship Python.framework (3.15); CMake/vcpkg bundles ship
+    // Python3.framework (system Python version). Accept either and let the
+    // compiled-in pythonVersion decide which library tree is valid.
+    const auto frameworks = contents / "Frameworks";
+    for (const char *name : {"Python.framework", "Python3.framework"}) {
+      const auto framework = frameworks / name / "Versions" / "Current";
+      const auto encodings =
+          framework / "lib" / pythonVersion / "encodings" / "__init__.py";
+      if (std::filesystem::is_regular_file(encodings)) {
+        home = framework;
+        break;
+      }
+      // The framework version directory may be explicit instead of "Current".
+      const auto versions = frameworks / name / "Versions";
+      std::error_code ec;
+      if (!std::filesystem::is_directory(versions, ec))
+        continue;
+      for (const auto &entry : std::filesystem::directory_iterator(versions, ec)) {
+        if (ec)
+          break;
+        const auto candidate = entry.path() / "lib" / pythonVersion /
+                               "encodings" / "__init__.py";
+        if (std::filesystem::is_regular_file(candidate)) {
+          home = entry.path();
+          ec.clear();
+          break;
+        }
+      }
+      if (home != frameworks / "python")
+        break;
+    }
   }
 #endif
   if (!std::filesystem::is_directory(home)) {

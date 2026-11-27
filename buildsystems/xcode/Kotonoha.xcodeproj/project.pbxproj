@@ -125,13 +125,11 @@
 		1BEE6CEE3EE9B6C9CBA9A227 /* KotonohaImGui.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		1C093BF709D0994B33463862 /* SchoolDaysTitleRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */; };
 		1C6AB79943CDC121A7D5B1F5 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
-		1CA3AAAA9C73D238D27DE7A1 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 103E1C1B1A991352888811DC /* imgui.cpp */; };
 		1D0DB40E9402407B1E316A4D /* RealLiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */; };
 		1D1CAD919FE6B20CD75086DC /* Display.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DA44EA779EF5ED5B0159EB0 /* Display.cpp */; };
 		1D930282EB708FE54DBFACE4 /* SchoolDaysChoiceTextPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA27F01E9EC7708C4CA0F013 /* SchoolDaysChoiceTextPlan.cpp */; };
 		1DD373924088BB84D6E3B033 /* ScriptBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */; };
 		1DD8D001137992034593FB5A /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
-		1DE47B772474B87697C883B2 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CD147B8DCD5C1DB9C4C6545E /* imgui_draw.cpp */; };
 		1DF442BF94A8CE02AC7EE20F /* assets in Resources */ = {isa = PBXBuildFile; fileRef = 8296A210E862BB77BA0DFFF8 /* assets */; };
 		1E080052017AC9A4E49F9AC9 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		1E264E0E016797D86A9497BB /* ArtemisAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 52B436660FBD0A9A81607EA5 /* ArtemisAssets.cpp */; };
@@ -145,7 +143,6 @@
 		2018795A730FA3D6DBE07B5E /* PmailTextBox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */; };
 		2023C02A5E963FC552B4D45A /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		2054D22663205373DF075062 /* VitaGraphics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C700000000000000000022 /* VitaGraphics.cpp */; };
-		208B3BCD1309AFE61B778E83 /* imgui_impl_sdl3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6576FD8B6C0C14B6BD6C4403 /* imgui_impl_sdl3.cpp */; };
 		20BD8546E070BC412B868E10 /* ScriptVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A039740292658EB792C886C9 /* ScriptVm.cpp */; };
 		20E515C1AA3903657ACDAA02 /* SchoolDaysRouteMapOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */; };
 		2111E0B8F9A0B5573608AEA0 /* Engine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 95EB7E452BD54DD736B39583 /* Engine.cpp */; };
@@ -578,7 +575,6 @@
 		783505D9A4A798DB9534520E /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = 520B225442065EBAD6815C41 /* game-assets */; };
 		784B845C9A594236AAF80BEC /* PmailStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8DC84839B2219CE992D6BBBB /* PmailStage.cpp */; };
 		78D4A68733DA534D65B63DB1 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F000ECDE541D4B98EDB011F4 /* main.cpp */; };
-		78F8BB4DF7D66BE9AEB4B464 /* imgui_impl_sdlrenderer3.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 11BE528C7D3C993BD9029E17 /* imgui_impl_sdlrenderer3.cpp */; };
 		7966441DEFDD3CEBD9F9BDC3 /* SchoolDaysReplayScriptOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */; };
 		7983FACC7700FD08F40E2DD4 /* Campaign.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BC48D9E2880CEA0BF73F649 /* Campaign.cpp */; };
 		798DD42F39B27B5CDE0365A7 /* AndroidDisplay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */; };
@@ -691,7 +687,6 @@
 		92664C9232CB4E6E815262CD /* LucaSystemScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CEE45A84649AE37A49032B7 /* LucaSystemScript.cpp */; };
 		92903C334E220C861C25B6A4 /* Assets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 288099B0D83BCE4D70C3C9DF /* Assets.cpp */; };
 		92A8D9674F98C3FF93DD12CE /* Formats.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0EA031C961EEEB6D67C21FFF /* Formats.cpp */; };
-		92CB8672E076C1C5498E3114 /* imgui_widgets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 91E75ED2AA683074D387C16B /* imgui_widgets.cpp */; };
 		9310F51AFBCBFA8DF66A91D6 /* Clock.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA012E1118407A93D2729088 /* Clock.cpp */; };
 		93483238E4492906C1DEA6EC /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
 		938B7AC1EE5913576E18E03B /* Upscaler.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E2B226AECE46EF3EACBEB799 /* Upscaler.cpp */; };
@@ -1037,7 +1032,6 @@
 		C97B5B4BECE1B3ADBB31C915 /* RealLiveRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */; };
 		C9DA4A961A902BD1637CE889 /* VitaCpk.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7C70000000000000000001E /* VitaCpk.cpp */; };
 		C9F716E2B49AB6E8A04F3C41 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
-		CA1CD6D9E9403980929BAABE /* imgui_stdlib.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5306B792EBD5809B1825F58D /* imgui_stdlib.cpp */; };
 		CA1E6B94586D623D2870746F /* SchoolDaysBackLog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E9EFF082D1157F2E14352985 /* SchoolDaysBackLog.cpp */; };
 		CA37B060AD8A0FF57B18F146 /* game-assets in Resources */ = {isa = PBXBuildFile; fileRef = DD7FF307F319E50C1D05AFC0 /* game-assets */; };
 		CA4D4A1637B623345B9AFE81 /* SplashScreen.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 62BFF300BD52785A9D5A52DF /* SplashScreen.cpp */; };
@@ -1269,7 +1263,6 @@
 		EFE26918E1AFEC505E3613EE /* SchoolDaysKtrfGameplayBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA2D4B79E4E945CAE63D2610 /* SchoolDaysKtrfGameplayBridge.cpp */; };
 		EFE9B3608F4D64BEC37B4EA8 /* AmagamiLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EDE9F0307C5FFAF41888D56E /* AmagamiLauncher.cpp */; };
 		EFF14E5D152FC9678630AE84 /* BacklogEvents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FA70A1D23033480A2BD47AFD /* BacklogEvents.cpp */; };
-		F00BC280D56007718A0D6EC7 /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */; };
 		F034DF0C167574FACE5C03C6 /* SchoolDaysKtrfSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FCEB3EB28E661CF01E787621 /* SchoolDaysKtrfSession.cpp */; };
 		F0549F51D45CB83D870D3FF0 /* GcPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ABB4CA81D50B8F5EDE127C05 /* GcPack.cpp */; };
 		F057FF5367E047082D54E13D /* imgui_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E7A0A915B2FD3102490280F0 /* imgui_tables.cpp */; };
@@ -1280,6 +1273,7 @@
 		F0F1CDE8F744B3FECE4703C9 /* SchoolDaysPersistenceCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3E089F29CF0373043C48D52 /* SchoolDaysPersistenceCodec.cpp */; };
 		F14ADEE91823F5DF0EE20BE2 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		F14C29691C1B4CA3271719AF /* Frontend.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 49C06E159552485B927062F8 /* Frontend.cpp */; };
+		F1A200000000000000000002 /* ImGuiVcpkgPlaceholder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F1A200000000000000000001 /* ImGuiVcpkgPlaceholder.cpp */; };
 		F1BE66D30D408A277A3B94CA /* AudioSystem.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 798D22DEAD1C84C7184A5A1B /* AudioSystem.cpp */; };
 		F1BFA7242096FDDDC88E92E1 /* SchoolDaysPlayDataSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7915062DFFA73630E029942F /* SchoolDaysPlayDataSession.cpp */; };
 		F1C12FB4033920FB4B905547 /* PmailComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */; };
@@ -2769,6 +2763,7 @@
 		F0EFB68E5BDAC507F296178A /* VNSaveMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = VNSaveMenu.cpp; path = ../../lib/src/components/VNSaveMenu.cpp; sourceTree = SOURCE_ROOT; };
 		F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysReplayScriptOracle.cpp; path = "../../games/school-days/src/SchoolDaysReplayScriptOracle.cpp"; sourceTree = SOURCE_ROOT; };
 		F17071A51EFE30209328ED65 /* KatawaShoujo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KatawaShoujo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1A200000000000000000001 /* ImGuiVcpkgPlaceholder.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = ImGuiVcpkgPlaceholder.cpp; path = Scripts/ImGuiVcpkgPlaceholder.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000064 /* Path.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Path.cpp; path = ../../lib/src/filesystem/Path.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000065 /* SDLFileSource.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SDLFileSource.cpp; path = ../../lib/src/filesystem/sources/SDLFileSource.cpp; sourceTree = SOURCE_ROOT; };
 		F1F1F1000000000000000066 /* DirectoryMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DirectoryMount.cpp; path = ../../lib/src/filesystem/mounts/DirectoryMount.cpp; sourceTree = SOURCE_ROOT; };
@@ -3387,6 +3382,7 @@
 				D3DE05974DAEB199FF71D6C5 /* ConfigureMacOSIcon.sh */,
 				3F5B047F1B80A04FBE672AE4 /* EmbedDokiDokiPython.sh */,
 				C327919824D2D650ED44A512 /* EmbedSDLFrameworks.sh */,
+				F1A200000000000000000001 /* ImGuiVcpkgPlaceholder.cpp */,
 			);
 			name = Scripts;
 			sourceTree = "<group>";
@@ -5646,6 +5642,7 @@
 				B6B600000000000000000002 /* Frameworks */,
 				B6B600000000000000000003 /* Resources */,
 				B6B600000000000000000004 /* Embed Frameworks */,
+				B6B6000000000000000000C0 /* Build KotonohaGameHost */,
 				B6B6000000000000000000BC /* Embed SDL3 + SDL3_ttf and Verify Assets */,
 				B6B6000000000000000000BD /* Install shared macOS app icon */,
 				B6B6000000000000000000BE /* Embed shared RenPy CPython */,
@@ -7607,6 +7604,21 @@
 			shellPath = /bin/sh;
 			shellScript = "\"${SRCROOT}/Scripts/EmbedDokiDokiPython.sh\"";
 		};
+		B6B6000000000000000000C0 /* Build KotonohaGameHost */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Build KotonohaGameHost";
+			outputPaths = (
+				"$(BUILT_PRODUCTS_DIR)/KotonohaGameHost",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "bash \"${SRCROOT}/Scripts/BuildGameHost.sh\"";
+		};
 		BD1AA8B8F19F51223D81409D /* Install shared macOS app icon */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -8733,13 +8745,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1CA3AAAA9C73D238D27DE7A1 /* imgui.cpp in Sources */,
-				1DE47B772474B87697C883B2 /* imgui_draw.cpp in Sources */,
-				F00BC280D56007718A0D6EC7 /* imgui_tables.cpp in Sources */,
-				92CB8672E076C1C5498E3114 /* imgui_widgets.cpp in Sources */,
-				208B3BCD1309AFE61B778E83 /* imgui_impl_sdl3.cpp in Sources */,
-				78F8BB4DF7D66BE9AEB4B464 /* imgui_impl_sdlrenderer3.cpp in Sources */,
-				CA1CD6D9E9403980929BAABE /* imgui_stdlib.cpp in Sources */,
+				F1A200000000000000000002 /* ImGuiVcpkgPlaceholder.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -11168,9 +11174,9 @@
 			baseConfigurationReference = B6B600000000000000000007 /* Launcher.macOS.xcconfig */;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
@@ -11180,6 +11186,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = Kotonoha;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = macosx;
@@ -11191,9 +11198,9 @@
 			baseConfigurationReference = B6B600000000000000000007 /* Launcher.macOS.xcconfig */;
 			buildSettings = {
 				CLANG_CXX_LANGUAGE_STANDARD = "c++17";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 64T9B5HFFD;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+				CODE_SIGN_STYLE = Manual;
+				DEVELOPMENT_TEAM = "";
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "$(SRCROOT)/Info.plist";
@@ -11203,6 +11210,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 15.0;
 				PRODUCT_BUNDLE_IDENTIFIER = me.hirameki.kotonoha;
 				PRODUCT_NAME = Kotonoha;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SKIP_INSTALL = NO;
 				SUPPORTED_PLATFORMS = macosx;

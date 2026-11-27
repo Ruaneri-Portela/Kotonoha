@@ -7,7 +7,8 @@
 extern "C" {
 #endif
 
-typedef void (*KotonohaMacLaunchCallback)(
+// Returns the PID of the detached game host, or 0 when it could not start.
+typedef int (*KotonohaMacLaunchCallback)(
     const KotonohaGameLaunchRequest *request, void *userData);
 typedef void (*KotonohaMacQuitCallback)(void *userData);
 

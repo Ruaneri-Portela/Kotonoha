@@ -105,6 +105,16 @@ public final class BridgeTestCli {
         }
         print("LAUNCH ok=" + ok + " fail=" + failed + " total=" + (ok + failed));
 
+        // 8. Detached launch: the native core picks RUNDLL32/fork by itself.
+        for (GameInfo game : games) {
+            if (game.path.isEmpty()) continue;
+            LaunchRequest request = LaunchRequest.from(game).split(true)
+                    .dryRun(dryRun).build();
+            String result = request.launchDetached();
+            print("LAUNCH_DETACHED " + game.path + " => " + result);
+            break;
+        }
+
         // Cada string retornada pela nativa e liberada por newOwnedString().
         print("FEATURE FreeString => exercised by native newOwnedString() on every return");
         print("FEATURES: ScanRootsJson, DetectPathJson, LoadGameParamsJson, "

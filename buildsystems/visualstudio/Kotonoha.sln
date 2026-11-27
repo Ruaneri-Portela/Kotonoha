@@ -164,6 +164,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KotonohaLauncherCore", "Kot
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KotonohaLauncher", "KotonohaLauncher.vcxproj", "{56890971-4432-E6CB-7FC9-1354A73EC8D8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "KotonohaGameHost", "KotonohaGameHost.vcxproj", "{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -1062,6 +1064,18 @@ Global
 		{56890971-4432-E6CB-7FC9-1354A73EC8D8}.Release|x64.Build.0 = Release|x64
 		{56890971-4432-E6CB-7FC9-1354A73EC8D8}.Release|ARM64.ActiveCfg = Release|ARM64
 		{56890971-4432-E6CB-7FC9-1354A73EC8D8}.Release|ARM64.Build.0 = Release|ARM64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|Win32.ActiveCfg = Debug|Win32
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|Win32.Build.0 = Debug|Win32
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x64.ActiveCfg = Debug|x64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|x64.Build.0 = Debug|x64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Debug|ARM64.Build.0 = Debug|ARM64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|Win32.ActiveCfg = Release|Win32
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|Win32.Build.0 = Release|Win32
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|x64.ActiveCfg = Release|x64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|x64.Build.0 = Release|x64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|ARM64.ActiveCfg = Release|ARM64
+		{A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D}.Release|ARM64.Build.0 = Release|ARM64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -952,6 +952,12 @@ if (NOT VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
     message(STATUS "Building Release Options: ${OPTIONS_RELEASE}")
     message(STATUS "Building ${PORT} for Release")
     file(MAKE_DIRECTORY "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel")
+    # iOS SDKs do not ship <stdbit.h>; ffmpeg's bundled compatibility header
+    # makes its configure probe succeed on Applemobile targets.
+    if(VCPKG_TARGET_IS_IOS)
+        string(APPEND OPTIONS " --extra-cflags=-I\"${SOURCE_PATH}/compat/stdbit\"")
+    endif()
+
     # We use response files here as the only known way to handle spaces in paths
     set(crsp "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-rel/cflags.rsp")
     string(REGEX REPLACE "-arch [A-Za-z0-9_]+" "" VCPKG_COMBINED_C_FLAGS_RELEASE_SANITIZED "${VCPKG_COMBINED_C_FLAGS_RELEASE}")

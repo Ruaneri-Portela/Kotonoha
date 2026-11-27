@@ -127,6 +127,15 @@ final class LaunchRequest {
                 upscalerPreset, upscalerFactor, dryRun);
     }
 
+    String launchDetached() {
+        return KotonohaLauncherBridge.nativeLaunchDetachedJson(
+                gamePath, engineSlug, saveProfileId, splitSavesByGame,
+                customSaveRoot, assetOverlayPath, translationPath,
+                subtitleStylePath, customDocumentsDir, ktrfPath, scriptsDir,
+                startScenario, rendererBackend, upscalerBackend,
+                upscalerPreset, upscalerFactor, dryRun);
+    }
+
     static final class Builder {
         String gamePath = "";
         String engineSlug = "";

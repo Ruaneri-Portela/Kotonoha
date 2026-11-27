@@ -26,10 +26,14 @@ IPHONEOS_DEPLOYMENT_TARGET = 15.0
 // amd64 spelling is only a name; the compiler and vcpkg still target x86_64.
 KOTONOHA_VCPKG_PARENT = $(KOTONOHA_ROOT)/out/build/macos-arm64-vcpkg/vcpkg_installed
 KOTONOHA_VCPKG_PARENT[arch=x86_64] = $(KOTONOHA_ROOT)/out/build/macos-amd64-vcpkg/vcpkg_installed
+// Xcode's "My Mac" destination may resolve to x86_64h on Intel hosts; the
+// x86_64 vcpkg install is valid for both spellings.
+KOTONOHA_VCPKG_PARENT[arch=x86_64h] = $(KOTONOHA_ROOT)/out/build/macos-amd64-vcpkg/vcpkg_installed
 KOTONOHA_VCPKG_PARENT[sdk=iphoneos*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/ios
 KOTONOHA_VCPKG_PARENT[sdk=iphonesimulator*] = $(KOTONOHA_ROOT)/buildsystems/xcode/vcpkg/simulator
 KOTONOHA_VCPKG_TRIPLET = macos-arm64-vcpkg
 KOTONOHA_VCPKG_TRIPLET[arch=x86_64] = macos-amd64-vcpkg
+KOTONOHA_VCPKG_TRIPLET[arch=x86_64h] = macos-amd64-vcpkg
 KOTONOHA_VCPKG_TRIPLET[sdk=iphoneos*] = arm64-ios
 KOTONOHA_VCPKG_TRIPLET[sdk=iphonesimulator*] = arm64-ios-simulator
 KOTONOHA_VCPKG_INCLUDE = $(KOTONOHA_VCPKG_PARENT)/$(KOTONOHA_VCPKG_TRIPLET)/include
@@ -153,12 +157,18 @@ KOTONOHA_GAME_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/launcher/core" \
     "$(KOTONOHA_ROOT)/launcher/app"
 
-HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
+// macOS takes SDL3, SDL3_ttf and ImGui headers from the vcpkg include tree
+// (OTHER_CPLUSPLUSFLAGS). iOS keeps the pinned submodule headers.
+KOTONOHA_SUBMODULE_INCLUDES = \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
     "$(KOTONOHA_ROOT)/lib/submodules/imgui/backends" \
-    "$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp" \
+    "$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp"
+KOTONOHA_SUBMODULE_INCLUDES[sdk=macosx*] =
+
+HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
+    $(KOTONOHA_SUBMODULE_INCLUDES) \
     "$(KOTONOHA_ROOT)/modules/providers/cmp/include" \
     "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
     "$(KOTONOHA_ROOT)/modules/providers/rpa/include" \
@@ -180,9 +190,11 @@ HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GA
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/include" \
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/src"
 LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
-// SDL3 / SDL3_ttf are Xcode-built dynamic frameworks from lib/submodules;
-// KotonohaEngine / KotonohaImGui come from BUILT_PRODUCTS_DIR.
-FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)"
+// iOS keeps the SDL3 / SDL3_ttf Xcode-built frameworks from the submodules.
+// KotonohaEngine / KotonohaImGui always come from BUILT_PRODUCTS_DIR.
+FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
+// macOS uses vcpkg dylibs for SDL3/SDL3_ttf; only engine frameworks remain.
+FRAMEWORK_SEARCH_PATHS[sdk=macosx*] = $(inherited) "$(BUILT_PRODUCTS_DIR)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
 // Keep vcpkg headers as system search paths after the Apple SDK so vcpkg's
@@ -198,8 +210,8 @@ KOTONOHA_METALFX_DEF = KOTONOHA_HAS_METALFX=1
 KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
 
-// All app targets link the submodule SDL3 / SDL3_ttf frameworks; the remaining
-// libraries come from vcpkg.
+// All app targets link SDL3 / SDL3_ttf from vcpkg on macOS and from the pinned
+// Xcode submodule frameworks on iOS; the remaining libraries come from vcpkg.
 // CoreFoundation handles engine text conversion, but bundled/third-party
 // libraries may still reference _iconv_open/_iconv/_iconv_close.
 // Keep the Apple SDK's libiconv linked for all macOS/iOS app targets.

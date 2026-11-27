@@ -102,15 +102,22 @@ install_framework() {
   fi
 }
 
-sdl_base="${repo}/lib/submodules/SDL/Xcode/SDL/build"
-ttf_base="${repo}/lib/submodules/SDL_ttf/Xcode/build"
+if [[ "${PLATFORM_NAME:-}" == "macosx" ]]; then
+  # macOS delivers SDL3, SDL3_ttf and ImGui from vcpkg. The vcpkg dylib loop
+  # below copies libSDL3/libSDL3_ttf into Frameworks; no submodule framework
+  # is searched, signed or embedded.
+  note "SDL3/SDL3_ttf/ImGui come from vcpkg for ${TARGET_NAME:-app}"
+else
+  sdl_base="${repo}/lib/submodules/SDL/Xcode/SDL/build"
+  ttf_base="${repo}/lib/submodules/SDL_ttf/Xcode/build"
 
-sdl=$(find_framework SDL3 "${KOTONOHA_SDL3_FRAMEWORK_PATH:-}" "${sdl_base}" SDL3)
-ttf=$(find_framework SDL3_ttf "${KOTONOHA_SDL3_TTF_FRAMEWORK_PATH:-}" "${ttf_base}" SDL3_ttf)
+  sdl=$(find_framework SDL3 "${KOTONOHA_SDL3_FRAMEWORK_PATH:-}" "${sdl_base}" SDL3)
+  ttf=$(find_framework SDL3_ttf "${KOTONOHA_SDL3_TTF_FRAMEWORK_PATH:-}" "${ttf_base}" SDL3_ttf)
 
-install_framework SDL3 "${sdl}"
-install_framework SDL3_ttf "${ttf}"
-note "Both SDL frameworks are present for ${TARGET_NAME:-app}"
+  install_framework SDL3 "${sdl}"
+  install_framework SDL3_ttf "${ttf}"
+  note "Both SDL frameworks are present for ${TARGET_NAME:-app}"
+fi
 
 # KotonohaEngine.framework / KotonohaImGui.framework are embedded and signed by
 # Xcode's "Embed Frameworks" phase (CodeSignOnCopy). Verify that those signed
@@ -129,22 +136,61 @@ fi
 # Copy every @rpath dependency from the active vcpkg root into the app bundle
 # so @executable_path/Frameworks can resolve json-c, ffmpeg, ass, etc. at launch.
 vcpkg_lib="${KOTONOHA_VCPKG_LIB:-}"
+# Xcode UI builds use ARCHS="arm64 x86_64" with ONLY_ACTIVE_ARCH=YES, so the
+# xcconfig [arch=...] conditions do not select a triplet. Resolve it from the
+# architectures actually present in the produced binary instead.
+executable="${TARGET_BUILD_DIR}/${EXECUTABLE_PATH:-}"
+product_archs=""
+vcpkg_lib_secondary=""
+# Only macOS has separate arm64/x86_64 vcpkg roots; iOS keeps the SDK root
+# selected by the xcconfig.
+if [[ "${PLATFORM_NAME:-}" == "macosx" ||
+      "${SDKROOT:-}" == *MacOSX* ]]; then
+  if [[ -n "${executable}" && -f "${executable}" ]]; then
+    product_archs="$(lipo -archs "${executable}" 2>/dev/null || true)"
+  fi
+  if [[ "${product_archs}" == *x86_64* && "${product_archs}" != *arm64* ]]; then
+    vcpkg_lib="${repo}/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib"
+  elif [[ "${product_archs}" == *arm64* && "${product_archs}" != *x86_64* ]]; then
+    vcpkg_lib="${repo}/out/build/macos-arm64-vcpkg/vcpkg_installed/macos-arm64-vcpkg/lib"
+  elif [[ "${product_archs}" == *x86_64* && "${product_archs}" == *arm64* ]]; then
+    vcpkg_lib_secondary="${repo}/out/build/macos-amd64-vcpkg/vcpkg_installed/macos-amd64-vcpkg/lib"
+  fi
+fi
 if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
+  note "Using vcpkg libraries for ${product_archs:-active arch}: ${vcpkg_lib}"
   copied=0
   while :; do
     changed=0
     while IFS= read -r dep; do
       [[ "${dep}" == @rpath/* ]] || continue
       name="${dep#@rpath/}"
+      # Framework binaries (e.g. Python.framework/Python) are embedded by
+      # Xcode's own phase; never remove or replace them here.
+      [[ "${name}" == */* ]] && continue
       dest="${framework_destination}/${name}"
-      [[ -e "${dest}" ]] && continue
       src="${vcpkg_lib}/${name}"
+      # Reuse an existing dylib with the same slices; replace it only when a
+      # previous build for another architecture left an incompatible copy.
+      if [[ -e "${dest}" ]]; then
+        src_archs="$(lipo -archs "${src}" 2>/dev/null || true)"
+        dest_archs="$(lipo -archs "${dest}" 2>/dev/null || true)"
+        if [[ "${src_archs}" == "${dest_archs}" ]]; then
+          continue
+        fi
+        rm -f "${dest}"
+      fi
       if [[ ! -e "${src}" ]]; then
         note "WARNING: @rpath dependency ${name} is not in ${vcpkg_lib}"
         continue
       fi
       mkdir -p "${framework_destination}"
-      ditto "${src}" "${dest}"
+      if [[ -n "${vcpkg_lib_secondary}" && -f "${vcpkg_lib_secondary}/${name}" ]]; then
+        lipo -create "${src}" "${vcpkg_lib_secondary}/${name}" -output "${dest}" ||
+          fatal "Could not join universal dependency ${name}"
+      else
+        ditto "${src}" "${dest}"
+      fi
       if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
         command -v codesign >/dev/null 2>&1 || fatal 'codesign not available for signing embedded dylibs'
         local_identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
@@ -171,17 +217,40 @@ if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
   done
   note "Embedded ${copied} dynamic vcpkg library dependency/ dependencies"
 fi
+# The launcher is the only app that ships the detached game host. Other game
+# bundles launch through the hub, so they do not need a second executable.
+if [[ "${KOTONOHA_GAME_DIR:-}" == "launcher" ]]; then
+  host_source="${TARGET_BUILD_DIR}/KotonohaGameHost"
+  if [[ -f "${host_source}" ]]; then
+    host_dir="$(dirname "${TARGET_BUILD_DIR}/${EXECUTABLE_PATH}")"
+    mkdir -p "${host_dir}"
+    ditto "${host_source}" "${host_dir}/KotonohaGameHost"
+    if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
+      local_identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
+      [[ -n "${local_identity}" ]] || local_identity='-'
+      codesign --force --sign "${local_identity}" --timestamp=none \
+        "${host_dir}/KotonohaGameHost" ||
+        fatal "Could not sign embedded KotonohaGameHost"
+    fi
+    note "Embedded KotonohaGameHost into the launcher app"
+  fi
+fi
+
 # Install iOS art from the versioned design/generated/ source of truth into
 # the bundle root (the location CFBundleIcons expects) without changing the
 # shared Info.plist. Never stage the design/ folder as a generic asset.
 if [[ "${PLATFORM_NAME:-}" == iphoneos || "${PLATFORM_NAME:-}" == iphonesimulator ]]; then
+  # The Xcode pre-action (tools/PrepareApple.py) generates the brand assets
+  # once; only import the files the iOS bundle needs, and only copy the
+  # splash when changed so repeated builds never stage it twice.
   brand="${repo}/design/generated"
-  python3 "${repo}/tools/generate_brand_assets.py" --kind apple --out "${brand}"
   cp "${brand}/apple/AppIcon-120.png" "${resources_destination}/KotonohaIcon120.png"
   cp "${brand}/apple/AppIcon-180.png" "${resources_destination}/KotonohaIcon180.png"
   cp "${brand}/apple/AppIcon-76.png" "${resources_destination}/KotonohaIcon76.png"
   cp "${brand}/apple/AppIcon-1024.png" "${resources_destination}/KotonohaIcon1024.png"
-  cp "${brand}/splash/SPLASH.PNG" "${resources_destination}/assets/SPLASH.PNG"
+  if ! cmp -s "${brand}/splash/SPLASH.PNG" "${resources_destination}/assets/SPLASH.PNG"; then
+    cp "${brand}/splash/SPLASH.PNG" "${resources_destination}/assets/SPLASH.PNG"
+  fi
   note "Installed iOS AppIcon sizes and black universal splash"
 fi
 note "Both SDL frameworks, vcpkg dylibs and both asset directories are present for ${TARGET_NAME:-app}"

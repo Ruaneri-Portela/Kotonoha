@@ -112,6 +112,31 @@ else()
         endif()
     endif()
 endif()
+
+# Universal detached host. The core spawns this helper instead of forking the
+# UI process; it is built on Windows, Linux and macOS and shipped next to the
+# launcher so every frontend (.NET, Java, SwiftUI, CLI) shares one mechanism.
+if(NOT EMSCRIPTEN)
+    add_executable(KotonohaGameHost host/GameHost.cpp)
+    target_link_libraries(KotonohaGameHost PRIVATE KotonohaLauncherCore)
+    set_target_properties(KotonohaGameHost PROPERTIES CXX_EXTENSIONS OFF)
+    if(APPLE)
+        # The helper is bundled in Contents/MacOS of the Launcher app; resolve
+        # Python3.framework and the other app dylibs relative to the bundle.
+        target_link_options(KotonohaGameHost PRIVATE
+            "-Wl,-rpath,@executable_path/../Frameworks")
+    endif()
+    if(APPLE AND KOTONOHA_BUILD_MACOS_BUNDLES)
+        set(_host_bundle_dir
+            "${CMAKE_BINARY_DIR}/outputs/KotonohaLauncher.app/Contents/MacOS")
+        add_custom_command(TARGET KotonohaGameHost POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E make_directory "${_host_bundle_dir}"
+            COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:KotonohaGameHost>" "${_host_bundle_dir}/KotonohaGameHost"
+            VERBATIM)
+    endif()
+endif()
+
 if(KOTONOHA_JNI_BINDINGS AND NOT EMSCRIPTEN)
     target_include_directories(KotonohaLauncherCore PRIVATE ${_kotonoha_jni_include_dirs})
     # JavaBridge.cpp uses this instead of its old __ANDROID__-only guard.
@@ -220,6 +245,11 @@ if(NOT EMSCRIPTEN AND NOT ANDROID)
             BUNDLE_ID me.hirameki.kotonoha
             GAME launcher
             GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
+    endif()
+
+    # The launcher bundle stages KotonohaGameHost; make the ordering explicit.
+    if(TARGET KotonohaGameHost)
+        add_dependencies(KotonohaLauncher KotonohaGameHost)
     endif()
 
     # School Days uses a tracked, non-commercial route definition. Ship this

@@ -80,4 +80,18 @@ public final class KotonohaLauncherBridge {
             String ktrfPath, String scriptsDir, String startScenario,
             String rendererBackend, String upscalerBackend,
             String upscalerPreset, String upscalerFactor, boolean dryRun);
+
+    /**
+     * Starts the game in a detached host process chosen by the native core:
+     * RUNDLL32 on Windows, a disowned fork elsewhere. Java does not need to
+     * detect the operating system. Returns JSON with ok, pid, host, message.
+     */
+    public static native String nativeLaunchDetachedJson(
+            String gamePath, String engineSlug, String saveProfileId,
+            boolean splitSavesByGame, String customSaveRoot,
+            String assetOverlayPath, String translationPath,
+            String subtitleStylePath, String customDocumentsDir,
+            String ktrfPath, String scriptsDir, String startScenario,
+            String rendererBackend, String upscalerBackend,
+            String upscalerPreset, String upscalerFactor, boolean dryRun);
 }

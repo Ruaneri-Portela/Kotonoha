@@ -98,6 +98,10 @@ public static class KotonohaLauncher
         ref KotonohaGameLaunchRequest request);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr KotonohaLauncherLaunchGameDetached(
+        ref KotonohaGameLaunchRequest request);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr KotonohaLauncherUpscalePresetsJson();
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
@@ -234,35 +238,25 @@ public static class KotonohaLauncher
         });
 
     /// <summary>
-    /// Windows "fork": starts the game in a RUNDLL32 host process so SDL runs
-    /// on that process main thread. stdin/stdout/stderr are inherited and
-    /// captured by the caller; the manager does not exit.
+    /// Starts the game in a detached host process chosen by the native core:
+    /// RUNDLL32 on Windows, a disowned fork elsewhere. No OS detection and no
+    /// DLL path are needed here. The returned Process may be null when the
+    /// platform does not expose a PID (e.g. an already-reparented child).
     /// </summary>
-    public static Process LaunchGameDetached(KotonohaGameLaunchRequest request,
-                                             string launcherDllPath)
+    public static Process? LaunchGameDetached(KotonohaGameLaunchRequest request)
     {
-        var json = JsonSerializer.Serialize(new
+        var response = TakeString(
+            KotonohaLauncherLaunchGameDetached(ref request));
+        using var document = JsonDocument.Parse(response);
+        var root = document.RootElement;
+        if (!root.GetProperty("ok").GetBoolean())
         {
-            request.GamePath, request.EngineSlug, request.SaveProfileId,
-            request.SplitSavesByGame, request.CustomSaveRoot,
-            request.AssetOverlayPath, request.TranslationPath,
-            request.SubtitleStylePath, request.CustomDocumentsDir,
-            request.KtrfPath, request.ScriptsDir, request.StartScenario,
-            request.RendererBackend, request.UpscalerBackend,
-            request.UpscalerPreset, request.UpscalerFactor, request.DryRun
-        });
-        var psi = new ProcessStartInfo("rundll32.exe")
-        {
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-        };
-        // RUNDLL32 exige "dll",EntryPoint exatamente; ArgumentList escaparia
-        // as aspas e o host terminaria sem executar a funcao exportada.
-        psi.Arguments = $"\"{launcherDllPath}\",KotonohaLauncherRunDll";
-        psi.Environment["KOTONOHA_LAUNCH_REQUEST_JSON"] = json;
-        return Process.Start(psi)
-               ?? throw new InvalidOperationException("rundll32 nao iniciou");
+            var message = root.GetProperty("message").GetString()
+                          ?? "Detached launch failed";
+            throw new InvalidOperationException(message);
+        }
+        var pid = root.GetProperty("pid").GetInt32();
+        return pid > 0 ? Process.GetProcessById(pid) : null;
     }
 
     /// <summary>List upscaler presets as JSON.</summary>

@@ -88,7 +88,7 @@ Emit ast(std::string name,
   });
   return object(std::move(name), std::move(properties));
 }
-Emit label(std::string name, std::vector<Emit> block, Emit params = nothing()) {
+Emit mkLabel(std::string name, std::vector<Emit> block, Emit params = nothing()) {
   return ast("Label", {{"name", text(std::move(name))},
                        {"block", list(std::move(block))},
                        {"parameters", std::move(params)}});
@@ -159,20 +159,20 @@ int main() {
     auto args = object("ArgumentInfo",
                        {{"arguments", list({tuple({nothing(), text("7")}),
                                             tuple({text("b"), text("9")})})}});
-    auto start = label("start", {dynamicJump("'.branch'")});
-    auto branch = label("start.branch", {dynamicCall("'.helper'", args),
+    auto start = mkLabel("start", {dynamicJump("'.branch'")});
+    auto branch = mkLabel("start.branch", {dynamicCall("'.helper'", args),
                                          say("back from call"), ret()});
-    auto helper = label("start.helper", {ret(text("a + b"))}, parameters);
+    auto helper = mkLabel("start.helper", {ret(text("a + b"))}, parameters);
     auto menu =
         ast("Menu", {{"items", list({tuple({text("Enabled"), nothing(),
                                             list({ret(text("123"))})}),
                                      tuple({text("Disabled"), text("False"),
                                             list({ret(text("456"))})})})}});
-    auto choices = label("menu_test", {menu, ret(text("555"))});
+    auto choices = mkLabel("menu_test", {menu, ret(text("555"))});
     auto emptyMenu =
         ast("Menu", {{"items", list({tuple({text("Unavailable"), text("False"),
                                             list({ret(text("456"))})})})}});
-    auto disabled = label("menu_empty", {emptyMenu, ret(text("789"))});
+    auto disabled = mkLabel("menu_empty", {emptyMenu, ret(text("789"))});
     auto root =
         tuple({nothing(), list({start, branch, helper, choices, disabled})});
 
@@ -188,7 +188,7 @@ int main() {
     }
     {
       const auto bytes =
-          compile(tuple({nothing(), list({label("module_label", {ret()})})}));
+          compile(tuple({nothing(), list({mkLabel("module_label", {ret()})})}));
       std::ofstream output(modulePath, std::ios::binary);
       output.write(reinterpret_cast<const char *>(bytes.data()),
                    std::streamsize(bytes.size()));

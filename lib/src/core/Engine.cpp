@@ -15,6 +15,7 @@
 #include <Kotonoha/script/TimelinePlayer.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <charconv>
 #include <cmath>
 #include <filesystem>
@@ -170,6 +171,7 @@ std::string EngineOptions::assetOverlayDirectory() const {
   return findAssetOverlayDirectory().string();
 }
 SDLSession::SDLSession(const Runtime &runtime) {
+  Kotonoha::DisableMetalDebugEnvironment();
   SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
   if (!SDL_SetAppMetadata(runtime.name.c_str(), runtime.version.c_str(),
                           runtime.identify.c_str()) ||
@@ -293,9 +295,24 @@ Engine::Engine(Runtime &run, EngineOptions options)
   SDL_SetWindowFocusable(window.get(), true);
   SDL_ShowWindow(window.get());
   SDL_RaiseWindow(window.get());
-  renderer.reset(SDL_CreateRenderer(
-      window.get(),
-      settings.renderer.empty() ? nullptr : settings.renderer.c_str()));
+  // Keep Metal's validation layer off unless explicitly requested. Probe the
+  // environment before choosing: a translated macOS process (Rosetta) or an
+  // active Metal debug/capture session cannot drive Metal safely, so fall
+  // back to OpenGL. Otherwise try the default (Metal) renderer and retry with
+  // OpenGL if creation fails.
+  Kotonoha::DisableGpuDebugByDefault();
+  // Renderer choice is never forced by the engine: it comes from the UI,
+  // --renderer argument or SDL_RENDER_DRIVER environment variable. Only a
+  // failed creation falls back to OpenGL on macOS.
+  const char *rendererName =
+      settings.renderer.empty() ? nullptr : settings.renderer.c_str();
+  renderer.reset(SDL_CreateRenderer(window.get(), rendererName));
+  if (!renderer && std::string(SDL_GetPlatform()) == "Mac OS X") {
+    SDL_LogWarn(LogCore,
+                "Metal renderer could not be created (%s); retrying with opengl",
+                SDL_GetError());
+    renderer.reset(SDL_CreateRenderer(window.get(), "opengl"));
+  }
   if (!renderer ||
       !SDL_SetRenderLogicalPresentation(renderer.get(), view.x, view.y,
                                         SDL_LOGICAL_PRESENTATION_LETTERBOX))

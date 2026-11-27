@@ -30,6 +30,11 @@ private enum KotonohaBrand {
     static let success = Color(red: 134.0/255, green: 199.0/255, blue: 167.0/255)
     static let warning = Color(red: 220.0/255, green: 197.0/255, blue: 156.0/255)
     static let error = Color(red: 221.0/255, green: 164.0/255, blue: 173.0/255)
+
+    // Vivid rose family used for primary actions and the "End" action.
+    static let rose = Color(red: 1.0, green: 0.35, blue: 0.58)
+    static let roseDeep = Color(red: 0.91, green: 0.22, blue: 0.46)
+    static let roseSoft = Color(red: 1.0, green: 0.62, blue: 0.74)
 }
 
 // Espacamentos 4/8/16/24 e raios 8/12/20 de design/tokens.json.
@@ -186,21 +191,24 @@ private struct MacGlassSurfaceModifier: ViewModifier {
 
 private struct MacGlassButtonModifier: ViewModifier {
     let prominent: Bool
+    let tone: Color
 
     func body(content: Content) -> some View {
-        if #available(macOS 26.0, *) {
-            if prominent {
-                content.buttonStyle(.glassProminent)
-            } else {
-                content.buttonStyle(.glass)
+        let styled: AnyView = {
+            if #available(macOS 26.0, *) {
+                if prominent {
+                    return AnyView(content.buttonStyle(.glassProminent))
+                }
+                return AnyView(content.buttonStyle(.glass))
             }
-        } else {
             if prominent {
-                content.buttonStyle(.borderedProminent)
-            } else {
-                content.buttonStyle(.bordered)
+                return AnyView(content.buttonStyle(.borderedProminent))
             }
-        }
+            return AnyView(content.buttonStyle(.bordered))
+        }()
+        return styled
+            .tint(tone)
+            .foregroundStyle(prominent ? .white : tone)
     }
 }
 
@@ -229,8 +237,9 @@ private extension View {
         modifier(MacGlassSurfaceModifier(cornerRadius: cornerRadius, interactive: interactive))
     }
 
-    func macGlassButton(prominent: Bool = false) -> some View {
-        modifier(MacGlassButtonModifier(prominent: prominent))
+    func macGlassButton(prominent: Bool = false,
+                        tone: Color = KotonohaBrand.rose) -> some View {
+        modifier(MacGlassButtonModifier(prominent: prominent, tone: tone))
     }
 }
 
@@ -273,6 +282,37 @@ private struct MacAmbientBackdrop: View {
 
 // MARK: - Library & Settings Store
 
+// Minimal EN/PT dictionary for launcher UI strings. The selected Apple
+// language drives it; pt-BR falls back to Portuguese, everything else to
+// English. Code symbols and CLI arguments are never translated.
+@MainActor
+private enum MacL10n {
+    enum Key: String {
+        case play, end, running, gameLog, noLog, launchFailed, ready
+    }
+
+    private static let ptBR: [Key: String] = [
+        .play: "Jogar", .end: "Encerrar", .running: "rodando",
+        .gameLog: "Log do jogo", .noLog: "Nenhuma saída ainda.",
+        .launchFailed: "Falha ao iniciar", .ready: "Pronto"
+    ]
+    private static let en: [Key: String] = [
+        .play: "Play", .end: "End", .running: "running",
+        .gameLog: "Game log", .noLog: "No output yet.",
+        .launchFailed: "Launch failed", .ready: "Ready"
+    ]
+
+    static var isPortuguese: Bool {
+        let languages = UserDefaults.standard.stringArray(forKey: "AppleLanguages")
+        return (languages?.first ?? Locale.current.identifier)
+            .lowercased().hasPrefix("pt")
+    }
+
+    static func text(_ key: Key) -> String {
+        (isPortuguese ? ptBR : en)[key] ?? key.rawValue
+    }
+}
+
 @MainActor
 private final class MacLauncherStore: ObservableObject {
     static let shared = MacLauncherStore()
@@ -281,6 +321,10 @@ private final class MacLauncherStore: ObservableObject {
     @Published var roots: [String] = []
     @Published var isScanning: Bool = false
     @Published var statusMessage: String = ""
+    /// PID of every detached host, keyed by game path. Each entry is polled
+    /// so a game that exits releases its "End" button and can be relaunched.
+    @Published var runningPids: [String: Int32] = [:]
+    @Published var logLines: [String] = []
     @Published var splitSavesByGame: Bool {
         didSet {
             UserDefaults.standard.set(splitSavesByGame, forKey: Self.splitSavesKey)
@@ -317,6 +361,7 @@ private final class MacLauncherStore: ObservableObject {
     }
 
     let upscalePresets: [MacUpscalePresetOption]
+    private var logFilePath: URL?
 
     private static let rootsKey = "KotonohaMacLibraryRoots"
     private static let splitSavesKey = "me.hirameki.kotonoha.mac.splitSaves.v1"
@@ -340,6 +385,67 @@ private final class MacLauncherStore: ObservableObject {
         self.upscalerPreset = defaults.string(forKey: Self.upscalerPresetKey) ?? "0"
         self.upscalerFactor = defaults.string(forKey: Self.upscalerFactorKey) ?? "2.0"
         self.upscalePresets = Self.loadUpscalePresets()
+        configureGameLog()
+    }
+
+    // The detached host inherits this environment variable and writes its
+    // stdout/stderr there; the hub tails it like the .NET manager does.
+    private func configureGameLog() {
+        guard let support = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let directory = support.appendingPathComponent(
+            "Kotonoha/me.hirameki.kotonoha", isDirectory: true)
+        try? FileManager.default.createDirectory(
+            at: directory, withIntermediateDirectories: true)
+        let path = directory.appendingPathComponent("game-host.log")
+        logFilePath = path
+        setenv("KOTONOHA_DETACHED_LOG", path.path, 1)
+        Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, let path = self.logFilePath,
+                      let text = try? String(contentsOf: path, encoding: .utf8)
+                else { return }
+                let lines = text.split(separator: "\n").map(String.init).suffix(200)
+                if self.logLines != Array(lines) {
+                    self.logLines = Array(lines)
+                }
+                // The spawned host is detached (PPID 1), so poll it directly.
+                for (path, pid) in self.runningPids
+                where pid > 0 && kill(pid, 0) != 0 {
+                    self.markStopped(path: path)
+                }
+            }
+        }
+    }
+
+    func resetLog() {
+        guard let path = logFilePath else { return }
+        try? Data().write(to: path)
+        logLines = []
+    }
+
+    func isRunning(_ path: String) -> Bool {
+        (runningPids[path] ?? 0) > 0
+    }
+
+    func markRunning(pid: Int32, path: String) {
+        runningPids[path] = pid
+        statusMessage = "\(MacL10n.text(.running)) — \(pid)"
+    }
+
+    func markStopped(path: String) {
+        runningPids.removeValue(forKey: path)
+        if runningPids.isEmpty {
+            statusMessage = MacL10n.text(.ready)
+        }
+    }
+
+    func terminateRunning(path: String) {
+        guard let pid = runningPids[path], pid > 0 else { return }
+        if let ptr = KotonohaLauncherTerminateGame(pid) {
+            KotonohaLauncherFreeString(ptr)
+        }
+        markStopped(path: path)
     }
 
     private static func loadUpscalePresets() -> [MacUpscalePresetOption] {
@@ -586,7 +692,7 @@ private final class MacLauncherStore: ObservableObject {
 
 private struct MacLauncherView: View {
     @ObservedObject var store: MacLauncherStore
-    let onPlay: (MacGameItem) -> Void
+    let onPlay: (MacGameItem) -> Int32
     let onQuit: () -> Void
 
     @State private var searchText: String = ""
@@ -795,10 +901,7 @@ private struct MacLauncherView: View {
 
     private func gameRowCard(_ game: MacGameItem) -> some View {
         let isSelected = selectedGame?.id == game.id
-        return Button {
-            selectedGameId = game.id
-        } label: {
-            HStack(spacing: 12) {
+        return HStack(spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: KotonohaMetrics.cardRadius, style: .continuous)
                         .fill(isSelected ? KotonohaBrand.accent.opacity(0.24) : Color.white.opacity(0.06))
@@ -852,8 +955,8 @@ private struct MacLauncherView: View {
                         lineWidth: 1.5
                     )
             )
-        }
-        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .onTapGesture { selectedGameId = game.id }
     }
 
     private var detailPane: some View {
@@ -881,9 +984,17 @@ private struct MacLauncherView: View {
                             }
 
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(game.title)
-                                    .font(.title2.weight(.bold))
-                                    .foregroundStyle(.primary)
+                                HStack(spacing: 8) {
+                                    Text(game.title)
+                                        .font(.title2.weight(.bold))
+                                        .foregroundStyle(.primary)
+                                    if store.isRunning(game.path) {
+                                        badge(
+                                            text: "(\(MacL10n.text(.running)))",
+                                            tint: KotonohaBrand.roseDeep
+                                        )
+                                    }
+                                }
 
                                 HStack(spacing: 8) {
                                     badge(text: game.engineDisplayName, tint: KotonohaBrand.accent)
@@ -915,14 +1026,33 @@ private struct MacLauncherView: View {
                         MacGlassContainer(spacing: 12) {
                             HStack(spacing: 12) {
                                 Button {
-                                    onPlay(game)
+                                    if store.isRunning(game.path) {
+                                        store.terminateRunning(path: game.path)
+                                    } else {
+                                        store.resetLog()
+                                        let pid = onPlay(game)
+                                        if pid > 0 {
+                                            store.markRunning(pid: pid, path: game.path)
+                                        } else {
+                                            store.statusMessage = MacL10n.text(.launchFailed)
+                                        }
+                                    }
                                 } label: {
-                                    Label("Play", systemImage: "play.fill")
-                                        .font(.headline.weight(.semibold))
-                                        .frame(minWidth: 130)
-                                        .padding(.vertical, 6)
+                                    let isRunning = store.isRunning(game.path)
+                                    Label(
+                                        isRunning ? MacL10n.text(.end) : MacL10n.text(.play),
+                                        systemImage: isRunning ? "stop.fill" : "play.fill"
+                                    )
+                                    .font(.headline.weight(.semibold))
+                                    .frame(minWidth: 130)
+                                    .padding(.vertical, 6)
                                 }
-                                .macGlassButton(prominent: true)
+                                .macGlassButton(
+                                    prominent: true,
+                                    tone: store.isRunning(game.path)
+                                        ? KotonohaBrand.roseDeep
+                                        : KotonohaBrand.rose
+                                )
                                 .disabled(!game.linkedInProcess)
 
                                 Button {
@@ -939,6 +1069,34 @@ private struct MacLauncherView: View {
 
                                 Spacer()
                             }
+                        }
+
+                        MacGlassContainer(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Label(MacL10n.text(.gameLog),
+                                      systemImage: "terminal")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(KotonohaBrand.roseSoft)
+                                ScrollView {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if store.logLines.isEmpty {
+                                            Text(MacL10n.text(.noLog))
+                                                .font(.caption.monospaced())
+                                                .foregroundStyle(.secondary)
+                                        } else {
+                                            ForEach(store.logLines, id: \.self) { line in
+                                                Text(line)
+                                                    .font(.caption2.monospaced())
+                                                    .foregroundStyle(.primary)
+                                                    .frame(maxWidth: .infinity,
+                                                           alignment: .leading)
+                                            }
+                                        }
+                                    }
+                                }
+                                .frame(height: 110)
+                            }
+                            .padding(12)
                         }
 
                         Divider().opacity(0.3)
@@ -1333,7 +1491,7 @@ final class KotonohaMacLauncherPresenter: NSObject, NSWindowDelegate {
             String, String, String, Bool, String,
             String, String, String, String, String, String, String,
             String, String, String, String
-        ) -> Void,
+        ) -> Int,
         onQuit: @escaping () -> Void
     ) {
         dismiss()
@@ -1353,7 +1511,7 @@ final class KotonohaMacLauncherPresenter: NSObject, NSWindowDelegate {
             rootView: MacLauncherView(
                 store: store,
                 onPlay: { item in
-                    onLaunch(
+                    Int32(onLaunch(
                         item.path,
                         item.engineSlug,
                         item.saveProfileId,
@@ -1370,7 +1528,7 @@ final class KotonohaMacLauncherPresenter: NSObject, NSWindowDelegate {
                         store.effectiveUpscalerBackend(for: item.params),
                         store.effectiveUpscalerPreset(for: item.params),
                         store.effectiveUpscalerFactor(for: item.params)
-                    )
+                    ))
                 },
                 onQuit: onQuit
             )

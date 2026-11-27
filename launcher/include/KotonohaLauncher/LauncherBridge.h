@@ -130,17 +130,33 @@ KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherFreeString(char *ptr);
 // Useful for out-of-process launchers that cannot marshal the C struct.
 KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGameJson(const char *requestJson);
 
-#if defined(_WIN32) && !defined(CALLBACK)
-#define CALLBACK __stdcall
-#endif
-#if defined(_WIN32)
-// RUNDLL32 entry point (the Windows equivalent of a fork): the request JSON is
-// read from KOTONOHA_LAUNCH_REQUEST_JSON, or from the command line as fallback.
-// Usage: rundll32.exe KotonohaLauncherCore.dll,KotonohaLauncherRunDll
-// The game runs in the RUNDLL32 process; the caller does not exit.
-KOTONOHA_LAUNCHER_EXPORT void CALLBACK KotonohaLauncherRunDll(
-    void *hwnd, void *instance, char *commandLine, int show);
-#endif
+// Universal detached launch. The core chooses the platform mechanism:
+// RUNDLL32 on Windows, fork() + setsid() (disowned) on Apple/Linux. Callers
+// never need to detect the operating system themselves.
+// Returns JSON: {"ok":bool,"pid":int,"host":"rundll32"|"fork","message":...}
+// The caller owns the returned string (KotonohaLauncherFreeString).
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGameDetached(
+    const KotonohaGameLaunchRequest *request);
+
+// JSON form of KotonohaLauncherLaunchGameDetached for frontends that cannot
+// marshal the C struct (Swift, Java). Keys match KotonohaLauncherLaunchGameJson.
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherLaunchGameDetachedJson(
+    const char *requestJson);
+
+// Host entry used by the detached process spawned by the core. Parses the
+// JSON request and runs the game on the current (fresh, single-threaded)
+// main thread. Never returns: the host exits when the game closes.
+KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherRunGameJson(
+    const char *requestJson);
+
+// Explicitly selects the detached host executable. Frontends call this with
+// the path found next to their build outputs, so no environment guessing is
+// needed. An empty path restores automatic discovery.
+KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherSetDetachedHost(const char *path);
+
+// Requests a graceful shutdown of a detached game host by PID.
+// Returns JSON: {"ok":bool,"message":...}.
+KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherTerminateGame(int pid);
 
 #ifdef __APPLE__
 #include <TargetConditionals.h>

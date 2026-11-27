@@ -33,6 +33,11 @@ done
 BUILD_BIN="$KOTONOHA_REPO/out/build/macos-arm64-vcpkg/bin"
 [[ -d "$BUILD_BIN" ]] && cd "$BUILD_BIN"
 
+CORE_LIB="${KOTONOHA_CORE:-$KOTONOHA_REPO/out/build/macos-arm64-vcpkg/lib/libKotonohaLauncherCore.dylib}"
+GAME_HOST="$(dirname "$(dirname "$CORE_LIB")")/bin/KotonohaGameHost"
+[[ -f "$GAME_HOST" ]] && export KOTONOHA_DETACHED_HOST="$GAME_HOST"
+export KOTONOHA_DETACHED_LOG="$APP/game-host.log"
+
 exec "$JAVA_HOME/bin/java" \
-  -Dkotonoha.coreLib="$KOTONOHA_REPO/out/build/macos-arm64-vcpkg/lib/libKotonohaLauncherCore.dylib" \
+  -Dkotonoha.coreLib="$CORE_LIB" \
   -cp "$APP/out" me.hirameki.kotonoha.bridgetest.BridgeTestCli "${ARGS[@]}"
