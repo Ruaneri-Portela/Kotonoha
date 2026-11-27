@@ -38,6 +38,7 @@ namespace KotonohaLauncher {
 
 namespace {
 namespace fs = std::filesystem;
+using detail::pathFromUtf8;
 using detail::pathUtf8;
 using Kotonoha::Filesystem::DetectedEngine;
 using Kotonoha::Filesystem::EngineKind;
@@ -124,7 +125,7 @@ std::uint64_t sourceFingerprint(const std::string &path) {
   std::error_code error;
   // Catalog keys are UTF-8. On Windows a narrow std::filesystem::path is
   // interpreted as the ANSI code page, which throws for Japanese titles.
-  const fs::path root = fs::u8path(path);
+  const fs::path root = pathFromUtf8(path);
   if (!fs::exists(root, error))
     return 0;
   std::uint64_t hash = 1469598103934665603ull;
@@ -372,7 +373,7 @@ void flushScanCache() {
 } // namespace
 
 std::string sanitizeGameProfileId(std::string_view titleOrPath) {
-  const fs::path p = fs::u8path(titleOrPath);
+  const fs::path p = pathFromUtf8(titleOrPath);
   std::string stem = pathUtf8(p.filename());
   if (stem.empty())
     stem = pathUtf8(p.parent_path().filename());
@@ -851,7 +852,7 @@ DetectedEngine detectKotonohaEngineFromPath(const std::string &path) {
 DiscoveredGameEntry buildDiscoveredGameEntry(const std::string &path,
                                              const DetectedEngine &detected) {
   DiscoveredGameEntry entry;
-  const fs::path fsPath = fs::u8path(path);
+  const fs::path fsPath = pathFromUtf8(path);
   entry.title = pathUtf8(fsPath.filename());
   if (entry.title.empty())
     entry.title = pathUtf8(fsPath.parent_path().filename());
@@ -885,7 +886,7 @@ scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth,
     return results;
 
   std::error_code ec;
-  const fs::path rootPath = fs::u8path(libraryOrGamePath);
+  const fs::path rootPath = pathFromUtf8(libraryOrGamePath);
   if (!fs::exists(rootPath, ec))
     return results;
 
@@ -941,7 +942,7 @@ scanGameLibraryRoots(const std::vector<std::string> &roots, int maxDepth,
     if (raw.find("://") != std::string::npos)
       return raw;
     std::error_code ec;
-    const auto path = fs::u8path(raw);
+    const auto path = pathFromUtf8(raw);
     const auto canon = fs::weakly_canonical(path, ec);
     return pathUtf8(ec ? path.lexically_normal() : canon);
   };
@@ -1325,7 +1326,7 @@ void UnifiedLauncher::drawGameOptions() {
       ImGui::TableSetColumnIndex(4);
       if (!item.overlayPath.empty()) {
         const std::string overlayName =
-            pathUtf8(fs::u8path(item.overlayPath).filename());
+            pathUtf8(pathFromUtf8(item.overlayPath).filename());
         ImGui::Text("%s (+ %s)", item.engine.evidence.c_str(),
                     overlayName.c_str());
       } else {
