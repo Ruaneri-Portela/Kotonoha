@@ -47,6 +47,13 @@ documentos, rota, scripts) usam seletores nativos de arquivo/pasta.
 dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release
 ```
 
+Para o VS Code, `Properties/launchSettings.json` define dois perfis com
+`KOTONOHA_NATIVE_DIR` apontando para o output nativo do Visual Studio
+(`buildsystems/visualstudio/out/x64/<Configuration>`), que contém
+`KotonohaLauncherCore.dll` e as DLLs de runtime do vcpkg. O `.vscode/launch.json`
+local apenas seleciona um perfil via `launchSettingsProfile`. O app define seu
+diretório de trabalho como o output do dotnet, onde `assets/` é copiado.
+
 Defina `KOTONOHA_NATIVE_DIR` para um diretório que contenha
 `KotonohaLauncherCore` e suas dependências antes de iniciar:
 

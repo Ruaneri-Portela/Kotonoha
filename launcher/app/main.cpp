@@ -3,6 +3,8 @@
 #include <SDL3/SDL.h>
 #if defined(__APPLE__)
 #include <TargetConditionals.h>
+#elif defined(_WIN32)
+#include <windows.h>
 #endif
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -263,11 +265,15 @@ struct Application {
 #if defined(_WIN32)
       // The CRT and SDL have separate environment storage on Windows.
       // Preserve Unicode profile paths for runtimes using std::filesystem.
-      const std::wstring nativeRoot =
-          std::filesystem::u8path(
-              KotonohaLauncher::resolveIsolatedUserDataRoot(
-                  entry, splitSavesByGame, effectiveSaveRoot))
-              .wstring();
+      const std::string utf8Root =
+          KotonohaLauncher::resolveIsolatedUserDataRoot(
+              entry, splitSavesByGame, effectiveSaveRoot);
+      const int wideLength =
+          MultiByteToWideChar(CP_UTF8, 0, utf8Root.c_str(), -1, nullptr, 0);
+      std::wstring nativeRoot(wideLength > 0 ? wideLength - 1 : 0, L'\0');
+      if (wideLength > 0)
+        MultiByteToWideChar(CP_UTF8, 0, utf8Root.c_str(), -1,
+                            nativeRoot.data(), wideLength);
       if (_wputenv_s(L"KOTONOHA_USER_DATA_DIR", nativeRoot.c_str()) != 0)
         throw std::runtime_error("Unable to set the game save environment");
 #endif

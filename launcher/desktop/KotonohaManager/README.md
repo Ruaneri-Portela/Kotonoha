@@ -47,6 +47,14 @@ route, scripts) use native file/folder pickers.
 dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release
 ```
 
+For VS Code, `Properties/launchSettings.json` defines two profiles with
+`KOTONOHA_NATIVE_DIR` pointing to the Visual Studio native output
+(`buildsystems/visualstudio/out/x64/<Configuration>`), which contains
+`KotonohaLauncherCore.dll` and the vcpkg runtime DLLs. The local
+`.vscode/launch.json` only selects a profile via `launchSettingsProfile`.
+The app sets its working directory to the dotnet output, where `assets/` is
+copied.
+
 Set `KOTONOHA_NATIVE_DIR` to a directory containing `KotonohaLauncherCore`
 and its runtime dependencies before starting the app:
 

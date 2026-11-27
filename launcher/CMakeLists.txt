@@ -122,6 +122,22 @@ else()
 endif()
 target_include_directories(KotonohaLauncherCore PUBLIC include)
 target_link_libraries(KotonohaLauncherCore PUBLIC KotonohaEngine)
+
+# LauncherBridge.cpp parses the RUNDLL32 launch request with json-c; the
+# engine links it privately, so the core needs its own dependency edge.
+if(TARGET json-c::json-c)
+    target_link_libraries(KotonohaLauncherCore PRIVATE json-c::json-c)
+elseif(TARGET PkgConfig::JSON_C)
+    target_link_libraries(KotonohaLauncherCore PRIVATE PkgConfig::JSON_C)
+else()
+    find_package(PkgConfig QUIET)
+    if(PkgConfig_FOUND)
+        pkg_check_modules(JSON_C QUIET IMPORTED_TARGET json-c)
+        if(JSON_C_FOUND)
+            target_link_libraries(KotonohaLauncherCore PRIVATE PkgConfig::JSON_C)
+        endif()
+    endif()
+endif()
 target_compile_features(KotonohaLauncherCore PUBLIC cxx_std_17)
 set_target_properties(KotonohaLauncherCore PROPERTIES CXX_EXTENSIONS OFF)
 
