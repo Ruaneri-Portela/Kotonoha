@@ -2,6 +2,7 @@
 
 #include <SDL3/SDL.h>
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
@@ -32,14 +33,48 @@ void checkFile(const std::filesystem::path &path,
           "encoded image has the wrong magic bytes");
 }
 
+struct TemporaryDirectory {
+  std::filesystem::path path;
+
+  TemporaryDirectory() {
+    const auto root = std::filesystem::temp_directory_path();
+    const auto stamp = std::to_string(
+        std::chrono::steady_clock::now().time_since_epoch().count());
+    for (int attempt = 0; attempt < 128; ++attempt) {
+      const auto candidate =
+          root / ("kotonoha-saveimage-" + stamp + "-" + std::to_string(attempt));
+      std::error_code error;
+      if (std::filesystem::create_directory(candidate, error)) {
+        path = candidate;
+        return;
+      }
+      if (error)
+        throw std::runtime_error("Cannot create temporary directory: " +
+                                 error.message());
+    }
+    throw std::runtime_error("Cannot create exclusive temporary directory");
+  }
+
+  ~TemporaryDirectory() {
+    std::error_code error;
+    if (!path.empty())
+      std::filesystem::remove_all(path, error);
+  }
+
+  void removeChecked() {
+    std::error_code error;
+    std::filesystem::remove_all(path, error);
+    if (error)
+      throw std::runtime_error("Image output remained open: " + error.message());
+    path.clear();
+  }
+};
+
 } // namespace
 
 int main() {
   try {
-    const auto directory =
-        std::filesystem::temp_directory_path() /
-        ("kotonoha-saveimage-" + std::to_string(SDL_GetTicks()));
-    std::filesystem::create_directories(directory);
+    TemporaryDirectory directory;
 
     SDL_Surface *raw = SDL_CreateSurface(4, 4, SDL_PIXELFORMAT_RGBA32);
     require(raw != nullptr, SDL_GetError());
@@ -51,8 +86,8 @@ int main() {
                                 SDL_MapSurfaceRGBA(raw, 179, 101, 37, 255)),
             SDL_GetError());
 
-    const auto png = directory / "sample.png";
-    const auto jpeg = directory / "sample.jpg";
+    const auto png = directory.path / "sample.png";
+    const auto jpeg = directory.path / "sample.jpg";
     require(Kotonoha::SaveImage(raw, png.string().c_str(),
                                 Kotonoha::ImageFormat::Png),
             "FFmpeg PNG encoding failed");
@@ -63,7 +98,9 @@ int main() {
     checkFile(png, {0x89, 'P', 'N', 'G', 0x0d, 0x0a, 0x1a, 0x0a});
     checkFile(jpeg, {0xff, 0xd8, 0xff});
 
-    std::filesystem::remove_all(directory);
+    // Exercise Windows deletion semantics: an FFmpeg AVIO handle left open
+    // would make the test fail rather than being ignored by the RAII guard.
+    directory.removeChecked();
     std::cout << "SaveImageTests PASS\n";
   } catch (const std::exception &error) {
     std::cerr << "SaveImageTests FAIL: " << error.what() << '\n';

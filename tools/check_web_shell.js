@@ -17,7 +17,7 @@ const wasmBuild = fs.readFileSync(path.join(__dirname, '..',
 const webBridge = fs.readFileSync(path.join(__dirname, '..',
   'lib', 'src', 'core', 'WebAssetFetch.cpp'), 'utf8');
 const browserTransport = fs.readFileSync(path.join(__dirname, '..',
-  'lib', 'src', 'Filesystem', 'Sources', 'FetchAssetProvider.cpp'), 'utf8');
+  'lib', 'src', 'filesystem', 'sources', 'FetchAssetProvider.cpp'), 'utf8');
 const persistentCache = fs.readFileSync(path.join(__dirname, '..',
   'lib', 'web', 'KotonohaPreloadCache.js'), 'utf8');
 new vm.Script(persistentCache, {filename: 'KotonohaPreloadCache.js'});
@@ -54,9 +54,13 @@ assert(html.includes('rel="manifest" href="./manifest.webmanifest"') &&
 const iconDir = fs.mkdtempSync(path.join(os.tmpdir(), 'kotonoha-pwa-test-'));
 try {
   const generator = path.join(__dirname, 'generate_pwa_icons.py');
+  // GitHub's Linux runners provide python3, while local Windows builds often
+  // expose the real interpreter as python (python3 may be a Store alias).
+  const python = process.env.KOTONOHA_PYTHON ||
+    (process.platform === 'win32' ? 'python' : 'python3');
   for (const title of ['RealLive', 'Kirikiri']) {
     const output = path.join(iconDir, title);
-    const result = spawnSync('python3', [generator, title, output],
+    const result = spawnSync(python, [generator, title, output],
       {encoding: 'utf8'});
     assert(result.status === 0,
       'PWA icon generation failed: ' + result.stderr);

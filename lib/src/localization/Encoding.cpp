@@ -292,6 +292,106 @@ std::string ConvertEncoding(std::string_view text, const char *from,
 #if defined(__ANDROID__)
   return ConvertViaJNI(text, from, to);
 #else
+  if (!from || !to || !*from || !*to)
+    throw std::invalid_argument("Text encoding must not be empty");
+#if defined(_WIN32)
+  // SDL's built-in iconv does not recognize all Windows codepage aliases.
+  // This is the same Win32 CP932 converter already used by this module's
+  // historical School Days script path.
+  if (std::string_view(to) == "UTF-8" &&
+      (std::string_view(from) == "CP932" ||
+       std::string_view(from) == "WINDOWS-31J" ||
+       std::string_view(from) == "SJIS"))
+    return WindowsCp932ToUtf8(text);
+  if (std::string_view(to) == "UTF-8" &&
+      (std::string_view(from) == "CP1252" ||
+       std::string_view(from) == "WINDOWS-1252")) {
+    if (text.empty())
+      return {};
+    // Windows decodes the five unassigned CP1252 bytes as C1 controls.
+    // Preserve the converter's documented '?' replacement policy instead.
+    std::string input(text);
+    for (char &ch : input) {
+      switch (static_cast<unsigned char>(ch)) {
+      case 0x81:
+      case 0x8d:
+      case 0x8f:
+      case 0x90:
+      case 0x9d:
+        ch = '?';
+        break;
+      default:
+        break;
+      }
+    }
+    const int count = MultiByteToWideChar(
+        1252, 0, input.data(), static_cast<int>(input.size()), nullptr, 0);
+    if (count <= 0)
+      throw std::runtime_error("Cannot decode CP1252 text");
+    std::wstring wide(static_cast<size_t>(count), L'\0');
+    if (MultiByteToWideChar(1252, 0, input.data(),
+                            static_cast<int>(input.size()), wide.data(),
+                            count) != count)
+      throw std::runtime_error("Cannot decode CP1252 text");
+    const int length = WideCharToMultiByte(CP_UTF8, 0, wide.data(), count,
+                                           nullptr, 0, nullptr, nullptr);
+    if (length <= 0)
+      throw std::runtime_error("Cannot convert CP1252 to UTF-8");
+    std::string utf8(static_cast<size_t>(length), '\0');
+    if (WideCharToMultiByte(CP_UTF8, 0, wide.data(), count, utf8.data(),
+                            length, nullptr, nullptr) != length)
+      throw std::runtime_error("Cannot convert CP1252 to UTF-8");
+    return utf8;
+  }
+  if (std::string_view(from) == "UTF-8" &&
+      (std::string_view(to) == "CP1252" ||
+       std::string_view(to) == "WINDOWS-1252")) {
+    if (text.empty())
+      return {};
+    int count = MultiByteToWideChar(
+        CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+        static_cast<int>(text.size()), nullptr, 0);
+    if (count <= 0)
+      throw std::runtime_error("Cannot decode UTF-8 text");
+    std::wstring wide(static_cast<size_t>(count), L'\0');
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, text.data(),
+                            static_cast<int>(text.size()), wide.data(),
+                            count) != count)
+      throw std::runtime_error("Cannot decode UTF-8 text");
+    // A supplementary Unicode scalar occupies two UTF-16 code units.
+    // Win32 CP1252 conversion replaces each unit separately, resulting in
+    // "??". Replace the pair once so one unsupported scalar becomes one '?'.
+    std::wstring normalized;
+    normalized.reserve(wide.size());
+    for (size_t i = 0; i < wide.size(); ++i) {
+      const auto unit = static_cast<unsigned int>(wide[i]);
+      if (unit >= 0xd800u && unit <= 0xdbffu && i + 1 < wide.size()) {
+        const auto low = static_cast<unsigned int>(wide[i + 1]);
+        if (low >= 0xdc00u && low <= 0xdfffu) {
+          normalized.push_back(L'?');
+          ++i;
+          continue;
+        }
+      }
+      normalized.push_back(wide[i]);
+    }
+    wide.swap(normalized);
+    count = static_cast<int>(wide.size());
+    BOOL usedDefault = FALSE;
+    const int length = WideCharToMultiByte(
+        1252, WC_NO_BEST_FIT_CHARS, wide.data(), count, nullptr, 0, "?",
+        &usedDefault);
+    if (length <= 0)
+      throw std::runtime_error("Cannot convert UTF-8 to CP1252");
+    std::string encoded(static_cast<size_t>(length), '\0');
+    usedDefault = FALSE;
+    if (WideCharToMultiByte(1252, WC_NO_BEST_FIT_CHARS, wide.data(), count,
+                            encoded.data(), length, "?", &usedDefault) !=
+        length)
+      throw std::runtime_error("Cannot convert UTF-8 to CP1252");
+    return encoded;
+  }
+#endif
 #if defined(__APPLE__)
   const auto isWindows1252 = [](std::string_view encoding) {
     return encoding == "CP1252" || encoding == "WINDOWS-1252" ||

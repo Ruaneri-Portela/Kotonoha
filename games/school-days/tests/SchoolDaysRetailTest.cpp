@@ -1,7 +1,7 @@
 // Validate actual user-supplied archives; never writes the installation.
 #include <Kotonoha/SchoolDaysGpkArchive.hpp>
 #include <Kotonoha/parsers/Documents.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include "SchoolDaysAssets.hpp"
 #include <algorithm>
 #include <filesystem>
 #include <iostream>
@@ -85,9 +85,9 @@ int main(int argc, char **argv) {
               << " routing resources have retail ORS files\n";
     // The installed retail script has an embedded space in this one path.
     // Exercise the actual game resolver and virtual read against Voice03.GPK.
-    Kotonoha::Providers::SchoolDaysAssets assets(argv[1]);
-    const auto recovered = assets.readAsset(
-        assets.resolve("Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG"));
+    SchoolDays::Assets assets(argv[1]);
+    const auto recovered = assets.readAsset(assets.resolve(
+        "Voice03/03-BK/03-BK-H00/03-B K-H00-0410.OGG"));
     if (recovered.size() < 4 ||
         !std::equal(recovered.begin(), recovered.begin() + 4, "OggS"))
       throw std::runtime_error("Retail voice typo did not recover a valid OGG");

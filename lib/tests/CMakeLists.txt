@@ -1,3 +1,7 @@
+# Debug-only engine entry points are intentionally absent from DIST. Keep the
+# full upstream test set for every non-DIST build (including DEV), but never
+# compile test binaries against APIs removed from a player distribution.
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaInfrastructureTests InfrastructureTests.cpp)
 target_link_libraries(KotonohaInfrastructureTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.Infrastructure COMMAND KotonohaInfrastructureTests)
@@ -7,6 +11,25 @@ if(WIN32)
     set_tests_properties(Kotonoha.Infrastructure PROPERTIES
         ENVIRONMENT_MODIFICATION
             "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+endif()
+
+# Preserve both Windows L4 MCP regression tests from the local dev branch.
+# The upstream test matrix adds Vm/FilesystemV2/BuildVersion, but does not
+# register these existing source tests. Never reduce coverage during sync.
+add_executable(KotonohaMCPCommandLineTests MCPCommandLineTests.cpp)
+target_link_libraries(KotonohaMCPCommandLineTests PRIVATE KotonohaEngine)
+add_test(NAME Kotonoha.MCPCommandLine COMMAND KotonohaMCPCommandLineTests)
+
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
+add_executable(KotonohaMCPTransportTests MCPTransportTests.cpp)
+target_link_libraries(KotonohaMCPTransportTests PRIVATE KotonohaEngine)
+if(WIN32)
+    target_link_libraries(KotonohaMCPTransportTests PRIVATE ws2_32)
+endif()
+add_test(NAME Kotonoha.MCPTransport COMMAND KotonohaMCPTransportTests)
+set_tests_properties(Kotonoha.MCPTransport PROPERTIES
+    ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
 
 # The shared CLI owns launcher/headless decisions for every game port.
@@ -80,11 +103,13 @@ if(SDLTTF_PLUTOSVG)
     add_test(NAME Kotonoha.PlatformSmoke COMMAND KotonohaPlatformSmokeTests)
 endif()
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaAudioChannelsTests AudioChannelsTests.cpp)
 target_link_libraries(KotonohaAudioChannelsTests PRIVATE KotonohaEngine ${KOTONOHA_IMGUI_TARGET})
 add_test(NAME Kotonoha.AudioChannels COMMAND KotonohaAudioChannelsTests)
 set_tests_properties(Kotonoha.AudioChannels PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 add_executable(KotonohaAssetProviderTests AssetProviderTests.cpp)
 target_link_libraries(KotonohaAssetProviderTests PRIVATE KotonohaEngine)
@@ -145,11 +170,13 @@ add_test(NAME Kotonoha.Launcher COMMAND KotonohaLauncherTests)
 set_tests_properties(Kotonoha.Launcher PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaPresentationTests PresentationTests.cpp)
 target_link_libraries(KotonohaPresentationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.Presentation COMMAND KotonohaPresentationTests)
 set_tests_properties(Kotonoha.Presentation PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 # Per-texture policy: MetalFX must use the whole-frame path, never per sprite.
 add_executable(KotonohaUpscalerPolicyTests UpscalerPolicyTests.cpp)
@@ -214,10 +241,12 @@ set_tests_properties(Kotonoha.ImGuiTheme PROPERTIES
     ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
 endif()
 
+if(NOT KOTONOHA_DISTRIBUTION_BUILD)
 add_executable(KotonohaDebugTranslationTests DebugTranslationTests.cpp)
 target_link_libraries(KotonohaDebugTranslationTests PRIVATE KotonohaEngine)
 add_test(NAME Kotonoha.DebugTranslation COMMAND KotonohaDebugTranslationTests)
 set_tests_properties(Kotonoha.DebugTranslation PROPERTIES ENVIRONMENT "SDL_VIDEO_DRIVER=dummy;SDL_AUDIO_DRIVER=dummy")
+endif()
 
 
 add_executable(KotonohaNativeInputTests NativeInputTests.cpp)

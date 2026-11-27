@@ -79,6 +79,9 @@ public:
   // Native script menus may poll pointer-down and pointer-up on different
   // frames.
   virtual bool continuousTouch() const { return false; }
+  // Games with a native, authored mobile menu button can own rendering and
+  // activation rather than using the engine's generic InGameMenu component.
+  virtual bool ownsMobileMenuButton() const { return false; }
 
   // Ciclo de inicialização
   virtual void init(Engine &engine);
@@ -162,9 +165,9 @@ public:
   // means the engine VNManager node is used. The engine's event clock resets
   // whenever this position changes.
   virtual std::string debugNode() const { return {}; }
-  // Optional dialogue text spoken by the current node (set by KAG script
-  // parser callbacks). Used by the MCP engine_state tool to reflect the
-  // current dialogue even when the VNTextBox is not updated in real time.
+  // Preserve upstream dialogue accessors for native script runtimes.
+  // Kirikiri, Luca System and PMAIL override these to expose their current
+  // dialogue to the engine without requiring a VNTextBox update.
   virtual std::string dialogueText() const { return {}; }
   virtual std::string dialogueSpeaker() const { return {}; }
   // Optional stable identity for the shared node clock. Native interpreters
@@ -191,6 +194,9 @@ public:
   // Lets runtimes discard media prepared before a debug tool changed the
   // engine's mounted overlay.
   virtual void debugOverlayAssetChanged(const std::string &) {}
+  // Games with an explicit profile directory can keep authoring output in
+  // that same profile, including when a test uses an isolated Documents root.
+  virtual std::filesystem::path debugAssetOverlayDirectory() const { return {}; }
   virtual void debugJumpToNode(const std::string &) {
     throw std::runtime_error("This runtime does not support node jumps");
   }

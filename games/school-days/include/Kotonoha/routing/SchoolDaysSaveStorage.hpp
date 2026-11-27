@@ -20,34 +20,38 @@ public:
     // environment variables, and inactive unless a test explicitly sets it.
     using GlobalFlagWriteFault = SchoolDaysAtomicFile::Fault;
 
-  void SetGlobalFlagWriteFaultForTesting(GlobalFlagWriteFault fault) {
-    globalFlagWriteFaultForTesting_ = fault;
-  }
+    void SetGlobalFlagWriteFaultForTesting(GlobalFlagWriteFault fault) {
+        globalFlagWriteFaultForTesting_ = fault;
+    }
 
-  bool Initialize(const std::filesystem::path &executableDirectory,
-                  const SchoolDaysSaveProfile &profile,
-                  std::string *error = nullptr);
+    bool Initialize(const std::filesystem::path& executableDirectory,
+                    const SchoolDaysSaveProfile& profile,
+                    std::string* error = nullptr);
 
-  bool LoadGlobalFlag(std::vector<uint8_t> *bytes, bool *present,
-                      std::string *error = nullptr) const;
-  // EXE host +0x9C (0x0042A980) first formats SaveFileName for the slot and
-  // attempts to open it.  A missing/unopenable slot is a normal "empty row"
-  // condition rather than a storage failure; path/profile errors still fail.
-  bool ProbeSaveFile(int slot, bool *openable,
-                     std::string *error = nullptr) const;
-  bool ReadSaveFile(int slot, std::vector<uint8_t> *bytes,
-                    std::string *error = nullptr) const;
-  bool WriteSaveFile(const SchoolDaysSaveService::Plan &plan,
-                     std::string *error = nullptr) const;
-  bool WriteGlobalFlag(const SchoolDaysSaveService::Plan &plan,
-                       std::string *error = nullptr) const;
-  // Shutdown/global-state flush has no slot plan.  It targets the configured
-  // FlagFileName directly, matching the native standalone GlobalFlag writer.
-  bool WriteGlobalFlagBytes(const std::vector<uint8_t> &bytes,
-                            std::string *error = nullptr) const;
+    bool LoadGlobalFlag(std::vector<uint8_t>* bytes, bool* present,
+                        std::string* error = nullptr) const;
+    // EXE host +0x9C (0x0042A980) first formats SaveFileName for the slot and
+    // attempts to open it.  A missing/unopenable slot is a normal "empty row"
+    // condition rather than a storage failure; path/profile errors still fail.
+    bool ProbeSaveFile(int slot, bool* openable,
+                       std::string* error = nullptr) const;
+    bool ReadSaveFile(int slot, std::vector<uint8_t>* bytes,
+                      std::string* error = nullptr) const;
+    // Expose the verified per-profile path for optional L4 companion metadata.
+    // The native SaveFileName layout and its bytes remain unchanged.
+    bool SaveFilePath(int slot, std::filesystem::path* path,
+                      std::string* error = nullptr) const;
+    bool WriteSaveFile(const SchoolDaysSaveService::Plan& plan,
+                       std::string* error = nullptr) const;
+    bool WriteGlobalFlag(const SchoolDaysSaveService::Plan& plan,
+                         std::string* error = nullptr) const;
+    // Shutdown/global-state flush has no slot plan.  It targets the configured
+    // FlagFileName directly, matching the native standalone GlobalFlag writer.
+    bool WriteGlobalFlagBytes(const std::vector<uint8_t>& bytes,
+                              std::string* error = nullptr) const;
 
-  bool IsInitialized() const { return initialized_; }
-  const std::filesystem::path &BaseDirectory() const { return baseDirectory_; }
+    bool IsInitialized() const { return initialized_; }
+    const std::filesystem::path& BaseDirectory() const { return baseDirectory_; }
 
 private:
     bool ResolveRelative(const std::string& configured,
@@ -60,11 +64,11 @@ private:
                                   const std::vector<uint8_t>& bytes,
                                   std::string* error);
 
-  std::filesystem::path baseDirectory_;
-  SchoolDaysSaveProfile profile_;
-  bool initialized_ = false;
-  GlobalFlagWriteFault globalFlagWriteFaultForTesting_ =
-      GlobalFlagWriteFault::None;
+    std::filesystem::path baseDirectory_;
+    SchoolDaysSaveProfile profile_;
+    bool initialized_ = false;
+    GlobalFlagWriteFault globalFlagWriteFaultForTesting_ =
+        GlobalFlagWriteFault::None;
 };
 
 } // namespace Kotonoha

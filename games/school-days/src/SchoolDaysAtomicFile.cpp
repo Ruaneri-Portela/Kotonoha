@@ -4,17 +4,16 @@
 
 namespace Kotonoha::SchoolDaysAtomicFile {
 
-bool Write(const std::filesystem::path &path, const std::vector<uint8_t> &bytes,
-           Fault fault, std::string *error) {
-  // The only game-specific policy is the known FlgH file-size bound. All
-  // on-disk I/O, unique temporary names and atomic publication are owned by
-  // the engine's shared SDL-based filesystem; no Win32/POSIX calls here.
+bool Write(const std::filesystem::path &path,
+           const std::vector<uint8_t> &bytes, Fault fault,
+           std::string *error) {
   constexpr std::size_t maxGlobalFlagBytes = 32u * 1024u * 1024u;
   if (bytes.empty() || bytes.size() > maxGlobalFlagBytes) {
     if (error)
       *error = "School Days GlobalFlag payload is empty or too large";
     return false;
   }
+
   Filesystem::AtomicFileFault injected = Filesystem::AtomicFileFault::None;
   switch (fault) {
   case Fault::None:

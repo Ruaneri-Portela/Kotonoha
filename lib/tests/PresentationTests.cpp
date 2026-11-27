@@ -485,6 +485,23 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   ForcedSubtitleRenderer missingSource(engine);
   require(missingSource.sourceDirectory().empty(),
           "Startup without a subtitle directory records no automatic source");
+  const auto explicitDir = directory.path / "explicit-forced-subtitles";
+  std::filesystem::create_directories(explicitDir / "pt-BR");
+  writeTextFileAtomically((explicitDir / "pt-BR/80005.ass").string(), script);
+  writeTextFileAtomically((explicitDir / "pt-BR/80007.ASS").string(), script);
+  ForcedSubtitleRenderer explicitSource(engine, explicitDir);
+  require(std::filesystem::equivalent(explicitSource.sourceDirectory(),
+                                      explicitDir),
+          "Explicit forced subtitle directory overrides automatic discovery");
+  explicitSource.setLocale("pt-BR");
+  explicitSource.loadForNode("80005");
+  require(explicitSource.activePath() ==
+              std::filesystem::canonical(explicitDir / "pt-BR/80005.ass"),
+          "Explicit forced subtitle directory loads locale-scoped ASS");
+  explicitSource.loadForNode("80007");
+  require(explicitSource.activePath() ==
+              std::filesystem::canonical(explicitDir / "pt-BR/80007.ASS"),
+          "Forced subtitle discovery accepts uppercase .ASS extensions");
   std::filesystem::create_directories(unrelatedDump.parent_path());
   writeTextFileAtomically(unrelatedDump.string(), header);
   missingSource.reload();
@@ -745,6 +762,165 @@ void forcedSubtitles(Engine &engine, TestRuntime &runtime) {
   runtime.inspectScreen = {};
   runtime.opaqueGameplay = false;
   engine.setAgentPaused(false);
+}
+
+void forcedSubtitleLocales(Engine &engine, TestRuntime &runtime) {
+  namespace fs = std::filesystem;
+  struct TemporaryWorkingDirectory {
+    fs::path previous = fs::current_path();
+    fs::path path = fs::temp_directory_path() /
+        ("kotonoha-forced-locales-" +
+         std::to_string(SDL_GetPerformanceCounter()));
+    TemporaryWorkingDirectory() {
+      fs::create_directory(path);
+      fs::current_path(path);
+    }
+    ~TemporaryWorkingDirectory() {
+      std::error_code error;
+      fs::current_path(previous, error);
+      fs::remove_all(path, error);
+    }
+  } workingDirectory;
+  auto &forced = engine.GetForcedSubtitles();
+  const auto root = forced.sourceDirectory();
+  require(!root.empty(), "Locale fixtures use the original subtitle source");
+  const auto header = styleFile().substr(0, styleFile().find("[Events]"));
+  const auto script = [&](const char *text) {
+    return header +
+           "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, "
+           "MarginR, MarginV, Effect, Text\n"
+           "Dialogue: 0,0:00:00.00,0:00:05.00,Person,,0,0,0,," +
+           text + "\n";
+  };
+  const auto install = [&](const fs::path &relative, const char *text) {
+    const auto path = root / relative;
+    fs::create_directories(path.parent_path());
+    writeTextFileAtomically(path.string(), script(text));
+    return path;
+  };
+
+  // Every language owns the same node filename; discovery must not interpret
+  // those identical basenames as duplicate files or mix their languages.
+  const auto englishRoot = install("95001.ass", "ENGLISH LEGACY");
+  const auto englishSub = install("en/95001.ass", "ENGLISH LOCALE");
+  const auto portuguese = install("pt-br/95001.ass", "PORTUGUESE");
+  const auto portugueseEvent =
+      install("pt-br/95001-7.ass", "PORTUGUESE EVENT");
+  const auto chinese = install("zh-cn/95001.ass", "CHINESE");
+  const auto russian = install("ru/95001.ass", "RUSSIAN");
+  const auto spanish = install("es/95001.ass", "SPANISH");
+  const auto custom = install("my_custom/95001.ass", "CUSTOM JSON");
+  const auto legacyNested = install("nested/95002.ass", "LEGACY NESTED");
+  const auto englishFallback = install("95003.ass", "ENGLISH ROOT ONLY");
+
+  auto checkLoaded = [&](const std::string &id, const fs::path &expected,
+                         const char *message) {
+    forced.loadForNode(id);
+    require(forced.activePath() == expected, message);
+    forced.setPosition(1.5);
+    auto &renderer = engine.GetRenderer();
+    SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
+    SDL_RenderClear(&renderer);
+    forced.render(renderer, 1);
+    require(colored(renderer, 1) > 20,
+            "Selected locale ASS renders using existing libass styles");
+  };
+
+  forced.setLocale("");
+  forced.reload();
+  checkLoaded("95001", englishRoot, "Native English uses legacy root ASS");
+  checkLoaded("95002", legacyNested,
+              "English legacy recursive subfolders remain supported");
+
+  forced.setLocale("pt-BR");
+  require(forced.locale() == "pt-BR" && forced.activePath().empty(),
+          "Selecting Portuguese invalidates the previous English cue");
+  checkLoaded("95001:7", portugueseEvent,
+              "Portuguese event ASS takes precedence within the locale");
+  checkLoaded("95001:8", portuguese,
+              "Portuguese node ASS serves missing event-specific cues");
+  forced.setLocale("zh-cn");
+  require(forced.locale() == "zh-CN" && forced.activePath().empty(),
+          "Lowercase JSON locale normalizes to its BCP-47 directory ID");
+  checkLoaded("95001", chinese,
+              "Changing locale with the same node reselects Chinese ASS");
+  forced.setLocale("pt-br");
+  checkLoaded("95001", portuguese,
+              "Lowercase PT-BR JSON finds the same source as native GPK");
+  forced.setLocale("ru");
+  checkLoaded("95001", russian, "Russian locale loads its own ASS");
+  forced.setLocale("es");
+  checkLoaded("95001", spanish, "Spanish locale loads its own ASS");
+  forced.setLocale("my_custom");
+  checkLoaded("95001", custom,
+              "A custom JSON locale uses its own safe directory namespace");
+  forced.setLocale("fr");
+  forced.loadForNode("95001");
+  require(forced.activePath().empty(),
+          "Missing non-English locale never inherits root or another language");
+  forced.setLocale("zh-CN");
+  forced.loadForNode("95003");
+  require(forced.activePath().empty(),
+          "Existing Chinese locale never falls back to English root");
+  forced.setLocale("en");
+  checkLoaded("95001", englishSub,
+              "Explicit English uses its locale file before root legacy");
+  checkLoaded("95003", englishFallback,
+              "English without a localized file retains legacy root fallback");
+
+  for (const char *invalid : {"../pt-BR", "pt-BR/../../ru", "zh\\cn",
+                              "C:ru", "pt..BR", "pt-BR/95001.ass", ".."}) {
+    rejects([&] { forced.setLocale(invalid); },
+            "Locale selector rejects traversal, separators and malformed IDs");
+    require(forced.locale() == "en",
+            "Invalid locale never changes the selected language");
+  }
+  forced.setLocale("pt-BR");
+  forced.loadForNode("../95001");
+  require(forced.activePath().empty(),
+          "A malicious node ID cannot reach another subtitle directory");
+
+  // Symlink checks remain meaningful on POSIX and on Windows hosts permitting
+  // creation without elevation. Do not make the test depend on that privilege.
+  std::error_code symlinkError;
+  fs::create_symlink(englishRoot, root / "pt-br/95004.ass", symlinkError);
+  if (!symlinkError) {
+    forced.reload();
+    forced.loadForNode("95004");
+    require(forced.activePath().empty(),
+            "Symlinked ASS cannot load a different locale's text");
+  }
+  symlinkError.clear();
+  fs::create_directory_symlink(root / "pt-br", root / "it", symlinkError);
+  if (!symlinkError) {
+    forced.setLocale("it");
+    forced.loadForNode("95001");
+    require(forced.activePath().empty(),
+            "Symlinked locale directory cannot redirect subtitle discovery");
+  }
+
+  // Dumps share the language boundary: Portuguese never creates an English
+  // root file, and switching languages does not reuse an earlier dump.
+  runtime.node = "95005";
+  forced.setLocale("pt-BR");
+  const auto dump = forced.dumpForActiveNode();
+  require(dump.parent_path().filename() == "pt-BR" &&
+              dump.filename() == "95005.ass" &&
+              dump.parent_path().parent_path() ==
+                  workingDirectory.path / "forced_subtitles",
+          "Locale-specific ASS dumps stay in their selected directory");
+  rejects([&] { forced.dumpForActiveNode(); },
+          "Locale dump never overwrites an existing ASS");
+  forced.loadForNode("95005");
+  require(forced.activePath() == dump,
+          "Dumped Portuguese cue remains selected in Portuguese");
+  forced.setLocale("zh-CN");
+  forced.loadForNode("95005");
+  require(forced.activePath().empty(),
+          "Previously dumped Portuguese cue cannot bleed into Chinese");
+  forced.setLocale("");
+  forced.reload();
+  runtime.node.clear();
 }
 
 void subtitleRasterization(Engine &engine) {
@@ -1278,8 +1454,8 @@ void splashUpscaling(Engine &engine) {
   auto restored = capture(splash);
   require(equal(*filtered, *restored),
           "Enabling boot upscaling again restores the filtered logo");
-  require(!equal(*native, *filtered),
-          "Enabled boot logo must use the scaled source, not native drawing");
+  require(equal(*native, *filtered),
+          "Boot logo must retain native UI sampling when gameplay upscaling is enabled");
   settings.factor = 1;
   pipeline.configure(settings);
   splash.restart();
@@ -1389,11 +1565,13 @@ int main() {
     controls(engine, runtime);
     pauseSources(engine, runtime);
     forcedSubtitles(engine, runtime);
+    forcedSubtitleLocales(engine, runtime);
     fades(engine);
     splashUpscaling(engine);
     // Regression: VisualTransition::compose/copy disables logical presentation
-    // while snapshotting owned Novel targets. renderNarrativeOverlay must see
-    // the restored Novel logical presentation rather than raw reduced pixels.
+    // while snapshotting owned Novel targets. renderNarrativeOverlay (BackLog,
+    // frontend transitions) must see the restored Novel logical presentation
+    // rather than raw reduced-target pixels.
     {
       const auto previousSettings = engine.GetSettings();
       auto scaled = previousSettings;

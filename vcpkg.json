@@ -1,7 +1,7 @@
 {
   "name": "kotonoha",
   "version-string": "0.1.0",
-  "builtin-baseline": "9a5dfef5d1a0438a7d24856a85bd60f309d355e9",
+  "builtin-baseline": "2c88ca199b27256e4c7d9f796216f82f2b976b0e",
   "overrides": [
     {
       "name": "vcpkg-tool-meson",
@@ -14,12 +14,6 @@
     "harfbuzz",
     "json-c",
     "libass",
-    {
-      "name": "ffmpeg",
-      "features": [
-        "zlib"
-      ]
-    },
     {
       "name": "libiconv",
       "platform": "!osx & !ios"
@@ -43,6 +37,12 @@
       ]
     },
     "zlib",
+    {
+      "name": "ffmpeg",
+      "features": [
+        "zlib"
+      ]
+    },
     {
       "name": "pkgconf",
       "host": true

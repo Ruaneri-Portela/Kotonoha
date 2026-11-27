@@ -1,6 +1,8 @@
 package me.hirameki.kotonoha.android;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.os.Build;
 import android.os.Bundle;
 import android.system.ErrnoException;
@@ -15,10 +17,74 @@ import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDLSurface;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Arrays;
 
 public final class GameActivity extends SDLActivity {
+    static final String LAUNCH_ARGUMENTS = "org.kotonoha.android.LAUNCH_ARGUMENTS";
+
+    private static native void setKotonohaDiscordReady(boolean ready);
+
+    @Override
+    public void loadLibraries() {
+        super.loadLibraries();
+        if (!BuildConfig.HAS_DISCORD_RPC) return;
+        try {
+            setKotonohaDiscordReady(false);
+            File root = getExternalFilesDir(null);
+            if (root == null) root = getFilesDir();
+            File preference = new File(root, "discord-presence.txt");
+            if (!preference.isFile() || preference.length() != 3 ||
+                    !Arrays.equals(Files.readAllBytes(preference.toPath()),
+                            "on\n".getBytes(StandardCharsets.UTF_8))) return;
+            Class<?> sdk = Class.forName("com.discord.socialsdk.DiscordSocialSdkInit");
+            sdk.getMethod("setEngineActivity", android.app.Activity.class)
+                    .invoke(null, this);
+            setKotonohaDiscordReady(true);
+        } catch (Exception | LinkageError failure) {
+            android.util.Log.w("KotonohaPresence", "Optional Discord SDK initialization failed");
+        }
+    }
+
+    @Override
+    protected String[] getArguments() {
+        String[] args = getIntent().getStringArrayExtra(LAUNCH_ARGUMENTS);
+        return args == null ? super.getArguments() : args;
+    }
+
+    @Override
+    public void setOrientationBis(int w, int h, boolean resizable, String hint) {
+        if ("SchoolDays".equals(BuildConfig.NATIVE_TARGET)) {
+            setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+            return;
+        }
+        super.setOrientationBis(w, h, resizable, hint);
+    }
+
+    static final String STARTUP_STAGE = "org.kotonoha.android.STARTUP_STAGE";
+    private volatile int startupStage;
+
+    public void setKotonohaStartupStage(int stage) {
+        startupStage = stage;
+    }
+
     private int kotonohaPreferredModeId;
     private float kotonohaPreferredRefreshRate;
+
+    @Override
+    protected void main() {
+        if (getCallingActivity() == null) {
+            super.main();
+            return;
+        }
+        // SDL calls this entry point on SDLThread and finishes the Activity
+        // after it returns. Preserve the native callback result for setup.
+        int result = nativeRunMain(getMainSharedObject(), getMainFunction(), getArguments());
+        if (result != 0 && getIntent().hasExtra(LAUNCH_ARGUMENTS))
+            setResult(RESULT_CANCELED, new Intent().putExtra(STARTUP_STAGE, startupStage));
+        else setResult(result == 0 ? RESULT_OK : RESULT_CANCELED);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,6 +222,10 @@ public final class GameActivity extends SDLActivity {
 
     public String getKotonohaPackageIdentifier() {
         return getPackageName();
+    }
+
+    public String getKotonohaSystemFontFile() {
+        return SystemFontFile.japaneseSans();
     }
 
     public String getKotonohaGameAssetDirectory() {

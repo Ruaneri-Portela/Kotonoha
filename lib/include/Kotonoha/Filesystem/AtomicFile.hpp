@@ -19,13 +19,16 @@ enum class AtomicFileFault {
   DirectoryFlushAfter
 };
 
-// Stages an entire payload in an exclusive same-directory temporary file,
-// flushes and closes that file, then publishes via SDL_RenamePath. A reader
-// sees either the former complete file or the newly published complete file.
-// This API does NOT promise a hardware-power-loss fsync of the parent directory.
-// "After" faults report publication uncertainty and never roll back a newer
-// file. Pending files from interrupted writers are ignored, never loaded as
-// save data, and are not opportunistically deleted without process ownership.
+// Atomically publishes an exclusive, same-directory temporary. On Windows
+// the temp is flushed with FlushFileBuffers and replaced via MoveFileExW
+// (REPLACE_EXISTING | WRITE_THROUGH). On POSIX, fsync applies to the file and
+// to the parent directory before and after rename; macOS uses F_FULLFSYNC
+// when supported. Errors before publication leave the previous file intact.
+// Errors after publication report durability uncertainty without rollback.
+// Only old regular temporaries whose owner PID is confirmed dead are removed.
+// The Emscripten SDL/IDBFS fallback offers logical atomicity, NOT
+// hardware-power-loss durability (it cannot fsync a physical directory).
+// Platform storage may still lie about persistence after an acknowledged sync.
 bool writeBinaryFileAtomically(const std::filesystem::path &path,
                                const std::vector<std::uint8_t> &bytes,
                                std::string *error = nullptr,

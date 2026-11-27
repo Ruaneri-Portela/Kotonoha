@@ -21,7 +21,11 @@ bool UpscaleWholeFrameWithMetalFX(SDL_Renderer *, SDL_Texture *,
 #if (!defined(__APPLE__) || !defined(KOTONOHA_HAS_METALFX)) &&                 \
     KOTONOHA_ENABLE_UPSCALER
 
-MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {}
+MetalFXUpscaler::MetalFXUpscaler(RendererRef renderer) : Upscaler(renderer) {
+  // Match the real Apple implementation: callers cannot construct a backend
+  // that is known to be unavailable. The whole-frame helper stays fail-safe.
+  throw std::invalid_argument("MetalFX is unavailable in this build");
+}
 
 MetalFXUpscaler::~MetalFXUpscaler() {}
 

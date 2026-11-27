@@ -75,16 +75,33 @@ public final class BootstrapActivity extends Activity {
                 }
                 runOnUiThread(() -> {
                     if (isFinishing() || isDestroyed()) return;
-                    Class<?> nextActivity = BuildConfig.IS_LAUNCHER_FLAVOR
-                            ? LauncherActivity.class
-                            : GameActivity.class;
+                    Class<?> nextActivity = BuildConfig.NATIVE_TARGET.equals("KotonohaLauncher")
+                            ? LauncherActivity.class : GameActivity.class;
                     Intent next = new Intent(this, nextActivity);
+                    // Preserve local on-device School Days setup arguments when
+                    // returning through the bootstrap into the game activity.
+                    if (nextActivity == GameActivity.class && getCallingActivity() != null &&
+                            getPackageName().equals(getCallingActivity().getPackageName()) &&
+                            getIntent().hasExtra(GameActivity.LAUNCH_ARGUMENTS)) {
+                        next.putExtra(GameActivity.LAUNCH_ARGUMENTS,
+                                getIntent().getStringArrayExtra(GameActivity.LAUNCH_ARGUMENTS));
+                    }
+                    if (getCallingActivity() != null)
+                        next.addFlags(Intent.FLAG_ACTIVITY_FORWARD_RESULT);
                     startActivity(next);
                     finish();
                 });
             } catch (IOException error) {
                 Log.e("Kotonoha", "Cannot prepare packaged assets", error);
-                runOnUiThread(() -> status.setText("Cannot prepare game assets:\n" + error.getMessage()));
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    if (getCallingActivity() != null) {
+                        setResult(RESULT_CANCELED);
+                        finish();
+                    } else {
+                        status.setText("Cannot prepare game assets:\n" + error.getMessage());
+                    }
+                });
             }
         }, "Kotonoha-assets").start();
     }

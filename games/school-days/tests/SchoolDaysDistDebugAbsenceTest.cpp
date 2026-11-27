@@ -1,5 +1,6 @@
 #include <Kotonoha/core/CommandLine.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include "SchoolDaysRuntime.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -26,8 +27,8 @@ void MustRejectDebugOption(const std::vector<std::string> &input) {
   try {
     parser.parse(static_cast<int>(argv.size()), argv.data());
   } catch (const std::exception &error) {
-    rejected =
-        std::string(error.what()).find("Unknown option") != std::string::npos;
+    rejected = std::string(error.what()).find("Unknown option") !=
+               std::string::npos;
   }
   Require(rejected, "DIST unexpectedly recognized a developer-only option");
   Require(options.enableMCP == baseline.enableMCP &&
@@ -41,6 +42,13 @@ void MustRejectDebugOption(const std::vector<std::string> &input) {
 
 int main() {
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // This is a compile-time build contract: a DIST must not own, construct,
+  // register or open the generic "Dialogue history" scene at all, nor compile
+  // the Android DEV-only extra MENU button and its touch hit area.
+  static_assert(!SchoolDays::Runtime::GenericDialogueHistoryCompiled,
+                "School Days DIST must compile out generic Dialogue history");
+  static_assert(!SchoolDays::Runtime::AndroidExtraMenuButtonCompiled,
+                "School Days DIST must compile out Android extra MENU button");
   try {
     Kotonoha::EngineOptions options;
     Kotonoha::CommandLine command("School Days DIST", options);
@@ -55,7 +63,8 @@ int main() {
     std::cout << "SchoolDaysDistDebugAbsenceTest: PASS\n";
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "SchoolDaysDistDebugAbsenceTest: " << error.what() << '\n';
+    std::cerr << "SchoolDaysDistDebugAbsenceTest: " << error.what()
+              << '\n';
     return 2;
   }
 #else

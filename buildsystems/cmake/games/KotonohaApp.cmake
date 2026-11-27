@@ -46,6 +46,12 @@ set(KOTONOHA_BRAND_OUTPUT "${KOTONOHA_PROJECT_ROOT}/design/generated"
     CACHE INTERNAL "Versioned Kotonoha visual identity outputs")
 if(NOT ANDROID AND NOT EMSCRIPTEN)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    # This module is included from lib/, while kotonoha_configure_app() is
+    # called from sibling game directories. A local directory variable would
+    # expand to an empty string there (1 ICON "/generic/icon.ico" on Windows).
+    # INTERNAL cache exposes the configured output path to every game target.
+    set(KOTONOHA_BRAND_OUTPUT "${CMAKE_BINARY_DIR}/kotonoha-brand"
+        CACHE INTERNAL "Generated desktop branding assets" FORCE)
     set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
         "${KOTONOHA_PROJECT_ROOT}/tools/generate_brand_assets.py")
     execute_process(
@@ -119,6 +125,10 @@ function(kotonoha_configure_app target)
     # Manager. Only the unified launcher is presented as "Kotonoha"; every
     # individual game port keeps its own name.
     if(WIN32)
+    # School Days has its own primary WinRes icon (resource ID 1), supplied
+    # by the fork. Do not append the generic engine icon with the same ID.
+    # Other Windows game ports use the shared K branding.
+    if(WIN32 AND NOT APP_GAME STREQUAL "school-days")
         set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
         if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico")
             file(TO_CMAKE_PATH "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico" _icon_path)

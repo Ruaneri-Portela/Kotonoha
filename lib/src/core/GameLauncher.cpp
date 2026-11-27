@@ -5,7 +5,7 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
-#include <Kotonoha/debug/ImGuiTheme.hpp>
+#include "../debug/ImGuiTheme.hpp"
 
 #include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <filesystem>
@@ -162,6 +162,11 @@ void GameLauncher::setFieldPath(PathField &field, std::string path) {
 void GameLauncher::check(PathField &field, bool force) {
   if (!force && field.checkedOnce && field.checked == field.current)
     return;
+  // An invalid previous selection may have left a transient footer error.
+  // Once the player chooses or types a different folder, show the result of
+  // that selection rather than repeating an error for the previous one.
+  if (field.checkedOnce && field.checked != field.current)
+    setStatus("", false);
   field.checkedOnce = true;
   field.checked = field.current;
   field.valid = false;
@@ -184,23 +189,38 @@ void GameLauncher::check(PathField &field, bool force) {
       field.info = "Invalid HTTP(S) game source";
     return;
   }
-  for (const auto &candidate : FileResolver::candidates(field.current)) {
+  const std::filesystem::path selected(field.current);
+  // The file resolver intentionally offers roaming AppData/working-directory
+  // fallbacks for symbolic *relative* resource names. Those fallbacks must
+  // NEVER override an explicit absolute folder chosen in the GUI: otherwise
+  // an invalid E:\Game\Packs can report C:\Users\...\AppData\Packs, or
+  // worse, silently accept unrelated data from a different installation.
+  const auto candidates = selected.is_absolute()
+                              ? std::vector<std::filesystem::path>{selected}
+                              : FileResolver::candidates(selected);
+  std::string firstFailure;
+  for (const auto &candidate : candidates) {
+    std::string candidateInfo;
     try {
       const auto input =
           field.options.kind == PathKind::Folder && !field.options.directISO
               ? gameDataDirectory(candidate)
               : candidate;
-      if (field.validator(input.string(), field.info)) {
+      if (field.validator(input.string(), candidateInfo)) {
         field.valid = true;
         field.resolved = candidate.string();
+        field.info = candidateInfo;
         break;
       }
     } catch (const std::exception &error) {
-      field.info = error.what();
+      candidateInfo = error.what();
     }
+    if (firstFailure.empty() && !candidateInfo.empty())
+      firstFailure = std::move(candidateInfo);
   }
-  if (!field.valid && field.info.empty())
-    field.info = "Invalid " + field.options.label;
+  if (!field.valid)
+    field.info = firstFailure.empty() ? "Invalid " + field.options.label
+                                    : firstFailure;
 }
 
 void GameLauncher::drawPathField(PathField &field) {
@@ -263,9 +283,7 @@ void GameLauncher::drawPathField(PathField &field) {
 }
 
 void GameLauncher::drawGameOptions() {
-  ImGui::PushID("game");
-  drawPathField(game);
-  ImGui::PopID();
+  drawPrimaryGamePath();
   for (std::size_t i = 0; i < additionalPaths.size(); ++i) {
     ImGui::Spacing();
     ImGui::Separator();
@@ -274,6 +292,12 @@ void GameLauncher::drawGameOptions() {
     drawPathField(*additionalPaths[i]);
     ImGui::PopID();
   }
+}
+
+void GameLauncher::drawPrimaryGamePath() {
+  ImGui::PushID("game");
+  drawPathField(game);
+  ImGui::PopID();
 }
 
 bool GameLauncher::validate(std::string &error) {
@@ -296,8 +320,7 @@ bool GameLauncher::validate(std::string &error) {
 
 void GameLauncher::save() {
   const auto remember = [](const PathField &field) {
-    if (field.rememberPath.empty())
-      return;
+    if (field.rememberPath.empty()) return;
     std::string reference = field.resolved;
     if (!isISOImage(field.resolved)) {
       const auto portable = FileResolver::referenceName(field.resolved);

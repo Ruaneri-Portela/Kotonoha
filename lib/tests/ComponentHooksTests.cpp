@@ -560,10 +560,11 @@ void testStableReveal() {
                   std::vector<std::string>{"a", "b"},
           "Escaped newlines never expose partial escape markers");
 
-  const std::string utf8 = u8"à🌸";
+  // Explicit bytes keep this check independent of the MSVC source code page.
+  const std::string utf8 = "\xC3\xA0\xF0\x9F\x8C\xB8";
   require(VNTextBoxUtility::RevealLines(utf8, 1, measure, 100).empty() &&
               VNTextBoxUtility::RevealLines(utf8, 2, measure, 100) ==
-                  std::vector<std::string>{u8"à"} &&
+                  std::vector<std::string>{"\xC3\xA0"} &&
               VNTextBoxUtility::RevealLines(utf8, utf8.size(), measure, 100) ==
                   std::vector<std::string>{utf8},
           "Typewriter reveal never cuts inside UTF-8 characters");

@@ -9,6 +9,7 @@
 #include <imgui_internal.h>
 
 #include <cmath>
+#include <cstring>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -98,19 +99,58 @@ void testParser() {
 }
 
 void testDebug(Engine &engine) {
+  auto channel = engine.GetAudio().channel("audio");
+  channel->setVolume(0.5f);
   auto &debug = engine.GetDebug();
   debug.setVisible(true);
+  debug.openOptions();
   auto frame = [&] { debug.renderMenu(engine.GetRenderer()); };
-  // Rendering the debug menu must not crash on a headless/dummy video driver.
-  // The ImGui SDL3 backend initializes system cursors, which some drivers do
-  // not support; DebugOverlay clears that benign SDL error at construction.
+  frame();
+  // The synchronized debug UI moved channel controls out of the old F10
+  // inspector and into the independent Options Applet / Audio tab.
+  auto *window = ImGui::FindWindowByName("Options Applet");
+  require(window != nullptr, "Find separate Options Applet");
+  const auto tabBarId = window->GetID("##options-tabs");
+  auto *tabs = ImGui::GetCurrentContext()->TabBars.GetByKey(tabBarId);
+  require(tabs != nullptr, "Find options tabs");
+  const auto audioTabId = ImHashStr("Audio", 0, tabBarId);
+  tabs->NextSelectedTabId = audioTabId;
   frame();
   frame();
-  require(debug.isVisible(), "Debug UI stays visible after render");
+  require(tabs->SelectedTabId == audioTabId,
+          "Options Audio page can be selected");
+  // ImGui's non-scrolling table pushes its table ID; each audio row then
+  // pushes the channel name. Keep exercising real checkbox and slider IDs.
+  ImGuiWindow *audioChild = nullptr;
+  for (auto *candidate : ImGui::GetCurrentContext()->Windows)
+    if (std::strstr(candidate->Name, "card_audio")) {
+      audioChild = candidate;
+      break;
+    }
+  require(audioChild != nullptr, "Audio controls card is rendered");
+  const auto tableID = audioChild->GetID("audio channels");
+  require(ImGui::GetCurrentContext()->Tables.GetByKey(tableID) != nullptr,
+          "Audio controls table is rendered");
+  const auto channelID = ImHashStr("audio", 0, tableID);
+  const auto muteID = ImHashStr("##mute", 0, channelID);
+  const auto volumeID = ImHashStr("##volume", 0, channelID);
+  ImGui::ActivateItemByID(muteID);
+  frame();
+  require(channel->isMuted(), "Debug UI mute checkbox controls named channel");
+  ImGui::ActivateItemByID(muteID);
+  frame();
+  require(!channel->isMuted() && channel->getVolume() == 0.5f,
+          "Debug UI unmute restores previous volume");
+  ImGui::ActivateItemByID(volumeID);
+  frame();
+  auto &io = ImGui::GetIO();
+  io.AddKeyEvent(ImGuiKey_RightArrow, true);
+  frame();
+  io.AddKeyEvent(ImGuiKey_RightArrow, false);
+  frame();
+  require(channel->getVolume() > 0.5f && channel->getVolume() <= 1,
+          "Debug UI slider changes named channel volume");
   debug.setVisible(false);
-  require(!debug.isVisible(), "Debug UI can be hidden");
-  // Programmatic channel control is covered by testChannels/testStreamGain;
-  // this test only guards the debug UI render path.
 }
 
 void near(float actual, float expected, const char *message) {

@@ -1,0 +1,124 @@
+<resources>
+    <string name="sd_play">Запустить игру</string>
+    <string name="sd_options">Настройки</string>
+    <string name="sd_quit">Выход</string>
+    <string name="sd_files">Файлы игры</string>
+    <string name="sd_language">Язык</string>
+    <string name="sd_tab_display">Экран</string>
+    <string name="sd_tab_graphics">Графика</string>
+    <string name="sd_tab_audio">Аудио</string>
+    <string name="sd_tab_general">Общие</string>
+    <string name="sd_tab_language">Язык</string>
+    <string name="sd_tab_files">Файлы</string>
+    <string name="sd_ok">Применить</string>
+    <string name="sd_cancel">Отмена</string>
+    <string name="sd_reset">Сбросить настройки</string>
+    <string name="sd_pick">Выбрать папку SchoolDaysHQ</string>
+    <string name="sd_retry">Проверить снова</string>
+    <string name="sd_back">Назад</string>
+    <string name="sd_missing">Не удалось запустить School Days HQ. Выберите папку SchoolDaysHQ, содержащую Packs, game-assets, overlay и translations.</string>
+    <string name="sd_selected_packs_directly">Вы выбрали папку Packs напрямую. Выберите родительскую папку SchoolDaysHQ, чтобы лаунчер также получил доступ к game-assets, overlay и translations.</string>
+    <string name="sd_checking">Проверка папки…</string>
+    <string name="sd_preparing">Подготовка игровой сессии…</string>
+    <string name="sd_denied">Доступ к папке недоступен. Выберите папку повторно.</string>
+    <string name="sd_unreadable">Не удалось проверить папку. Попробуйте снова или выберите другую папку.</string>
+    <string name="sd_ready">Готово · %1$s (%2$s) · %3$s</string>
+    <string name="sd_choose">Выберите доступный язык</string>
+    <string name="sd_absent">Папка подключена. Отсутствуют, пусты или неоднозначны: %1$s</string>
+    <string name="sd_no_translations">Пригодные переводы GPK или JSON не найдены.</string>
+    <string name="sd_incomplete_json">Базовый JSON без файла L×H (доступен базовый HQ): %1$s</string>
+    <string name="sd_missing_gpk_files">Недоступно — отсутствует в translations/scripts/: %1$s</string>
+    <string name="sd_missing_gpk_json_hint">Недоступно — отсутствует в translations/scripts/: %1$s (JSON доступен ниже)</string>
+    <string name="sd_chinese_legacy_gpk">Найден несовместимый устаревший Script - chinese.GPK; требуется сертифицированный Script - chinese-compatible.GPK</string>
+    <string name="sd_detected_gpk">Обнаружены пакеты GPK: %1$s</string>
+    <string name="sd_detected_json">Обнаружены пары JSON: %1$s</string>
+    <string name="sd_none">Нет</string>
+    <string name="sd_info">Kotonoha · %1$s</string>
+    <string name="sd_picker_error">Системный выбор папок Android недоступен.</string>
+    <string name="sd_private_ready">Найдена существующая установка во внутреннем хранилище приложения.</string>
+    <string name="sd_forget">Отключить папку</string>
+    <string name="sd_game_failed">School Days HQ не удалось запустить или продолжить. Проверьте файлы игры и попробуйте снова.</string>
+    <string name="sd_failed_packs">Не удалось открыть или проверить пакеты. Проверьте файлы в Packs и разрешения SAF.</string>
+    <string name="sd_failed_route">Движку не удалось загрузить game-assets/school-days-hq.ktnroute. Проверьте файл маршрута и повторите попытку.</string>
+    <string name="sd_failed_language">Движку не удалось проверить выбранный язык. Проверьте его файлы HQ и L×H.</string>
+    <string name="sd_save_error">Не удалось сохранить настройки. Проверьте разрешения хранилища.</string>
+    <string name="sd_saved_ok">Настройки сохранены.</string>
+    <string name="sd_reset_done">Значения по умолчанию готовы. Нажмите «Применить» для сохранения.</string>
+
+    <!-- Экран -->
+    <string name="sd_display_note">Игра запускается в альбомном полноэкранном режиме на Surface устройства. Пропорции сюжета и лимит FPS сохраняются в Kotonoha.ini; тайминг сценария и видео остаётся 24 fps.</string>
+    <string name="sd_display_mode">Разрешение / частота обновления</string>
+    <string name="sd_device_default">По умолчанию устройства</string>
+    <string name="sd_vsync">VSync</string>
+    <string name="sd_narrative_aspect">Соотношение сторон сюжета</string>
+    <string name="sd_aspect_auto">Автоматически</string>
+    <string name="sd_aspect_43">4:3 (Стандарт)</string>
+    <string name="sd_aspect_169">16:9 (Широкий)</string>
+    <string name="sd_frame_limit">Лимит FPS (Android)</string>
+    <string name="sd_fps_unlimited">Без лимита (Гц экрана)</string>
+    <string name="sd_fps_30">30 FPS</string>
+    <string name="sd_fps_60">60 FPS</string>
+
+    <!-- Графика -->
+    <string name="sd_renderer_gles">Рендерер: OpenGL ES (нативный)</string>
+    <string name="sd_render_scale">Масштаб рендера: %1$s</string>
+    <string name="sd_upscaler">Апскейлер</string>
+    <string name="sd_upscale_factor">Коэффициент апскейла: %1$s</string>
+    <string name="sd_upscale_off_note">При 1.00x апскейлинг ОТКЛЮЧЁН независимо от пресета. Выбор пресета шейдера включает MPV при коэффициенте >= 2.00x.</string>
+    <string name="sd_shader_preset">Пресет шейдера (Anime4K / ArtCNN)</string>
+
+    <!-- Аудио -->
+    <string name="sd_audio_retail_heading">Звук игры (Config.DAT)</string>
+    <string name="sd_bgm_vol">Громкость музыки (BGM): %1$d / 10</string>
+    <string name="sd_se_vol">Громкость эффектов (SE): %1$d / 10</string>
+    <string name="sd_voice_vol">Громкость голосов: %1$d / 10</string>
+    <string name="sd_men_voice">Мужские голоса</string>
+    <string name="sd_mute_game">Отключить звук игры</string>
+    <string name="sd_audio_engine_heading">Звук движка и лаунчера</string>
+    <string name="sd_master_vol">Общая громкость: %1$d%%</string>
+    <string name="sd_movie_vol">Громкость видео: %1$d%%</string>
+    <string name="sd_launcher_music">Фоновая музыка лаунчера</string>
+    <string name="sd_launcher_music_btn_on">Музыка лаунчера: ВКЛ</string>
+    <string name="sd_launcher_music_btn_off">Музыка лаунчера: ВЫКЛ</string>
+    <string name="sd_launcher_language">Язык лаунчера</string>
+    <string name="sd_launcher_language_btn">Язык лаунчера: %1$s</string>
+    <string name="sd_title_launcher">ЛАУНЧЕР</string>
+    <string name="sd_title_options">НАСТРОЙКА / ОПЦИИ</string>
+    <string name="sd_upscaler_auto">Авто</string>
+    <string name="sd_upscaler_none">Нет</string>
+    <string name="sd_upscaler_linear">Linear</string>
+    <string name="sd_upscaler_mpv">MPV</string>
+
+    <!-- Общие -->
+    <string name="sd_general_retail_heading">Настройки игры (Config.DAT)</string>
+    <string name="sd_text_view">Показывать текст / субтитры</string>
+    <string name="sd_skip_unread">Пропускать непрочитанные сцены</string>
+    <string name="sd_super_skip">SuperSkip / к следующему выбору</string>
+    <string name="sd_auto_draw">Авто-отрисовка (Auto draw)</string>
+    <string name="sd_auto_mode">Авто-режим (Auto mode)</string>
+    <string name="sd_general_engine_heading">Настройки движка (settings.json)</string>
+    <string name="sd_swap_ab">Поменять кнопки A/B геймпада</string>
+    <string name="sd_forced_subtitles">Включить принудительные субтитры (.ass)</string>
+    <string name="sd_lxh_heading">Необязательное дополнение (Kotonoha.ini)</string>
+    <string name="sd_enable_lxh">Включить концовки L×H</string>
+    <string name="sd_enable_lxh_desc">Включает семь дополнительных эпилогов при наличии необходимых файлов.</string>
+    <string name="sd_lxh_state_active">L×H активен (7 эпилогов)</string>
+    <string name="sd_lxh_state_off">Базовая HQ (L×H выкл.)</string>
+    <string name="sd_lxh_state_missing_pack">Базовая HQ (нет Packs/LxH.GPK)</string>
+    <string name="sd_lxh_state_missing_lang">Базовая HQ (нет перевода L×H для этого языка)</string>
+
+    <!-- Язык -->
+    <string name="sd_lang_active">Выбрано: %1$s</string>
+    <string name="sd_lang_gpk_heading">Нативные пакеты GPK (translations/scripts/)</string>
+    <string name="sd_lang_json_heading">Словари JSON (translations/jsons/)</string>
+    <string name="sd_lang_note">Переводы базовой HQ работают независимо от L×H. При включённом L×H требуются соответствующие файлы L×H выбранного языка без скрытого отката.</string>
+
+    <!-- Файлы -->
+    <string name="sd_files_summary">Оригинальные пакеты: %1$d / 29 (LxH.GPK опционально: %2$s)\nМаршрут (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
+    <string name="sd_status_ok">ОК</string>
+    <string name="sd_status_missing">Отсутствует</string>
+    <string name="sd_status_optional">Нет (необязательно)</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">Включить Rich Presence</string>
+    <string name="sd_discord_description">Показывает игровую активность в приложении Discord. Повторный вход не требуется.</string>
+</resources>

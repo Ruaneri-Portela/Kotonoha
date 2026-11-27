@@ -12,8 +12,7 @@ namespace {
 using Transition = Kotonoha::SchoolDaysSystemPanelTransition;
 
 void Require(bool ok, const std::string &message) {
-  if (!ok)
-    throw std::runtime_error(message);
+  if (!ok) throw std::runtime_error(message);
 }
 
 bool Near(float a, float b, float eps = 0.05f) {
@@ -45,9 +44,9 @@ void VerifySoftwareFadeViewport(int screenW, int screenH, int virtualW,
         std::string("SDL_CreateSoftwareRenderer failed: ") + SDL_GetError());
   }
 
-  const auto vp = Transition::ComputeFittedViewport(static_cast<float>(screenW),
-                                                    static_cast<float>(screenH),
-                                                    virtualW, virtualH);
+  const auto vp = Transition::ComputeFittedViewport(
+      static_cast<float>(screenW), static_cast<float>(screenH), virtualW,
+      virtualH);
   Require(vp.Valid(), std::string(label) + ": viewport must be valid");
   const SDL_FRect area{vp.x, vp.y, vp.w, vp.h};
 
@@ -70,8 +69,7 @@ void VerifySoftwareFadeViewport(int screenW, int screenH, int virtualW,
   Require(r >= 120u && g >= 120u && b >= 120u,
           std::string(label) + ": center of viewport did not fade white");
 
-  // Pillarboxes (left/right) must remain pure black when horizontal margins
-  // exist.
+  // Pillarboxes (left/right) must remain pure black when horizontal margins exist.
   if (vp.x >= 4.0f) {
     ReadRgb(renderer, 1, screenH / 2, &r, &g, &b);
     Require(r == 0u && g == 0u && b == 0u,
@@ -81,8 +79,7 @@ void VerifySoftwareFadeViewport(int screenW, int screenH, int virtualW,
             std::string(label) + ": right pillarbox leaked white fade");
   }
 
-  // Letterboxes (top/bottom) must remain pure black when vertical margins
-  // exist.
+  // Letterboxes (top/bottom) must remain pure black when vertical margins exist.
   if (vp.y >= 4.0f) {
     ReadRgb(renderer, screenW / 2, 1, &r, &g, &b);
     Require(r == 0u && g == 0u && b == 0u,
@@ -126,8 +123,7 @@ int main() {
     Require(!t.Active() && t.CurrentPhase() == Transition::Phase::Idle,
             "Revealing returns to Idle");
 
-    // 2. Geometry across ultrawide Android, 4:3, 16:9, Standard FULL,
-    // letterbox.
+    // 2. Geometry across ultrawide Android, 4:3, 16:9, Standard FULL, letterbox.
     const auto pocoWide =
         Transition::ComputeFittedViewport(2712.0f, 1220.0f, 1280, 720);
     Require(pocoWide.Valid() && Near(pocoWide.x, 271.56f) &&
@@ -157,21 +153,18 @@ int main() {
                 Near(stretched.h, 1080.0f),
             "Standard FULL Config stretch drifted");
 
-    const auto invalid =
-        Transition::ComputeFittedViewport(0.0f, 1080.0f, 1280, 720);
+    const auto invalid = Transition::ComputeFittedViewport(0.0f, 1080.0f, 1280, 720);
     Require(!invalid.Valid(), "Zero-width screen must yield invalid viewport");
 
     // 3. Real SDL software renderer pixel verification (pillarbox + letterbox).
     VerifySoftwareFadeViewport(1356, 610, 1280, 720, "Ultrawide 16:9");
     VerifySoftwareFadeViewport(1356, 610, 800, 600, "Ultrawide 4:3");
-    VerifySoftwareFadeViewport(800, 600, 1280, 720,
-                               "4:3 Screen 16:9 Letterbox");
+    VerifySoftwareFadeViewport(800, 600, 1280, 720, "4:3 Screen 16:9 Letterbox");
 
     std::cout << "School Days system panel transition viewport tests passed\n";
     return 0;
   } catch (const std::exception &error) {
-    std::cerr << "SchoolDaysSystemPanelTransitionTest: " << error.what()
-              << '\n';
+    std::cerr << "SchoolDaysSystemPanelTransitionTest: " << error.what() << '\n';
     return 1;
   }
 }

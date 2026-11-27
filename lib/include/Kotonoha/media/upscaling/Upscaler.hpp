@@ -3,7 +3,6 @@
 #include <Kotonoha/core/SDL.hpp>
 #include <array>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace Kotonoha {
@@ -127,7 +126,7 @@ class Upscaling {
   std::unique_ptr<Upscaler> implementation;
   Uint64 stillSerial = 0;
   struct TextureCache;
-  std::unordered_map<SDL_Texture *, std::weak_ptr<TextureCache>> textureCaches;
+  std::vector<std::weak_ptr<TextureCache>> textureCaches;
   void clearTextureCaches();
 
 public:

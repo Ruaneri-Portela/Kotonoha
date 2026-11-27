@@ -34,4 +34,8 @@ Files named `PORT_STATUS.md`, dated investigation notes in `games/*/docs/`, thir
 
 ## Experimental virtual filesystem
 
-The experimental, read-only [Filesystem V2](filesystem/README.md) is present in the `dev` source tree, but migration from legacy readers remains partial. The [architecture specification](filesystem/SPECIFICATION.md) remains the design reference (original Portuguese version: [SPECIFICATION.pt-BR.md](filesystem/SPECIFICATION.pt-BR.md)); do not assume any game port is fully migrated without verification.
+The experimental, read-only [Filesystem V2](filesystem/README.md) is present in the `dev` source tree, but migration from legacy readers remains partial. The [original Portuguese architecture specification](filesystem/SPECIFICATION.pt-BR.md) remains the design reference; do not assume any game port is fully migrated without verification.
+
+## Fork-specific Windows L4 preservation
+
+When integrating upstream, retain the School Days HQ Windows L4 visual/behavior regression suite, and use only synthetic assets and isolated `--documents` test profiles. Never follow NTFS junctions in cleanup routines or remove original retail binaries, GPK archives, private translations, installed QA releases or real saves. Earlier QA captures document their original test conditions, not necessarily the latest engine state. The old fork documentation index is preserved in the independent pre-sync archive.

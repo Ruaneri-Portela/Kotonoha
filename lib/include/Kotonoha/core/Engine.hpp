@@ -29,6 +29,7 @@ namespace Kotonoha {
 class UI;
 class TimelinePlayer;
 class DebugOverlay;
+class DubbingOverlay;
 class MCPServer;
 class SettingsMenu;
 class ForcedSubtitleRenderer;
@@ -40,7 +41,8 @@ struct EngineOptions {
   std::string assetOverlayDirectory() const;
   bool enableMCP = false;
   std::string mcpFileRoot = ".";
-  int mcpPort = 0; // 0 = stdio; >0 = TCP loopback socket port
+  // Zero selects stdio; a nonzero port enables loopback TCP MCP instead.
+  unsigned short mcpPort = 0;
   EngineSettings settings;
   std::string settingsPath;
   bool persistSettings = false;
@@ -50,6 +52,7 @@ struct EngineOptions {
   std::optional<UpscalePreset> upscalerPresetOverride;
   std::optional<float> upscalerFactorOverride;
   std::string subtitleStylePath;
+  std::string forcedSubtitlesPath;
   bool launcher = defaultLauncherEnabled();
   std::string dumpTranslationPath;
   // Asset source; defaults to plain files relative to the working directory.
@@ -87,16 +90,24 @@ private:
   double eventSeconds = 0;
   std::string activeClockNode();
   void synchronizeNodeClock(double delta);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   std::unique_ptr<DebugOverlay> debug;
-#if KOTONOHA_ENABLE_MCP
+#endif
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD) && KOTONOHA_ENABLE_MCP
   // Feature-OFF builds do not compile MCPServer.cpp. Exclude its unique_ptr
   // as well, or Engine's destructor still references an absent destructor.
   std::unique_ptr<MCPServer> mcp;
+#endif
+#if defined(KOTONOHA_PLAYER_DUBBING)
+  std::unique_ptr<DubbingOverlay> dubbing;
 #endif
   bool agentPaused = false;
   bool translationDumpComplete = false;
   InputActions inputActions;
   TouchPointer touchPointer;
+#if defined(__ANDROID__) || defined(ANDROID)
+  MobileTouchAdapter mobileTouch;
+#endif
   ControllerNavigation controllerNavigation;
   NavRepeater navRepeater;
   SDL_AppResult dispatchEvent(EventPtr event);
@@ -112,8 +123,6 @@ private:
   void applyWindowSettings(const EngineSettings &value, bool geometry = true);
 
 public:
-  void updateCursor(const std::string &path);
-  CursorPtr customCursor;
   explicit Engine(Runtime &run, EngineOptions options = {});
   ~Engine();
 
@@ -176,20 +185,18 @@ public:
   void debugAdvanceEvent();
   void loadKtrf(const std::string &path);
   void dumpKtrf(const std::string &path);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   DebugOverlay &GetDebug() { return *debug; }
+#endif
   Upscaling &GetUpscaler() { return *upscaler; }
   AudioMixer &GetAudio() { return audio; }
   AssetProvider &GetAssets() { return *assets; }
   void SetAssetProvider(std::shared_ptr<AssetProvider> provider);
-  // Return the mounted engine overlay, creating and remembering a writable
-  // per-game Documents/overlay folder when none exists yet.
   std::filesystem::path ensureAssetOverlay();
   const EngineSettings &GetSettings() const { return settings; }
   VisualTransition &GetVisualTransition() { return visualTransition; }
   bool HasStoredSettings() const { return settingsLoadedFromDisk; }
-  const std::optional<AssStyle> &GetSubtitleStyle() const {
-    return subtitleStyle;
-  }
+  const std::optional<AssStyle> &GetSubtitleStyle() const { return subtitleStyle; }
   void applySettings(const EngineSettings &value, bool persist = true);
   void saveSettings() const;
   void openSettings();

@@ -102,7 +102,11 @@ struct SubtitleScene::State : workers::FrameSink {
   SDL_Renderer *cachedRenderer = nullptr;
   int assWidth = 0, assHeight = 0;
   std::optional<AssStyle> style;
-  std::string appearanceKey;
+  bool appearanceInitialized = false;
+  std::string cachedFontSetting;
+  std::string cachedFamily;
+  bool cachedColorOverride = false;
+  SDL_Color cachedTextColor{};
   std::unordered_map<uint32_t, std::array<Uint32, 256>> colorLuts;
   std::string registeredVNFont;
 
@@ -144,7 +148,7 @@ struct SubtitleScene::State : workers::FrameSink {
     }
     track = std::move(parsed);
     worker->setTrack(track.get());
-    appearanceKey.clear();
+    appearanceInitialized = false;
     invalidate();
     loadedKind = selection.kind;
     loadedScript = selection.script;
@@ -663,17 +667,22 @@ void SubtitleScene::render(RendererRef renderer, float) {
 
   const auto &appearance = engine.GetSettings();
   const auto c = appearance.vnTextColor;
-  const std::string fontSetting = appearance.vnFontPath.empty()
-                                      ? appearance.fontPath
-                                      : appearance.vnFontPath;
+  const std::string &fontSetting = appearance.vnFontPath.empty()
+                                       ? appearance.fontPath
+                                       : appearance.vnFontPath;
   const char *familyName = engine.GetVNUI().fontFamily();
-  const std::string family = familyName ? familyName : "";
-  const std::string key = fontSetting + "|" + family + "|" +
-                          std::to_string(appearance.vnTextColorOverride) + "|" +
-                          std::to_string(c.r) + "," + std::to_string(c.g) +
-                          "," + std::to_string(c.b) + "," + std::to_string(c.a);
+  const std::string_view familyView = familyName ? std::string_view(familyName)
+                                                 : std::string_view();
+  const bool appearanceChanged =
+      !state->appearanceInitialized ||
+      state->cachedFontSetting != fontSetting ||
+      state->cachedFamily != familyView ||
+      state->cachedColorOverride != appearance.vnTextColorOverride ||
+      state->cachedTextColor.r != c.r || state->cachedTextColor.g != c.g ||
+      state->cachedTextColor.b != c.b || state->cachedTextColor.a != c.a;
 
-  if (state->appearanceKey != key) {
+  if (appearanceChanged) {
+    const std::string family(familyView);
     ASS_Style overrideStyle =
         state->track->n_styles ? state->track->styles[0] : ASS_Style{};
     int bits = 0;
@@ -683,9 +692,17 @@ void SubtitleScene::render(RendererRef renderer, float) {
     } catch (const std::exception &e) {
       SDL_LogWarn(LogMedia, "Subtitle font: %s", e.what());
     }
+    // Android resolves its system font through FileResolver/Java. Do not
+    // switch to desktop Fontconfig when a rebuilt libass happens to include
+    // that provider: retain the explicit font and registered font attachments.
+#if defined(__ANDROID__)
+    constexpr auto fontProvider = ASS_FONTPROVIDER_NONE;
+#else
+    constexpr auto fontProvider = ASS_FONTPROVIDER_AUTODETECT;
+#endif
     ass_set_fonts(state->renderer.get(),
                   fontPath.empty() ? nullptr : fontPath.c_str(), nullptr,
-                  ASS_FONTPROVIDER_AUTODETECT, nullptr, 1);
+                  fontProvider, nullptr, 1);
     if (!appearance.vnFontPath.empty() &&
         state->registeredVNFont != appearance.vnFontPath) {
       auto bytes = FileResolver::loadFontMemory(appearance.vnFontPath);
@@ -708,7 +725,11 @@ void SubtitleScene::render(RendererRef renderer, float) {
     }
     ass_set_selective_style_override(state->renderer.get(), &overrideStyle);
     ass_set_selective_style_override_enabled(state->renderer.get(), bits);
-    state->appearanceKey = key;
+    state->appearanceInitialized = true;
+    state->cachedFontSetting = fontSetting;
+    state->cachedFamily = family;
+    state->cachedColorOverride = appearance.vnTextColorOverride;
+    state->cachedTextColor = c;
     state->invalidate();
   }
 

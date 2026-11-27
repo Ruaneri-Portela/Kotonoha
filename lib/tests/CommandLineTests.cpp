@@ -26,6 +26,7 @@ void caseLauncher(std::vector<std::string> arguments, bool expected,
   check(cli.frames == expectedFrames, "Frame limit was not parsed correctly");
 }
 
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
 void expectBadFrames(const std::string &value) {
   Kotonoha::EngineOptions options;
   Kotonoha::CommandLine cli("PortSmoke", options);
@@ -41,6 +42,7 @@ void expectBadFrames(const std::string &value) {
   }
   check(rejected, "Invalid --frames must be rejected");
 }
+#endif
 
 void expectUnknownOption(std::vector<std::string> arguments,
                          const std::string &name) {
@@ -90,11 +92,16 @@ int main() {
     caseLauncher({"PortSmoke", "--launcher"}, true);
     caseLauncher({"PortSmoke", "--no-launcher"}, false);
     caseLauncher({"PortSmoke", "--no-launcher", "--launcher"}, true);
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     caseLauncher({"PortSmoke", "--frames", "4"}, false, 4);
     caseLauncher({"PortSmoke", "--launcher", "--frames", "4"}, false, 4);
     caseLauncher({"PortSmoke", "--frames", "4", "--launcher"}, false, 4);
     caseLauncher({"PortSmoke", "--dump-translation", "synthetic.json"}, false);
+#endif
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
+    expectUnknownOption({"PortSmoke", "--frames", "4"}, "--frames");
+    expectUnknownOption({"PortSmoke", "--dump-translation", "synthetic.json"},
+                        "--dump-translation");
     expectUnknownOption({"PortSmoke", "--log", "synthetic.log"}, "--log");
     expectUnknownOption({"PortSmoke", "--mcp"}, "--mcp");
     expectUnknownOption({"PortSmoke", "--mcp-root", "synthetic-root"},
@@ -109,9 +116,11 @@ int main() {
     expectUnknownOption({"PortSmoke", "--mcp"}, "--mcp");
 #endif
 #endif
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     expectBadFrames("0");
     expectBadFrames("-4");
     expectBadFrames("bad");
+#endif
     std::cout << "Kotonoha.CommandLine: launcher and headless smoke passed\n";
     return 0;
   } catch (const std::exception &failure) {

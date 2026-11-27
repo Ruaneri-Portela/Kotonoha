@@ -2,6 +2,7 @@
 """Read-only consistency check for CMake and Xcode metadata (Python 3.8+)."""
 import json
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -15,6 +16,40 @@ def require(value, message):
     if not value:
         raise ValueError(message)
 
+
+
+
+def validate_fork_retained_git_safety():
+    """Forbid accidentally versioning commercial School Days or personal files."""
+    tracked_result = subprocess.run(
+        ["git", "ls-files", "-z"], cwd=ROOT, check=True,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    tracked = [p.decode("utf-8") for p in tracked_result.stdout.split(b"\0") if p]
+    allowlisted_assets = {
+        "games/school-days/game-assets/.gitignore",
+        "games/school-days/game-assets/README.txt",
+        "games/school-days/game-assets/school-days-hq.ktnroute",
+        "games/school-days/game-assets/styles.ass",
+    }
+    forbidden_suffixes = (".gpk", ".iso", ".img", ".vhd", ".vhdx",
+                          ".apk", ".exe", ".msi", ".zip", ".7z",
+                          ".rar", ".pfx", ".jks", ".keystore", ".pem")
+    for name in tracked:
+        lower = name.lower()
+        parts = lower.split("/")
+        require(not lower.endswith(forbidden_suffixes),
+                f"Forbidden tracked commercial binary/archive: {name}")
+        require(parts[0] not in ("build", "dist", "translations"),
+                f"Forbidden generated or private directory: {name}")
+        require("packs" not in parts and "save" not in parts,
+                f"Forbidden retail pack/save directory: {name}")
+        if lower.startswith("games/school-days/game-assets/"):
+            require(name in allowlisted_assets,
+                    f"Unexpected tracked private School Days asset: {name}")
+    ignores = (ROOT / ".gitignore").read_text(encoding="utf-8")
+    require("*.[Gg][Pp][Kk]" in ignores and "/translations/" in ignores,
+            "Retail archives/private translations must remain ignored")
 
 def validate():
     manifest = json.loads((XCODE / "ProjectManifest.json").read_text(encoding="utf-8"))
@@ -118,6 +153,7 @@ def validate():
                     for p in (ROOT / "tools").glob("build-*.*")),
             "Windows build helpers under tools/ must be .ps1")
 
+    validate_fork_retained_git_safety()
     print(f"[Kotonoha] OK: {len(rows)} CMake games; {len(schemes)} existing Xcode "
           f"schemes; Xcode pending: {', '.join(sorted(pending_xcode)) or 'none'}")
 
@@ -125,6 +161,6 @@ def validate():
 if __name__ == "__main__":
     try:
         validate()
-    except (ValueError, OSError, ET.ParseError) as exc:
+    except (ValueError, OSError, ET.ParseError, subprocess.CalledProcessError) as exc:
         print(f"[Kotonoha] Validation failed: {exc}", file=sys.stderr)
         sys.exit(1)

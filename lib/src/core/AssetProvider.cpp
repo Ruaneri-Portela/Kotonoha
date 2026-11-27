@@ -257,19 +257,19 @@ std::string AssetProvider::localPath(const std::string &id) const {
   return file.empty() ? localPathAsset(id) : file;
 }
 std::string AssetProvider::loadTextUtf8(const std::string &id,
-                                        const char *encoding,
-                                        AssetSource source) const {
+                                       const char *encoding,
+                                       AssetSource source) const {
   if (!encoding || !*encoding)
     throw std::invalid_argument("Text encoding must not be empty");
   return decodeTextAsset(id, read(id, source), encoding);
 }
 std::string AssetProvider::decodeTextAsset(const std::string &,
-                                           const std::vector<Uint8> &bytes,
-                                           const char *encoding) const {
+                                          const std::vector<Uint8> &bytes,
+                                          const char *encoding) const {
   if (bytes.empty())
     return {};
   size_t offset = 0;
-  // UTF-32 must precede UTF-16: their LE BOMs share a prefix.
+  // UTF-32 must precede UTF-16: their little-endian BOMs share a prefix.
   if (bytes.size() >= 4 && bytes[0] == 0xff && bytes[1] == 0xfe &&
       bytes[2] == 0 && bytes[3] == 0) {
     offset = 4;
@@ -437,14 +437,15 @@ std::string AssetProvider::localPathAsset(const std::string &) const {
   return {};
 }
 
-std::unique_ptr<AssetStream>
-AssetProvider::openStream(const std::string &) const {
+std::unique_ptr<AssetStream> AssetProvider::openStream(const std::string &) const {
   return {};
 }
+
 std::unique_ptr<AssetStream>
 AssetProvider::openOriginalStream(const std::string &id) const {
   return openStream(id);
 }
+
 std::unique_ptr<AssetStream>
 AssetProvider::openStream(const std::string &id, AssetSource source) const {
   return source == AssetSource::Original ? openOriginalStream(id)
@@ -453,8 +454,7 @@ AssetProvider::openStream(const std::string &id, AssetSource source) const {
 
 SurfacePtr AssetProvider::loadSurfaceAsset(const std::string &id) const {
   const auto bytes = readAsset(id);
-  // Retain upstream's empty-asset fallback for runtimes that intentionally
-  // request an empty picture (e.g. AIR state transitions).
+  // An empty picture is a valid transition placeholder in upstream runtimes.
   if (bytes.empty()) {
     SurfacePtr fallback(SDL_CreateSurface(1, 1, SDL_PIXELFORMAT_RGBA32));
     if (fallback)

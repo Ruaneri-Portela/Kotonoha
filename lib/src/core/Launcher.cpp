@@ -118,8 +118,9 @@ void Launcher::open() {
     }
 
     // 3. Obtém o tamanho da tela do monitor principal se for mobile/fullscreen
-    int width = 760;
-    int height = 560;
+    const auto [requestedWidth, requestedHeight] = preferredWindowSize();
+    int width = std::max(320, requestedWidth);
+    int height = std::max(240, requestedHeight);
 
     if (isMobilePlatform()) {
       SDL_DisplayID displayID = SDL_GetPrimaryDisplay();
@@ -272,7 +273,7 @@ void Launcher::setStatus(std::string message, bool error) {
     SDL_LogWarn(LogConfig, "Launcher: %s", status.c_str());
 }
 
-bool Launcher::launch() {
+bool Launcher::apply() {
   try {
     draft.validate();
     std::string error;
@@ -287,6 +288,13 @@ bool Launcher::launch() {
     setStatus(error.what(), true);
     return false;
   }
+  setStatus("Settings saved", false);
+  return true;
+}
+
+bool Launcher::launch() {
+  if (!apply())
+    return false;
   setStatus("", false);
   current = State::Launch;
   SDL_LogInfo(LogConfig, "Launcher: starting with upscaling %s x%.2f",
@@ -465,6 +473,20 @@ void Launcher::draw() {
                    ImGuiWindowFlags_NoSavedSettings |
                    ImGuiWindowFlags_NoBringToFrontOnFocus);
   ImGui::PopStyleVar(3);
+  // Game-specific launchers may replace the entire presentation, but reuse
+  // the same SDL window, renderer, ImGui context and input lifecycle.
+  // Keep the generic tabs unchanged for games without a custom screen.
+  if (drawCustomContents()) {
+    ImGui::End();
+    ImGui::Render();
+    SDL_SetRenderScale(renderer.get(), io.DisplayFramebufferScale.x,
+                       io.DisplayFramebufferScale.y);
+    SDL_SetRenderDrawColor(renderer.get(), 23, 18, 33, 255);
+    SDL_RenderClear(renderer.get());
+    ImGui_ImplSDLRenderer3_RenderDrawData(ImGui::GetDrawData(), renderer.get());
+    SDL_RenderPresent(renderer.get());
+    return;
+  }
   {
     // Header band: accent strip + large title + settings location.
     const ImVec2 origin = ImGui::GetWindowPos();

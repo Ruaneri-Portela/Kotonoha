@@ -1,0 +1,64 @@
+<resources>
+    <style name="SdText" parent="@android:style/Widget.TextView">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#173752</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+    <style name="SdCaption" parent="SdText">
+        <item name="android:textColor">#4B6B85</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+    </style>
+    <style name="SdHeading" parent="SdText">
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textColor">#123454</item>
+        <item name="android:layout_marginTop">12dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+    </style>
+    <style name="SdButton" parent="@android:style/Widget.Material.Light.Button">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textColor">#123454</item>
+        <item name="android:backgroundTint">#DCEBF2</item>
+    </style>
+    <style name="SdPrimaryButton" parent="SdButton">
+        <item name="android:backgroundTint">#18517E</item>
+        <item name="android:textColor">#FFFFFF</item>
+    </style>
+    <style name="SdTabButton" parent="@android:style/Widget.Material.Light.Button">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">44dp</item>
+        <item name="android:minWidth">72dp</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">#123454</item>
+        <item name="android:backgroundTint">#DCEBF2</item>
+        <item name="android:layout_marginEnd">6dp</item>
+    </style>
+    <style name="SdSwitch" parent="@android:style/Widget.Material.Light.CompoundButton.Switch">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:textColor">#173752</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+    <style name="SdLabel" parent="SdText">
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_marginTop">10dp</item>
+        <item name="android:layout_marginBottom">2dp</item>
+    </style>
+    <style name="SdSpinner" parent="@android:style/Widget.Material.Light.Spinner">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+    </style>
+</resources>

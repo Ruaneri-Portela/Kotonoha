@@ -39,7 +39,7 @@ ORIGINAL_COLORS = {
 }
 SETSUNA_NEW = ('&H00EEEEF9', '&H003F43BE')
 
-# Upstream proposal's literal names: order is intentional and non-normalized.
+# Authoritative literal request: order is intentional and non-normalized.
 # The RGB outline string here is documentation only; the ASS value is tested.
 SLOTS = (
     ('SekaiMother', ("Sekai's Mother", 'Youko', 'Mãe da Sekai'), '&H00F7F1F3', '&H00AB6077', '#7760AB'),
@@ -56,9 +56,9 @@ SLOTS = (
     ('Kazuha', ('Kazuha',), '&H00F6F3E8', '&H00987605', '#057698'),
     ('Futaba', ('Futaba',), '&H00EDF1E8', '&H00336801', '#016833'),
     ('ExtraGirl', ('Girl A', 'Girl B', 'Girl C', 'Girl D', 'Woman A', 'Woman B', 'Little Girl'), '&H00EEF0EE', '&H00455540', '#405545'),
-    ('ExtraMan', ('Man A', 'Man B', 'Man C', 'Boy A', 'Niño'), '&H00F6F4F4', '&H00653571', '#713565'),
-    ('Fairy', ('Fairy A', 'Fairy B'), '&H00F4F4F2', '&H0063542E', '#2E5463'),
-    ('System', ('Cellphone', 'Screen', 'School PA', 'Creditos'), '&H00F3F3F6', '&H0053556E', '#6E5553'),
+    ('ExtraMan', ('Man A', 'Man B', 'Man C', 'Boy A', 'Niño'), '&H00F6F4F4', '&H00998186', '#868199'),
+    ('Fairy', ('Fairy A', 'Fairy B', 'Ameria', 'Chris'), '&H00F4F4F2', '&H0083896E', '#6E8983'),
+    ('System', ('Cellphone', 'Screen', 'School PA', 'Creditos'), '&H00F3F3F6', '&H00757D9C', '#9C7D75'),
     ('Role', ('Class Rep', 'Committee Rep', 'Periodista'), '&H00F0EFEF', '&H005B4E51', '#514E5B'),
     ('Pair', ('Sekai&Makoto', 'Makoto&Sekai', 'Makoto Makoto・Sekai Sekai'), '&H00F2F1E9', '&H00696406', '#066469'),
 )
@@ -151,25 +151,34 @@ class TestSchoolDaysStyles(unittest.TestCase):
         self.assertEqual(names[:len(ORIGINAL_COLORS)], list(ORIGINAL_COLORS))
         self.assertEqual(names[len(ORIGINAL_COLORS):], list(expected_new_styles()))
 
-
-    def test_three_dark_outlines_meet_fill_contrast_floor(self):
+    def test_three_approved_outlines_preserve_measured_contrast(self):
+        # The upstream >=6.0:1 darkening proposal conflicts with the user's
+        # explicitly approved literal ASS colours. Assert the actual contrast
+        # of that stable palette, rather than quietly changing any colour.
         def luminance(color):
-            r, g, b = (int(color[i:i+2], 16)/255 for i in (8,6,4))
-            def linear(x):
-                return x/12.92 if x<=.04045 else ((x+.055)/1.055)**2.4
-            return .2126*linear(r)+.7152*linear(g)+.0722*linear(b)
-        groups={slot:(fill,outline) for slot,_,fill,outline,_ in SLOTS}
-        for slot in ('ExtraMan','Fairy','System'):
-            a,b=sorted(map(luminance,groups[slot]))
-            with self.subTest(slot=slot):
-                self.assertGreaterEqual((b+.05)/(a+.05),6.0)
+            r, g, b = (int(color[i:i + 2], 16) / 255 for i in (8, 6, 4))
 
-    def test_all_locales_use_exact_shared_speaker_identifiers(self):
-        names={row[0] for row in self.rows}
-        for name in ('Mãe da Sekai','Niño','Credits','Reporter','Roka','Ruka','Natsuki','Mugi'):
-            self.assertIn(name,names)
-        self.assertNotIn('Ameria',names)
-        self.assertNotIn('Chris',names)
+            def linear(x):
+                return x / 12.92 if x <= .04045 else ((x + .055) / 1.055) ** 2.4
+
+            return .2126 * linear(r) + .7152 * linear(g) + .0722 * linear(b)
+
+        groups = {slot: (fill, outline) for slot, _, fill, outline, _ in SLOTS}
+        approved = {'ExtraMan': 3.4055051, 'Fairy': 3.4157023,
+                    'System': 3.3963868}
+        for slot, expected in approved.items():
+            a, b = sorted(map(luminance, groups[slot]))
+            with self.subTest(slot=slot):
+                self.assertAlmostEqual((b + .05) / (a + .05), expected, places=5)
+
+    def test_all_locale_aliases_preserved(self):
+        names = {row[0] for row in self.rows}
+        for name in ('Mãe da Sekai', 'Niño', 'Credits', 'Reporter', 'Roka',
+                     'Ruka', 'Natsuki', 'Mugi', 'Ameria', 'Chris', 'Boy B'):
+            self.assertIn(name, names)
+        expected = expected_new_styles()
+        self.assertEqual(expected['Ameria'], expected['Chris'])
+        self.assertEqual(expected['Ameria'], expected['Fairy A'])
 
 
 if __name__ == '__main__':

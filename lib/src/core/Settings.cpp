@@ -210,7 +210,13 @@ EngineSettings EngineSettings::load(const std::string &path,
 }
 
 std::string EngineSettings::defaultPath(const std::string &identify) {
+#if defined(_WIN32) && !defined(__ANDROID__)
+  // Keep the legacy Windows L4 writable settings location. School Days
+  // overrides it explicitly with resourceDirectory()/settings.json.
+  return (preferredDocumentsDirectory(identify) / "settings.json").string();
+#else
   return (documentsDirectory(identify) / "settings.json").string();
+#endif
 }
 
 std::string EngineSettings::resolvedOverlayPath() const {

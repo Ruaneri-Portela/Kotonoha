@@ -34,10 +34,11 @@ int main() {
               std::vector<std::string>({"a", "", "b"}),
           "Consecutive newlines retain empty lines");
 
-    const std::string utf8 = u8"à🌸";
+    // Explicit bytes keep this check independent of the MSVC source code page.
+    const std::string utf8 = "\xC3\xA0\xF0\x9F\x8C\xB8";
     check(visibleLines(layout(utf8, measure, 100), 1).empty() &&
               visibleLines(layout(utf8, measure, 100), 2) ==
-                  std::vector<std::string>{u8"à"},
+                  std::vector<std::string>{"\xC3\xA0"},
           "Incomplete UTF-8 is never rendered");
     const std::string invalid("\xc3x", 2);
     check(nextUtf8(invalid, 0) == 1 &&

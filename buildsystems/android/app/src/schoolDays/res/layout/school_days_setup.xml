@@ -1,0 +1,352 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:fitsSystemWindows="true"
+    android:background="#F8F9FB">
+
+    <ScrollView
+        android:id="@+id/scroll"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <FrameLayout
+                android:id="@+id/banner_container"
+                android:layout_width="match_parent"
+                android:layout_height="124dp"
+                android:background="#E5F3F7">
+
+                <org.kotonoha.android.SchoolDaysBannerView
+                    android:id="@+id/art"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:contentDescription="School Days HQ" />
+
+                <LinearLayout
+                    android:id="@+id/title_group"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end|center_vertical"
+                    android:gravity="end"
+                    android:orientation="vertical"
+                    android:paddingEnd="18dp"
+                    android:paddingStart="12dp">
+
+                    <TextView
+                        android:id="@+id/title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="School Days HQ"
+                        android:textColor="#0A3054"
+                        android:textSize="22sp"
+                        android:textStyle="bold"
+                        android:shadowColor="#E6FFFFFF"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="4"
+                        android:accessibilityHeading="true" />
+
+                    <TextView
+                        android:id="@+id/title_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="SETUP / OPTIONS"
+                        android:textColor="#18517E"
+                        android:textSize="11sp"
+                        android:letterSpacing="0.08"
+                        android:textStyle="bold"
+                        android:shadowColor="#E6FFFFFF"
+                        android:shadowDx="0"
+                        android:shadowDy="1"
+                        android:shadowRadius="3" />
+                </LinearLayout>
+            </FrameLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="2dp"
+                android:background="#18517E" />
+
+            <LinearLayout
+                android:orientation="vertical"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/status"
+                    style="@style/SdText"
+                    android:layout_marginBottom="14dp" />
+
+                <!-- HOME PANEL -->
+                <LinearLayout
+                    android:id="@+id/home"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <Button
+                        android:id="@+id/pick_home"
+                        style="@style/SdPrimaryButton"
+                        android:text="@string/sd_pick" />
+
+                    <Button
+                        android:id="@+id/play"
+                        style="@style/SdPrimaryButton"
+                        android:text="@string/sd_play" />
+
+                    <Button
+                        android:id="@+id/options"
+                        style="@style/SdButton"
+                        android:text="@string/sd_options" />
+
+                    <Button
+                        android:id="@+id/home_music_toggle"
+                        style="@style/SdButton"
+                        android:text="@string/sd_launcher_music_btn_on" />
+
+                    <Button
+                        android:id="@+id/home_launcher_language"
+                        style="@style/SdButton"
+                        android:text="@string/sd_launcher_language" />
+
+                    <Button
+                        android:id="@+id/quit"
+                        style="@style/SdButton"
+                        android:text="@string/sd_quit" />
+
+                    <TextView
+                        android:id="@+id/home_version"
+                        style="@style/SdCaption"
+                        android:layout_marginTop="14dp" />
+                </LinearLayout>
+
+                <!-- OPTIONS PANEL -->
+                <LinearLayout
+                    android:id="@+id/settings"
+                    android:orientation="vertical"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone">
+
+                    <HorizontalScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:scrollbars="none"
+                        android:layout_marginBottom="10dp">
+
+                        <LinearLayout
+                            android:orientation="horizontal"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content">
+
+                            <Button android:id="@+id/tab_display" style="@style/SdTabButton" android:text="@string/sd_tab_display" />
+                            <Button android:id="@+id/tab_graphics" style="@style/SdTabButton" android:text="@string/sd_tab_graphics" />
+                            <Button android:id="@+id/tab_audio" style="@style/SdTabButton" android:text="@string/sd_tab_audio" />
+                            <Button android:id="@+id/tab_general" style="@style/SdTabButton" android:text="@string/sd_tab_general" />
+                            <Button android:id="@+id/tab_language" style="@style/SdTabButton" android:text="@string/sd_tab_language" />
+                            <Button android:id="@+id/tab_files" style="@style/SdTabButton" android:text="@string/sd_tab_files" />
+                        </LinearLayout>
+                    </HorizontalScrollView>
+
+                    <!-- TAB 0: DISPLAY -->
+                    <LinearLayout
+                        android:id="@+id/page_display"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content">
+
+                        <TextView style="@style/SdCaption" android:text="@string/sd_display_note" />
+
+                        <TextView style="@style/SdLabel" android:text="@string/sd_display_mode" />
+                        <Spinner android:id="@+id/spin_display_mode" style="@style/SdSpinner" />
+
+                        <Switch android:id="@+id/sw_vsync" style="@style/SdSwitch" android:text="@string/sd_vsync" />
+
+                        <TextView style="@style/SdLabel" android:text="@string/sd_narrative_aspect" />
+                        <Spinner android:id="@+id/spin_aspect" style="@style/SdSpinner" />
+
+                        <TextView style="@style/SdLabel" android:text="@string/sd_frame_limit" />
+                        <Spinner android:id="@+id/spin_fps_limit" style="@style/SdSpinner" />
+                    </LinearLayout>
+
+                    <!-- TAB 1: GRAPHICS -->
+                    <LinearLayout
+                        android:id="@+id/page_graphics"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone">
+
+                        <TextView style="@style/SdCaption" android:text="@string/sd_renderer_gles" />
+
+                        <TextView android:id="@+id/lbl_render_scale" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_render_scale" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="15" />
+
+                        <TextView style="@style/SdLabel" android:text="@string/sd_upscaler" />
+                        <Spinner android:id="@+id/spin_upscaler" style="@style/SdSpinner" />
+
+                        <TextView android:id="@+id/lbl_upscale_factor" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_upscale_factor" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="12" />
+                        <TextView style="@style/SdCaption" android:text="@string/sd_upscale_off_note" />
+
+                        <TextView style="@style/SdLabel" android:text="@string/sd_shader_preset" />
+                        <Spinner android:id="@+id/spin_preset" style="@style/SdSpinner" />
+                    </LinearLayout>
+
+                    <!-- TAB 2: AUDIO -->
+                    <LinearLayout
+                        android:id="@+id/page_audio"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone">
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_audio_retail_heading" />
+
+                        <TextView android:id="@+id/lbl_bgm_vol" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_bgm_vol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="10" />
+
+                        <TextView android:id="@+id/lbl_se_vol" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_se_vol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="10" />
+
+                        <TextView android:id="@+id/lbl_voice_vol" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_voice_vol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="10" />
+
+                        <Switch android:id="@+id/sw_men_voice" style="@style/SdSwitch" android:text="@string/sd_men_voice" />
+                        <Switch android:id="@+id/sw_mute" style="@style/SdSwitch" android:text="@string/sd_mute_game" />
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_audio_engine_heading" />
+
+                        <TextView android:id="@+id/lbl_master_vol" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_master_vol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" />
+
+                        <TextView android:id="@+id/lbl_movie_vol" style="@style/SdLabel" />
+                        <SeekBar android:id="@+id/seek_movie_vol" android:layout_width="match_parent" android:layout_height="wrap_content" android:max="100" />
+
+                        <Switch android:id="@+id/sw_launcher_music" style="@style/SdSwitch" android:text="@string/sd_launcher_music" />
+                    </LinearLayout>
+
+                    <!-- TAB 3: GENERAL -->
+                    <LinearLayout
+                        android:id="@+id/page_general"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone">
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_general_retail_heading" />
+                        <Switch android:id="@+id/sw_text_view" style="@style/SdSwitch" android:text="@string/sd_text_view" />
+                        <Switch android:id="@+id/sw_skip" style="@style/SdSwitch" android:text="@string/sd_skip_unread" />
+                        <Switch android:id="@+id/sw_super_skip" style="@style/SdSwitch" android:text="@string/sd_super_skip" />
+                        <Switch android:id="@+id/sw_auto_draw" style="@style/SdSwitch" android:text="@string/sd_auto_draw" />
+                        <Switch android:id="@+id/sw_auto_mode" style="@style/SdSwitch" android:text="@string/sd_auto_mode" />
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_general_engine_heading" />
+                        <Switch android:id="@+id/sw_swap_ab" style="@style/SdSwitch" android:text="@string/sd_swap_ab" />
+                        <Switch android:id="@+id/sw_forced_subs" style="@style/SdSwitch" android:text="@string/sd_forced_subtitles" />
+
+                        <LinearLayout android:id="@+id/discord_presence_section"
+                            android:orientation="vertical"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone">
+                            <TextView style="@style/SdHeading" android:text="@string/sd_discord_heading" />
+                            <Switch android:id="@+id/sw_discord_presence" style="@style/SdSwitch" android:text="@string/sd_discord_toggle" />
+                            <TextView style="@style/SdCaption" android:text="@string/sd_discord_description" />
+                        </LinearLayout>
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_lxh_heading" />
+                        <Switch android:id="@+id/sw_enable_lxh" style="@style/SdSwitch" android:text="@string/sd_enable_lxh" />
+                        <TextView android:id="@+id/lbl_enable_lxh_desc" style="@style/SdCaption" android:text="@string/sd_enable_lxh_desc" />
+                        <TextView android:id="@+id/lbl_lxh_status" style="@style/SdCaption" />
+                    </LinearLayout>
+
+                    <!-- TAB 4: LANGUAGE -->
+                    <LinearLayout
+                        android:id="@+id/page_language"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone">
+
+                        <TextView android:id="@+id/lang_active" style="@style/SdLabel" />
+                        <TextView style="@style/SdCaption" android:text="@string/sd_lang_note" />
+                        <TextView android:id="@+id/lang_incomplete" style="@style/SdCaption" android:textColor="#A02622" android:visibility="gone" />
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_lang_gpk_heading" />
+                        <LinearLayout android:id="@+id/lang_gpk_list" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" />
+
+                        <TextView style="@style/SdHeading" android:text="@string/sd_lang_json_heading" />
+                        <LinearLayout android:id="@+id/lang_json_list" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" />
+                    </LinearLayout>
+
+                    <!-- TAB 5: GAME FILES -->
+                    <LinearLayout
+                        android:id="@+id/page_files"
+                        android:orientation="vertical"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:visibility="gone">
+
+                        <TextView android:id="@+id/files_summary" style="@style/SdText" android:layout_marginBottom="10dp" />
+                        <TextView android:id="@+id/languages" style="@style/SdCaption" />
+
+                        <Button android:id="@+id/pick" style="@style/SdPrimaryButton" android:text="@string/sd_pick" />
+                        <Button android:id="@+id/retry" style="@style/SdButton" android:text="@string/sd_retry" />
+                        <Button android:id="@+id/forget" style="@style/SdButton" android:text="@string/sd_forget" />
+
+                        <TextView android:id="@+id/version" style="@style/SdCaption" android:layout_marginTop="14dp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- PERSISTENT OPTIONS ACTION BAR (OK / CANCEL / RESET) -->
+    <LinearLayout
+        android:id="@+id/options_footer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:background="#E5F3F7"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/btn_ok"
+                style="@style/SdPrimaryButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="6dp"
+                android:text="@string/sd_ok" />
+
+            <Button
+                android:id="@+id/btn_cancel"
+                style="@style/SdButton"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:text="@string/sd_cancel" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/btn_reset"
+            style="@style/SdButton"
+            android:minHeight="44dp"
+            android:textSize="14sp"
+            android:text="@string/sd_reset" />
+    </LinearLayout>
+</LinearLayout>

@@ -1,4 +1,14 @@
+import java.awt.AlphaComposite
+import java.awt.Color
+import java.awt.Graphics2D
+import java.awt.RenderingHints
+import java.awt.geom.Ellipse2D
+import java.awt.image.BufferedImage
+import java.io.ByteArrayInputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.security.MessageDigest
+import javax.imageio.ImageIO
 
 plugins {
   id 'com.android.application'
@@ -46,6 +56,14 @@ def includeGameAssets = providers.gradleProperty('bundleGameAssets')
 if (includeGameAssets) {
   logger.warn('[Kotonoha] bundleGameAssets=true: do not redistribute APKs containing commercial game data without permission.')
 }
+
+// Optional local SDK; never commit the proprietary AAR or SDK path.
+def discordSdkRoot = providers.gradleProperty('discordSocialSdkDir').orNull
+def discordAar = discordSdkRoot ? new File(discordSdkRoot, 'lib/release/discord_partner_sdk.aar') : null
+if (discordAar != null && !discordAar.isFile()) {
+  throw new GradleException("Discord Social SDK AAR not found: ${discordAar}")
+}
+def discordNative = layout.buildDirectory.dir('generated/discordPresenceSdk')
 
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
@@ -128,10 +146,9 @@ android {
           // Android requires SDL's Java bindings and matching native sources.
           // Keep SDL3, SDL3_ttf and ImGui from their checked-out submodules.
           '-DKOTONOHA_SDL_PROVIDER=SUBMODULES',
-          // NDK enables ARMv7 Advanced SIMD/NEON. arm64 already provides ASIMD.
-          // Must be set before vcpkg selects its per-ABI triplet.
+          '-DKOTONOHA_IMGUI_FROM_VCPKG=OFF',
+          // Keep NDK and vcpkg ARMv7 builds on the same NEON target.
           '-DANDROID_ARM_NEON=ON',
-          '-DANDROID_PLATFORM=android-28',
           '-DANDROID_STL=c++_shared'
       }
     }
@@ -143,6 +160,8 @@ android {
     games.each { flavor, game ->
       create(flavor) {
         dimension 'game'
+        if (flavor == 'schoolDays') minSdk 30
+        buildConfigField 'boolean', 'HAS_DISCORD_RPC', (flavor == 'schoolDays' && discordAar != null).toString()
         applicationId game[2]
         manifestPlaceholders.appName = game[3]
         buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
@@ -155,9 +174,16 @@ android {
         externalNativeBuild {
           cmake {
             // Must match the variable consumed by the root CMakeLists.txt.
-            arguments "-DKOTONOHA_BUILD_GAME=${game[0]}",
+            arguments "-DANDROID_PLATFORM=android-${flavor == 'schoolDays' ? 30 : 28}",
+              "-DKOTONOHA_BUILD_GAME=${game[0]}",
               "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo', 'launcher'] ? '-python' : ''}"
             targets game[1]
+            if (flavor == 'schoolDays' && discordAar != null) {
+              arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=ON',
+                "-DKOTONOHA_ANDROID_DISCORD_SDK_DIR=${discordNative.get().asFile.absolutePath}"
+            } else {
+              arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=OFF'
+            }
           }
         }
       }
@@ -167,6 +193,11 @@ android {
   buildTypes {
     debug {
       buildConfigField 'boolean', 'IS_DISTRIBUTION_BUILD', 'false'
+      externalNativeBuild {
+        cmake {
+          arguments '-DKOTONOHA_DISTRIBUTION_BUILD=OFF'
+        }
+      }
     }
     release {
       buildConfigField 'boolean', 'IS_DISTRIBUTION_BUILD', 'false'
@@ -215,6 +246,7 @@ android {
   }
 
   sourceSets {
+    schoolDays.java.srcDir new File(engineRoot, 'games/school-days/android/java')
     main {
       java.srcDirs += sdlJavaRoot
       // Adaptive icons and density fallbacks imported from design/generated/.
@@ -225,6 +257,8 @@ android {
   packaging {
     jniLibs {
       useLegacyPackaging = true
+      // Both the AAR and the CMake imported target refer to the same SDK SO.
+      if (discordAar != null) pickFirsts += ['**/libdiscord_partner_sdk.so']
     }
   }
 }
@@ -238,32 +272,187 @@ dependencies {
 }
 
 // ------------------------------------------------------------
+// Generate Android launcher icons from the Windows SchoolDays.ico
+// ------------------------------------------------------------
+
+if (discordAar != null) {
+  dependencies {
+    schoolDaysImplementation files(discordAar)
+  }
+  // The vendor AAR carries both the Java runtime and the ABI-specific native
+  // module. Extract only its Prefab module for CMake; no extra Prefab CLI.
+  def prepareDiscord = tasks.register('prepareDiscordPresenceSdk', Sync) {
+    from(zipTree(discordAar)) {
+      include 'prefab/modules/discord_partner_sdk/**'
+    }
+    into discordNative
+  }
+  tasks.configureEach {
+    if (name.startsWith('configureCMake') || name.startsWith('buildCMake')) {
+      dependsOn prepareDiscord
+    }
+  }
+}
+
+def schoolDaysIconSource = new File(engineRoot, 'assets/SchoolDays.ico')
+def schoolDaysIconsOut = layout.buildDirectory.dir('generated/res/schoolDaysIcons')
+
+def generateSchoolDaysLauncherIcons = tasks.register('generateSchoolDaysLauncherIcons') {
+  inputs.file(schoolDaysIconSource)
+  outputs.dir(schoolDaysIconsOut)
+
+  doLast {
+    if (!schoolDaysIconSource.isFile()) {
+      throw new GradleException("Missing Windows icon source: ${schoolDaysIconSource}")
+    }
+    byte[] icoBytes = schoolDaysIconSource.bytes
+    ByteBuffer hdr = ByteBuffer.wrap(icoBytes).order(ByteOrder.LITTLE_ENDIAN)
+    int count = hdr.getShort(4) & 0xFFFF
+    int bestDim = -1
+    int bestOff = 0
+    int bestLen = 0
+    for (int i = 0; i < count; i++) {
+      int pos = 6 + i * 16
+      int w = icoBytes[pos] & 0xFF
+      if (w == 0) w = 256
+      int len = hdr.getInt(pos + 8)
+      int off = hdr.getInt(pos + 12)
+      boolean isPng = off + 4 <= icoBytes.length &&
+        (icoBytes[off] & 0xFF) == 0x89 &&
+        icoBytes[off + 1] == (byte) 'P' &&
+        icoBytes[off + 2] == (byte) 'N' &&
+        icoBytes[off + 3] == (byte) 'G'
+      if (isPng && w > bestDim) {
+        bestDim = w
+        bestOff = off
+        bestLen = len
+      }
+    }
+    if (bestDim <= 0) {
+      throw new GradleException("No PNG entry found in ${schoolDaysIconSource}")
+    }
+    BufferedImage src = ImageIO.read(new ByteArrayInputStream(icoBytes, bestOff, bestLen))
+    if (src == null) {
+      throw new GradleException("Failed to decode PNG from ${schoolDaysIconSource}")
+    }
+
+    File resRoot = schoolDaysIconsOut.get().asFile
+    resRoot.mkdirs()
+
+    File valuesDir = new File(resRoot, 'values')
+    valuesDir.mkdirs()
+    new File(valuesDir, 'ic_launcher_background.xml').text = '''<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ic_launcher_background">#FFFFFF</color>
+</resources>
+'''
+
+    File anydpiDir = new File(resRoot, 'mipmap-anydpi-v26')
+    anydpiDir.mkdirs()
+    String adaptiveXml = '''<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/ic_launcher_background" />
+    <foreground android:drawable="@mipmap/ic_launcher_foreground" />
+</adaptive-icon>
+'''
+    new File(anydpiDir, 'ic_launcher.xml').text = adaptiveXml
+    new File(anydpiDir, 'ic_launcher_round.xml').text = adaptiveXml
+
+    def densities = [mdpi: 48, hdpi: 72, xhdpi: 96, xxhdpi: 144, xxxhdpi: 192]
+    densities.each { density, size ->
+      File dir = new File(resRoot, "mipmap-${density}")
+      dir.mkdirs()
+
+      // Standard square icon (white canvas + tiny safe margin)
+      BufferedImage sq = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+      Graphics2D g = sq.createGraphics()
+      g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+      g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+      g.setColor(Color.WHITE)
+      g.fillRect(0, 0, size, size)
+      int pad = Math.max(1, (int) Math.round(size * 0.04))
+      g.drawImage(src, pad, pad, size - pad * 2, size - pad * 2, null)
+      g.dispose()
+      ImageIO.write(sq, 'PNG', new File(dir, 'ic_launcher.png'))
+
+      // Round icon (circular mask, inset so silhouette never clips)
+      BufferedImage rnd = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB)
+      Graphics2D gr = rnd.createGraphics()
+      gr.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+      gr.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+      gr.setClip(new Ellipse2D.Double(0, 0, size, size))
+      gr.setColor(Color.WHITE)
+      gr.fillRect(0, 0, size, size)
+      int rPad = Math.max(2, (int) Math.round(size * 0.10))
+      gr.drawImage(src, rPad, rPad, size - rPad * 2, size - rPad * 2, null)
+      gr.dispose()
+      ImageIO.write(rnd, 'PNG', new File(dir, 'ic_launcher_round.png'))
+
+      // Adaptive foreground (108dp canvas; artwork centered in 66dp safe zone)
+      int fgSize = (size * 9) / 4
+      BufferedImage fg = new BufferedImage(fgSize, fgSize, BufferedImage.TYPE_INT_ARGB)
+      Graphics2D gf = fg.createGraphics()
+      gf.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+      gf.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+      gf.setComposite(AlphaComposite.Clear)
+      gf.fillRect(0, 0, fgSize, fgSize)
+      gf.setComposite(AlphaComposite.SrcOver)
+      int inner = (int) Math.round(fgSize * 0.64)
+      int offset = (fgSize - inner) / 2
+      gf.drawImage(src, offset, offset, inner, inner, null)
+      gf.dispose()
+      ImageIO.write(fg, 'PNG', new File(dir, 'ic_launcher_foreground.png'))
+    }
+  }
+}
+
+// ------------------------------------------------------------
 // Stage game assets and produce a SHA-256 manifest
 // ------------------------------------------------------------
 
 android.applicationVariants.all { variant ->
+  if (variant.flavorName == 'schoolDays') {
+    variant.registerGeneratedResFolders(
+      project.files(schoolDaysIconsOut).builtBy(generateSchoolDaysLauncherIcons))
+  }
   def game = games[variant.flavorName]
   def taskSuffix = variant.name.capitalize()
   def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
   def isLauncher = variant.flavorName == 'launcher'
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
-  def schoolDaysRoute = new File(engineRoot, 'games/school-days/game-assets/school-days-hq.ktnroute')
-  // The isolated dist variant must never embed retail game content, even if
-  // the property is enabled for private debug/release testing.
-  def includeThisGame = !isLauncher &&
+  def schoolDaysRoute = new File(engineRoot,
+    'games/school-days/game-assets/school-days-hq.ktnroute')
+  // Original School Days packs are always loaded externally via SAF.
+  // Other games may include assets only when explicitly allowed for private QA;
+  // no dist build may carry retail GPKs or proprietary game data.
+  def includeThisGame = !isLauncher && variant.flavorName != 'schoolDays' &&
     (variant.flavorName == 'example' ||
      (includeGameAssets && variant.buildType.name != 'dist'))
+  def schoolDaysLauncherArt = new File(engineRoot,
+    'games/school-days/game-assets/launcher-art/SchoolDaysHQ-Launcher.png')
+  def stageSchoolDaysLauncherArt = variant.flavorName == 'schoolDays' &&
+    project.findProperty('includeLauncherArt')?.toString() != 'false' &&
+    schoolDaysLauncherArt.isFile()
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     dependsOn generateBranding
     from(new File(engineRoot, 'assets')) {
-      exclude 'SPLASH.PNG' // Replaced by the generated universal black splash.
+      if (variant.flavorName == 'schoolDays') {
+        // Preserve the fork's authorized School Days splash / art; keep
+        // common fonts available for subtitles and presentation.
+        include 'Anime4K/*.glsl', 'Anime4K/*.txt',
+          'ArtCNN/*.glsl', 'ArtCNN/*.txt', 'SPLASH.PNG', 'fonts/**'
+      } else {
+        exclude 'SPLASH.PNG' // Other games use the universal generated brand.
+      }
       into 'assets'
     }
-    // Only the universal engine splash is staged as an asset; icons stay in
-    // res/ and the rest of design/ is never packaged.
-    from(new File(brandOutput, 'splash/SPLASH.PNG')) {
-      into 'assets'
+    // Do not override School Days' fork-specific SPLASH.PNG with the
+    // upstream universal-brand splash. All other games use upstream branding.
+    if (variant.flavorName != 'schoolDays') {
+      from(brandOutput.map { new File(it.asFile, 'splash/SPLASH.PNG') }) {
+        into 'assets'
+      }
     }
     // Keep license and attribution notices with every distributable APK.
     from(new File(engineRoot, 'LICENSE')) {
@@ -277,6 +466,18 @@ android.applicationVariants.all { variant ->
     }
     from(new File(engineRoot, 'games/reallive/vendor/libreallive/LICENSE')) {
       into 'licenses/third-party'
+    }
+
+    if (stageSchoolDaysLauncherArt) {
+      from(schoolDaysLauncherArt) {
+        into 'assets'
+      }
+    }
+
+    if (variant.flavorName == 'schoolDays' && discordAar != null) {
+      from(new File(discordSdkRoot, 'License-Notices.txt')) {
+        into 'assets/licenses/discord'
+      }
     }
 
     if (includeThisGame) {

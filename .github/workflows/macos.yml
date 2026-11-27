@@ -157,6 +157,23 @@ jobs:
           python3 tools/ValidateBuildMetadata.py
           python3 tools/audit_filesystem_v2.py --strict
 
+      - name: Prepare macOS icon from tracked Windows icon
+        run: |
+          # icon.icns is not tracked; derive it from the repository's tracked .ico.
+          ICON_SRC=""
+          for candidate in assets/icon.ico assets/SchoolDays.ico; do
+            if [ -f "$candidate" ]; then ICON_SRC="$candidate"; break; fi
+          done
+          test -n "$ICON_SRC"
+          mkdir -p "$RUNNER_TEMP/kotonoha.iconset"
+          sips -s format png "$ICON_SRC" --out "$RUNNER_TEMP/kotonoha-icon.png"
+          for size in 16 32 128 256 512; do
+            sips -z "$size" "$size" "$RUNNER_TEMP/kotonoha-icon.png" \
+              --out "$RUNNER_TEMP/kotonoha.iconset/icon_${size}x${size}.png"
+          done
+          iconutil -c icns "$RUNNER_TEMP/kotonoha.iconset" -o assets/icon.icns
+          test -s assets/icon.icns
+
       - name: Configure all native game ports
         run: |
           mkdir -p vcpkg-binary-cache
@@ -362,4 +379,3 @@ jobs:
         run: |
           echo "::warning::macOS ${{ matrix.arch }} synthetic CTest failed; .app ZIP artifacts remain available"
           echo "⚠️ macOS ${{ matrix.arch }}: synthetic CTest failed. See the logs." >> "$GITHUB_STEP_SUMMARY"
-

@@ -1,39 +1,45 @@
 #pragma once
 
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysScenes.hpp"
-#include <Kotonoha/SchoolDaysMoveSomState.hpp>
+#include "SchoolDaysPresencePolicy.hpp"
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
+#include <Kotonoha/SchoolDaysMoveSomState.hpp>
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
-#include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/core/Runtime.hpp>
 #include <Kotonoha/core/Settings.hpp>
+#include <Kotonoha/components/DisplayModeCatalog.hpp>
+#include <Kotonoha/mobile/AndroidDisplay.hpp>
 #include <Kotonoha/media/MediaPlayer.hpp>
 #include <Kotonoha/routing/SchoolDaysAbcAnimation.hpp>
+#include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
+#include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
+#include <Kotonoha/routing/SchoolDaysPromptBehavior.hpp>
+#include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
+#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
+#include <Kotonoha/routing/SchoolDaysEpisodeOverlay.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLog.hpp>
-#include <Kotonoha/routing/SchoolDaysBackLogEngine.hpp>
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigStorage.hpp>
 #include <Kotonoha/routing/SchoolDaysDisplayPolicy.hpp>
-#include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
-#include <Kotonoha/routing/SchoolDaysEpisodeOverlay.hpp>
-#include <Kotonoha/routing/SchoolDaysExitTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysFrontendTransition.hpp>
-#include <Kotonoha/routing/SchoolDaysKtrfGameplayBridge.hpp>
+#include <Kotonoha/routing/SchoolDaysLxhFade.hpp>
+#include <Kotonoha/routing/SchoolDaysMediaPreparationWatchdog.hpp>
 #include <Kotonoha/routing/SchoolDaysLoadTransition.hpp>
-#include <Kotonoha/routing/SchoolDaysMenuBarPresenter.hpp>
+#include <Kotonoha/routing/SchoolDaysTransportFade.hpp>
+#include <Kotonoha/routing/SchoolDaysExitTransition.hpp>
+#include <Kotonoha/routing/SchoolDaysSystemPanelTransition.hpp>
 #include <Kotonoha/routing/SchoolDaysPlayDataSession.hpp>
-#include <Kotonoha/routing/SchoolDaysPromptBehavior.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayPlaybackSession.hpp>
 #include <Kotonoha/routing/SchoolDaysRetailConfigPolicy.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveProfile.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveStorage.hpp>
-#include <Kotonoha/routing/SchoolDaysSystemPanelTransition.hpp>
+#include <Kotonoha/routing/SchoolDaysSaveProvenance.hpp>
 #include <Kotonoha/routing/SchoolDaysSystemUi.hpp>
-#include <Kotonoha/routing/SchoolDaysTitleModel.hpp>
-#include <Kotonoha/routing/SchoolDaysTransportFade.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include <array>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -114,8 +120,14 @@ class Runtime final : public Kotonoha::Runtime {
     bool replayIndicator = false;
     bool choiceTailFrozen = false;
   };
-  std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets;
+  std::shared_ptr<Assets> assets;
   Kotonoha::Engine *engine = nullptr;
+  Kotonoha::Translation lxhTranslation;
+  std::string lxhSubtitleLocale = "en";
+  bool nativeGpkText = false;
+  std::optional<std::size_t> lxhFirstTranslationEvent;
+  std::string translateText(std::size_t ordinal, std::size_t slot,
+                            const std::string &original) const;
   Kotonoha::SchoolDaysKtrfGameplayBridge bridge;
   Kotonoha::SchoolDaysTitleModel title;
   Kotonoha::SchoolDaysEndBackgroundResolver::Profile titleProfile;
@@ -130,7 +142,11 @@ class Runtime final : public Kotonoha::Runtime {
   std::unique_ptr<LogoSplash> logoSplash;
   // Engine fallbacks when the retail System artwork is unavailable.
   std::unique_ptr<Kotonoha::VNSaveMenu> saveMenu;
-  std::unique_ptr<Kotonoha::SchoolDaysBackLogEngine> backlogFallback;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  // Only DEV may show the generic "Dialogue history" window. DIST always
+  // uses the School Days BackLog UI, never a redundant engine fallback.
+  std::unique_ptr<Kotonoha::VNBacklog> backlogFallback;
+#endif
   // Native School Days panels (SaveLoad, Config, Exit, RouteMap, BackLog).
   Kotonoha::SchoolDaysSystemUi systemUi;
   Kotonoha::SchoolDaysBackLogStore backlogStore;
@@ -145,6 +161,7 @@ class Runtime final : public Kotonoha::Runtime {
   Kotonoha::SchoolDaysDisplayPolicy::Variant uiVariant =
       Kotonoha::SchoolDaysDisplayPolicy::Variant::WideFull;
   Kotonoha::SchoolDaysFrontendTransition frontendTransition;
+  Kotonoha::SchoolDaysLxhFade lxhFade;
   Kotonoha::SchoolDaysLoadTransition loadTransition;
   Kotonoha::SchoolDaysTransportFade transportFade;
   std::optional<Kotonoha_SceneTick> transportSkipTarget;
@@ -157,8 +174,7 @@ class Runtime final : public Kotonoha::Runtime {
   bool hasProfile = false, saveLoadSaving = false;
   std::optional<bool> routeMapReturnSave;
   int routeMapReturnSelection = -1;
-  int saveLoadPage = -1, routeMapMajor = -1, routeMapSubpage = -1,
-      backlogIndex = 0;
+  int saveLoadPage = -1, routeMapMajor = -1, routeMapSubpage = -1, backlogIndex = 0;
   int playDataBacklogIndex = 0;
   std::string backlogScene;
   std::string playDataBacklogScene;
@@ -170,11 +186,12 @@ class Runtime final : public Kotonoha::Runtime {
   bool titleArtwork = true;
   int titleSelection = 0;
   Kotonoha::SchoolDaysKtrfScene scene;
+  PresenceScene presenceScene;
+  int presenceEnding = -1;
   Kotonoha_orsData script{};
   Kotonoha::SchoolDaysSceneTimeline timeline;
   std::vector<Playing> playing;
-  std::unordered_map<Kotonoha_orsEvent *, Kotonoha::SchoolDaysMovieEventState>
-      movieStates;
+  std::unordered_map<Kotonoha_orsEvent*, Kotonoha::SchoolDaysMovieEventState> movieStates;
   struct AbcVoiceState {
     Kotonoha_orsEvent *event = nullptr;
     std::string key;
@@ -185,12 +202,20 @@ class Runtime final : public Kotonoha::Runtime {
   std::vector<Kotonoha::SchoolDaysAbcGroupResources> abcGroups;
   std::vector<AbcVoiceState> abcVoices;
   std::unordered_map<std::string, Kotonoha::SurfacePtr> abcDecodedSurfaces;
-  std::unordered_map<Kotonoha_orsEvent *,
+  std::unordered_map<Kotonoha_orsEvent*,
                      std::vector<Kotonoha::SchoolDaysAbcActivityRecord>>
       abcActivityCache;
   std::unique_ptr<AbcAnalysisWorker> abcAnalysisWorker;
   std::unordered_set<size_t> abcAnalysisQueued;
-  std::unordered_set<Kotonoha_orsEvent *> mediaPreparationFailed;
+  std::unordered_set<Kotonoha_orsEvent*> mediaPreparationFailed;
+  std::unordered_map<Kotonoha_orsEvent*,
+                     Kotonoha::SchoolDaysMediaPreparationWatchdog>
+      mediaPreparationWatchdogs;
+  // The preload timestamp is diagnostic; expiration begins only when an
+  // authored START is due, never during speculative warmup or pause.
+  std::unordered_map<Kotonoha_orsEvent*,
+                     Kotonoha::SchoolDaysMediaPreparationWatchdog>
+      mediaDueWatchdogs;
   uint64_t abcAnalysisGeneration = 0;
   struct PreparedMedia {
     std::unique_ptr<Kotonoha::MediaPlayer> player;
@@ -200,15 +225,18 @@ class Runtime final : public Kotonoha::Runtime {
     std::string loop;
     bool movie = false;
   };
-  std::unordered_map<Kotonoha_orsEvent *, PreparedMedia> preparedMedia;
+  std::unordered_map<Kotonoha_orsEvent*, PreparedMedia> preparedMedia;
   std::unordered_map<size_t, PreparedMedia> pendingMedia;
   std::unordered_set<size_t> pendingBackgrounds;
-  std::unordered_set<Kotonoha_orsEvent *> backgroundPreparationFailed;
-  std::unordered_map<Kotonoha_orsEvent *, std::string> preparedBackgrounds;
-  std::unordered_map<Kotonoha_orsEvent *,
+  std::unordered_map<Kotonoha_orsEvent*,
+                     Kotonoha::SchoolDaysMediaPreparationWatchdog>
+      backgroundPreparationWatchdogs;
+  std::unordered_set<Kotonoha_orsEvent*> backgroundPreparationFailed;
+  std::unordered_map<Kotonoha_orsEvent*, std::string> preparedBackgrounds;
+  std::unordered_map<Kotonoha_orsEvent*,
                      std::vector<Kotonoha::SchoolDaysAbcGroupResources>>
       preparedBackgroundAbc;
-  std::unordered_map<Kotonoha_orsEvent *,
+  std::unordered_map<Kotonoha_orsEvent*,
                      std::vector<std::pair<std::string, Kotonoha::SurfacePtr>>>
       preparedBackgroundAbcSurfaces;
   std::unordered_map<std::string, Kotonoha::TexturePtr> abcTextures;
@@ -239,6 +267,9 @@ class Runtime final : public Kotonoha::Runtime {
   Kotonoha_SceneTick backgroundStartTick = 0;
   Kotonoha_SceneTick backgroundEndTick = 0;
   std::filesystem::path documents;
+  // Same persisted EngineSettings path used by the launcher (not Config.DAT).
+  // Used only for game-specific path repair of external custom GLSL shaders.
+  std::string physicalSettingsPath;
   Uint64 lastClock = 0;
   bool paused = false, committed = false;
   bool backAtSceneStart = false;
@@ -265,8 +296,7 @@ class Runtime final : public Kotonoha::Runtime {
   double speed = 1.0, elapsed = 0.0;
   int speedIndex = 0;
   Kotonoha_SceneTick tick = 0;
-  int displayAspectPreference =
-      0; // 0 Auto, 1 4:3, 2 16:9 (commercial remaster)
+  int displayAspectPreference = 0; // 0 Auto, 1 4:3, 2 16:9 (commercial remaster)
   int displayPanelSelectedResolution = -1;
   int displayPanelHoverRow = -1;
   int displayPanelHoverResolution = -1;
@@ -276,23 +306,28 @@ class Runtime final : public Kotonoha::Runtime {
   bool displayPanelResolutionOpen = false;
   bool displayPanelRenderScaleOpen = false;
   bool displayPanelPresetOpen = false;
-#if !defined(__ANDROID__) && !defined(ANDROID)
-  // Desktop Display Options is transactional: other tabs and Close discard
-  // these fields. The Android panel above intentionally keeps its own flow.
+  // Display Options is transactional: other tabs and Close discard
+  // uncommitted edits; live controls persist immediately.
   Kotonoha::EngineSettings desktopDisplayDraft;
   bool desktopDisplayDraftActive = false;
+  // Renderer changes selected while running Direct3D are persisted for restart.
+  std::optional<Kotonoha::EngineSettings> desktopPendingRendererRestart;
   enum class DesktopDisplayPopup : uint8_t {
-    None,
-    Resolution,
-    Upscaler,
-    Shader,
-    GlslPath
+    None, Resolution, Upscaler, Shader, GlslPath
   };
   DesktopDisplayPopup desktopDisplayPopup = DesktopDisplayPopup::None;
   int desktopDisplayPopupHover = -1;
   int desktopDisplayPopupScroll = 0;
+  // Expandable Low / Medium / High shader folders in the in-game Display UI.
+  std::array<bool, 3> desktopShaderExpanded{false, false, false};
+  // One player-selected folder is shown as a separate expandable shader group.
+  std::filesystem::path desktopShaderDirectory;
+  std::vector<std::filesystem::path> desktopShaderFiles;
+  bool desktopCustomShaderExpanded = false;
   std::string desktopDisplayPathEdit;
   std::vector<Kotonoha::DisplayModeChoice> desktopDisplayModes;
+#if defined(__ANDROID__) || defined(ANDROID)
+  std::vector<Kotonoha::AndroidDisplayMode> androidDisplayModesCache;
 #endif
   bool framePrimaryReady = false;
   bool frameBoundary = false;
@@ -300,8 +335,7 @@ class Runtime final : public Kotonoha::Runtime {
   bool pendingBackCapture = false;
   std::optional<Kotonoha_SceneTick> pendingSeek;
 
-  void openScene(const Kotonoha::SchoolDaysKtrfScene &next,
-                 bool restoreChoice = false);
+  void openScene(const Kotonoha::SchoolDaysKtrfScene &next, bool restoreChoice = false);
   void bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
                  Kotonoha::Gameplay *presentation, bool restoreChoice = false);
   void dispatch(Kotonoha_orsEvent &event);
@@ -315,9 +349,14 @@ class Runtime final : public Kotonoha::Runtime {
       Kotonoha_orsEvent &event, const std::string &logical,
       const std::string &channel, const std::string &loop,
       std::unique_ptr<Kotonoha::MediaPlayer::PreparedInput> *loopInput);
-  void prepareAbcActivity(Kotonoha_orsEvent &event, const std::string &logical);
+  void prepareAbcActivity(Kotonoha_orsEvent &event,
+                          const std::string &logical);
   void pollAbcActivity();
   bool waitForDueMedia(Kotonoha_SceneTick candidateTick);
+  bool mediaPreparationStillPending(Kotonoha_orsEvent &event,
+                                    size_t ordinal, uint64_t nowMs);
+  bool backgroundPreparationStillPending(Kotonoha_orsEvent &event,
+                                         size_t ordinal, uint64_t nowMs);
   void bindAbcVoice(AbcVoiceState &voice);
   void rebindActiveAbcVoices();
   void updateAbcVoices();
@@ -340,6 +379,9 @@ class Runtime final : public Kotonoha::Runtime {
   void noteChoiceMenuCue(int code, uint32_t nowMs);
   void updateChoiceMenuUnlock(uint32_t nowMs, bool feelingAnimationActive);
   void advance();
+  void configureLxhFade();
+  void renderLxhFade(Kotonoha::RendererRef renderer, uint64_t nowMs);
+  bool lxhEpilogueAvailableForScene(const std::string &sceneKey) const;
   void reset();
   void back();
   void seek(Kotonoha_SceneTick target);
@@ -369,17 +411,14 @@ class Runtime final : public Kotonoha::Runtime {
   void renderFrontendTransition(Kotonoha::RendererRef renderer, uint64_t nowMs);
   void updateLoadTransition(uint64_t nowMs);
   void renderLoadTransition(Kotonoha::RendererRef renderer, uint64_t nowMs);
-  void
-  beginTransportFade(Kotonoha::SchoolDaysTransportFade::Operation operation);
+  void beginTransportFade(Kotonoha::SchoolDaysTransportFade::Operation operation);
   void updateTransportFade(uint64_t nowMs);
   void renderTransportFade(Kotonoha::RendererRef renderer, uint64_t nowMs);
   void updateExitTransition(uint64_t nowMs);
   void renderExitTransition(Kotonoha::RendererRef renderer, uint64_t nowMs);
   void updateSystemPanelTransition(uint64_t nowMs);
-  void renderSystemPanelTransition(Kotonoha::RendererRef renderer,
-                                   uint64_t nowMs);
-  void
-  beginSystemPanel(Kotonoha::SchoolDaysSystemPanelTransition::Target target);
+  void renderSystemPanelTransition(Kotonoha::RendererRef renderer, uint64_t nowMs);
+  void beginSystemPanel(Kotonoha::SchoolDaysSystemPanelTransition::Target target);
   bool beginSystemPanelClose();
   void openExitDialog(bool returnToTitle);
   void finishMainMenuReturn();
@@ -391,30 +430,29 @@ class Runtime final : public Kotonoha::Runtime {
   void cancelPreparedCarryFrame();
   void resetCarryFrame();
   void activateControl(int control);
-  void activateMenuAction(
-      const Kotonoha::SchoolDaysMenuBarPresenter::Action &action);
+  void activateMenuAction(const Kotonoha::SchoolDaysMenuBarPresenter::Action &action);
   void setPlaybackSpeedIndex(int index);
   void applyEffectivePlaybackRate(double rate);
   MenuBarProjection menuBarProjection() const;
-  void updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter,
-                     uint32_t nowMs);
+  void updateMenuBar(Kotonoha::SchoolDaysMenuBarPresenter &presenter, uint32_t nowMs);
   void loadCheckpoint(int selector);
-  void setStatus(std::string message);
+  void setStatus(std::string message, bool playerFacingFailure = false);
   bool modal() const;
   bool panelOpen() const;
   void closePanels();
   void openSaveLoad(bool save, bool playView = true);
-  void openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page,
-                  bool playView = true);
+  void openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page, bool playView = true);
   void openRouteMap(bool playView = true);
   void openExit();
   void openMainMenuConfirm();
   void openBacklog(bool playView = true);
-  bool handleBacklogAction() override;
   void refreshSaveMetadata();
   void refreshRouteMap();
   void saveSlot(int slot, const std::u16string &comment);
   void loadSlot(int slot);
+  Kotonoha::SchoolDaysSaveProvenance::Origin saveProvenanceOrigin(
+      const std::vector<uint8_t>& saveBytes) const;
+  bool withinDocuments(const std::filesystem::path& savePath) const;
   void handlePanel(const Kotonoha::SchoolDaysSystemUi::Output &output);
   void handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &action);
   bool displayPanelOpen() const;
@@ -426,8 +464,7 @@ class Runtime final : public Kotonoha::Runtime {
   void discardDesktopDisplayDraft();
   bool handleDesktopDisplayPanel(Kotonoha::EventRef event);
   void renderDesktopDisplayPanel(Kotonoha::RendererRef renderer);
-  Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState
-  configVisualState() const;
+  Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState configVisualState() const;
   void applyConfig();
   void loadConfig();
   void cacheConfigState();
@@ -435,16 +472,31 @@ class Runtime final : public Kotonoha::Runtime {
   void renderPanels(Kotonoha::RendererRef renderer);
   void renderStatus(Kotonoha::RendererRef renderer);
   void finishSplash();
-  static Kotonoha::Gameplay *createPresentation(const char *, Kotonoha_Game *,
-                                                void *);
+  static Kotonoha::Gameplay *createPresentation(const char *, Kotonoha_Game *, void *);
   static void destroyPresentation(Kotonoha::Gameplay *, void *);
-  static bool resolveReplayScene(const char *, Kotonoha::SchoolDaysKtrfScene *,
-                                 void *, Kotonoha_KtrfError *);
+  static bool resolveReplayScene(const char *, Kotonoha::SchoolDaysKtrfScene *, void *,
+                                 Kotonoha_KtrfError *);
 
 public:
-  Runtime(std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> assets,
-          std::string route, std::filesystem::path documents = {});
+#if defined(KOTONOHA_DISTRIBUTION_BUILD)
+  static constexpr bool GenericDialogueHistoryCompiled = false;
+#else
+  static constexpr bool GenericDialogueHistoryCompiled = true;
+#endif
+#if (defined(__ANDROID__) || defined(ANDROID)) && !defined(KOTONOHA_DISTRIBUTION_BUILD)
+  static constexpr bool AndroidExtraMenuButtonCompiled = true;
+#else
+  static constexpr bool AndroidExtraMenuButtonCompiled = false;
+#endif
+  Runtime(std::shared_ptr<Assets> assets, std::string route,
+          std::filesystem::path documents = {},
+          std::string physicalSettingsPath = {});
   ~Runtime() override;
+  // Frozen at startup, before gameplay begins; used by subtitles, choices and
+  // BackLog through one context-sensitive translator.
+  void setLxhTranslation(Kotonoha::Translation translation,
+                          std::string locale = "en", bool nativeGpk = false);
+  std::string_view presenceDetails() const;
   void shutdown();
   // SDL close/quit requests are routed through the retail EXIT confirmation.
   // Returns true when the native request was consumed by School Days.
@@ -457,8 +509,7 @@ public:
   void renderGameplay(Kotonoha::RendererRef renderer, float scale) override;
   bool useOwnedNarrativeTarget() const override { return true; }
   float narrativePresentationHeightScale() const override;
-  void renderNarrativeOverlay(Kotonoha::RendererRef renderer,
-                              float scale) override;
+  void renderNarrativeOverlay(Kotonoha::RendererRef renderer, float scale) override;
   bool narrativeFrameDrawable() const override {
     return currentState == Kotonoha::GameState::Gameplay && framePrimaryReady;
   }
@@ -466,28 +517,24 @@ public:
     return currentState == Kotonoha::GameState::Gameplay && frameBoundary;
   }
   std::string narrativeVisualOwner() const override { return scene.sceneKey; }
-  bool devPauseRequested() const override;
-  bool devConsumeStep() override;
-  void devIdle() override;
-  void devControlPump(Kotonoha::RendererRef renderer) override;
-  void devInputProcessed(Kotonoha::EventRef event) override;
   void traceDev(const char *event);
   void renderMenu(Kotonoha::RendererRef renderer, float scale) override;
   bool onEvent(Kotonoha::EventRef event) override;
   bool onScreenEvent(Kotonoha::EventRef event) override;
+  bool ownsMobileMenuButton() const override { return true; }
   void renderScreen(Kotonoha::RendererRef renderer, float scale) override;
   // Native panel state (tests and the debug tools).
   const Kotonoha::SchoolDaysSystemUi &panels() const { return systemUi; }
   bool backlogOpen() const { return backlogModel.IsOpen(); }
   bool anyPanelOpen() const { return panelOpen(); }
-  const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const {
-    return config;
-  }
+  const Kotonoha::SchoolDaysRetailConfigPolicy::State &retailConfig() const { return config; }
   // General > Display Subtitle is the retail TextView field in Config.DAT.
   bool allowForcedSubtitles() const override { return config.textView; }
   void openPanel(int control) { activateControl(control); }
   SDL_Point viewport() const override { return {1280, 720}; }
-  bool continuousTouch() const override { return true; }
+  int translationRoute() const override;
+  Kotonoha::Translation::SourceTexts translationSources() const override;
+  std::vector<std::string> activeTranslationKeys() const override;
   bool advanceStoryTime(double seconds) override;
   std::string debugNode() const override;
   std::string nodeClockKey() const override;
@@ -496,6 +543,9 @@ public:
   std::vector<Kotonoha::DebugNode> debugNodes() const override;
   std::vector<Kotonoha::DebugAudioAsset> debugSceneAudio() override;
   void debugOverlayAssetChanged(const std::string &id) override;
+  std::filesystem::path debugAssetOverlayDirectory() const override {
+    return documents.empty() ? std::filesystem::path{} : documents / "overlay";
+  }
   void debugJumpToNode(const std::string &id) override;
   void debugRestartScene() override;
   bool hasCustomKtrf() const override { return true; }
@@ -503,10 +553,6 @@ public:
   void dumpKtrf(const std::string &path) const override;
   void saveGame(const std::string &path) override;
   void loadGame(const std::string &path) override;
-  // Live translation: expose the currently displayed subtitle texts so the
-  // debug editor can find and translate them, and reload them on change.
-  std::vector<std::string> activeTranslationKeys() const override;
-  Kotonoha::Translation::SourceTexts translationSources() const override;
 };
 
 } // namespace SchoolDays

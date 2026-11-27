@@ -74,7 +74,7 @@ findInDirectories(const std::vector<std::filesystem::path> &directories,
 }
 
 #ifdef __ANDROID__
-std::filesystem::path androidDirectory(const char *method) {
+std::filesystem::path androidPath(const char *method, bool allowEmpty = false) {
   const char *overrideName = nullptr;
   if (std::strcmp(method, "getKotonohaResourceDirectory") == 0)
     overrideName = "KOTONOHA_ANDROID_RESOURCE_DIR";
@@ -127,8 +127,8 @@ std::filesystem::path androidDirectory(const char *method) {
   env->DeleteLocalRef(value);
   env->DeleteLocalRef(type);
   env->DeleteLocalRef(activity);
-  if (result.empty())
-    throw std::runtime_error(std::string("Empty Android directory: ") + method);
+  if (!allowEmpty && result.empty())
+    throw std::runtime_error(std::string("Empty Android path: ") + method);
   return result;
 }
 #endif
@@ -136,7 +136,7 @@ std::filesystem::path androidDirectory(const char *method) {
 
 std::filesystem::path resourceDirectory() {
 #ifdef __ANDROID__
-  return androidDirectory("getKotonohaResourceDirectory");
+  return androidPath("getKotonohaResourceDirectory");
 #else
   const char *base = SDL_GetBasePath();
   if (!base)
@@ -170,7 +170,7 @@ std::filesystem::path gameAssetDirectory(const std::string &game) {
 
 std::string preferredGameIdentifier() {
 #ifdef __ANDROID__
-  return androidDirectory("getKotonohaPackageIdentifier").string();
+  return androidPath("getKotonohaPackageIdentifier").string();
 #else
   if (const char *meta =
           SDL_GetAppMetadataProperty(SDL_PROP_APP_METADATA_IDENTIFIER_STRING);
@@ -245,6 +245,11 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
     // only used above to locate source-tree game assets.
     result.documents =
         locations.userData / "Kotonoha" / locations.packageIdentifier;
+    // Neither a missing application identity nor an unknown writable root
+    // may fall back to a shared or relative Documents directory.
+    if (!locations.packageIdentifier.empty() && !locations.userData.empty())
+      result.documents =
+          locations.userData / "Kotonoha" / locations.packageIdentifier;
     break;
   }
   }
@@ -370,16 +375,16 @@ static StorageLocations storageLocations() {
   locations.platform = StoragePlatform::Android;
   if (locations.userData.empty()) {
     try {
-      locations.userData = androidDirectory("getKotonohaDocumentsDirectory");
+      locations.userData = androidPath("getKotonohaDocumentsDirectory");
     } catch (const std::exception &) {
       // Read-only resource lookup must also work when external storage is
       // absent.
     }
   }
   locations.privateGameAssets =
-      androidDirectory("getKotonohaGameAssetDirectory");
+      androidPath("getKotonohaGameAssetDirectory");
   try {
-    locations.obb = androidDirectory("getKotonohaDataDirectory");
+    locations.obb = androidPath("getKotonohaDataDirectory");
   } catch (const std::exception &) {
   }
 #elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
@@ -461,7 +466,7 @@ std::filesystem::path preferredDataDirectory() {
 std::filesystem::path preferredDataDirectory(const std::string &game) {
   (void)game;
 #ifdef __ANDROID__
-  return androidDirectory("getKotonohaDataDirectory");
+  return androidPath("getKotonohaDataDirectory");
 #elif defined(TARGET_OS_IPHONE) && TARGET_OS_IPHONE
   if (const char *documents = SDL_GetUserFolder(SDL_FOLDER_DOCUMENTS))
     return normalizeDirectory(documents);
@@ -701,6 +706,13 @@ std::filesystem::path FileResolver::font(const std::string &file) {
   if (!file.empty())
     if (auto found = findAsset(path))
       return *found;
+#ifdef __ANDROID__
+  if (filename == defaultFontName()) {
+    const auto systemFont = androidPath("getKotonohaSystemFontFile", true);
+    if (isFontFile(systemFont))
+      return systemFont;
+  }
+#endif
   return engineAsset(std::filesystem::path("fonts") / filename);
 }
 

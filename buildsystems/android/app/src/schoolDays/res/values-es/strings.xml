@@ -1,0 +1,124 @@
+<resources>
+    <string name="sd_play">Iniciar juego</string>
+    <string name="sd_options">Opciones</string>
+    <string name="sd_quit">Salir</string>
+    <string name="sd_files">Archivos del juego</string>
+    <string name="sd_language">Idioma</string>
+    <string name="sd_tab_display">Pantalla</string>
+    <string name="sd_tab_graphics">Gráficos</string>
+    <string name="sd_tab_audio">Audio</string>
+    <string name="sd_tab_general">General</string>
+    <string name="sd_tab_language">Idioma</string>
+    <string name="sd_tab_files">Archivos</string>
+    <string name="sd_ok">Aplicar</string>
+    <string name="sd_cancel">Cancelar</string>
+    <string name="sd_reset">Restablecer valores</string>
+    <string name="sd_pick">Seleccionar carpeta SchoolDaysHQ</string>
+    <string name="sd_retry">Comprobar de nuevo</string>
+    <string name="sd_back">Volver</string>
+    <string name="sd_missing">No se pudo iniciar School Days HQ. Selecciona la carpeta SchoolDaysHQ que contiene Packs, game-assets, overlay y translations.</string>
+    <string name="sd_selected_packs_directly">Seleccionaste la carpeta Packs directamente. Selecciona la carpeta padre SchoolDaysHQ para que el launcher también acceda a game-assets, overlay y translations.</string>
+    <string name="sd_checking">Comprobando carpeta…</string>
+    <string name="sd_preparing">Preparando sesión del juego…</string>
+    <string name="sd_denied">El acceso a la carpeta no está disponible. Selecciona la carpeta de nuevo.</string>
+    <string name="sd_unreadable">No se pudo verificar la carpeta. Inténtalo de nuevo o elige otra carpeta.</string>
+    <string name="sd_ready">Listo · %1$s (%2$s) · %3$s</string>
+    <string name="sd_choose">Elige un idioma disponible</string>
+    <string name="sd_absent">Carpeta autorizada. Faltantes, vacíos o ambiguos: %1$s</string>
+    <string name="sd_no_translations">No se encontraron traducciones GPK o JSON utilizables.</string>
+    <string name="sd_incomplete_json">JSON base sin sidecar L×H (jugable en HQ base): %1$s</string>
+    <string name="sd_missing_gpk_files">No disponible — falta en translations/scripts/: %1$s</string>
+    <string name="sd_missing_gpk_json_hint">No disponible — falta en translations/scripts/: %1$s (JSON disponible abajo)</string>
+    <string name="sd_chinese_legacy_gpk">Se encontró Script - chinese.GPK heredado incompatible; requiere Script - chinese-compatible.GPK certificado</string>
+    <string name="sd_detected_gpk">Paquetes GPK detectados: %1$s</string>
+    <string name="sd_detected_json">Pares JSON detectados: %1$s</string>
+    <string name="sd_none">Ninguno</string>
+    <string name="sd_info">Kotonoha · %1$s</string>
+    <string name="sd_picker_error">El selector de carpetas de Android no está disponible.</string>
+    <string name="sd_private_ready">Se encontró una instalación existente en el almacenamiento privado de la app.</string>
+    <string name="sd_forget">Desconectar carpeta</string>
+    <string name="sd_game_failed">School Days HQ no pudo iniciar o continuar. Comprueba los archivos del juego e inténtalo de nuevo.</string>
+    <string name="sd_failed_packs">No se pudieron abrir o validar los paquetes. Revisa los archivos de Packs y los permisos SAF de la carpeta.</string>
+    <string name="sd_failed_route">El motor no pudo cargar game-assets/school-days-hq.ktnroute. Comprueba el archivo de ruta e inténtalo de nuevo.</string>
+    <string name="sd_failed_language">El motor no pudo validar el idioma seleccionado. Revisa sus archivos HQ y L×H.</string>
+    <string name="sd_save_error">No se pudieron guardar los ajustes. Revisa los permisos de almacenamiento.</string>
+    <string name="sd_saved_ok">Ajustes guardados.</string>
+    <string name="sd_reset_done">Valores predeterminados preparados. Pulsa Aplicar para guardar.</string>
+
+    <!-- Pantalla -->
+    <string name="sd_display_note">El juego se inicia en horizontal a pantalla completa en la Surface del dispositivo. La relación narrativa y el límite de FPS se comparten vía Kotonoha.ini; el reloj del guion y vídeo permanece en 24 fps.</string>
+    <string name="sd_display_mode">Resolución nativa / frecuencia</string>
+    <string name="sd_device_default">Predeterminado del dispositivo</string>
+    <string name="sd_vsync">VSync</string>
+    <string name="sd_narrative_aspect">Relación narrativa</string>
+    <string name="sd_aspect_auto">Automático</string>
+    <string name="sd_aspect_43">4:3 (Estándar)</string>
+    <string name="sd_aspect_169">16:9 (Panorámico)</string>
+    <string name="sd_frame_limit">Límite de FPS (Android)</string>
+    <string name="sd_fps_unlimited">Ilimitado (Hz de pantalla)</string>
+    <string name="sd_fps_30">30 FPS</string>
+    <string name="sd_fps_60">60 FPS</string>
+
+    <!-- Gráficos -->
+    <string name="sd_renderer_gles">Renderizador: OpenGL ES (nativo del dispositivo)</string>
+    <string name="sd_render_scale">Escala de renderizado: %1$s</string>
+    <string name="sd_upscaler">Upscaler</string>
+    <string name="sd_upscale_factor">Factor de escalado: %1$s</string>
+    <string name="sd_upscale_off_note">En 1.00x el escalado está DESACTIVADO sin importar el preset. Elegir un preset de shader activa MPV con factor >= 2.00x.</string>
+    <string name="sd_shader_preset">Preset de shader (Anime4K / ArtCNN)</string>
+
+    <!-- Audio -->
+    <string name="sd_audio_retail_heading">Audio del juego (Config.DAT)</string>
+    <string name="sd_bgm_vol">Volumen de música (BGM): %1$d / 10</string>
+    <string name="sd_se_vol">Volumen de efectos (SE): %1$d / 10</string>
+    <string name="sd_voice_vol">Volumen de voces: %1$d / 10</string>
+    <string name="sd_men_voice">Voces masculinas</string>
+    <string name="sd_mute_game">Silenciar audio del juego</string>
+    <string name="sd_audio_engine_heading">Audio del motor y launcher</string>
+    <string name="sd_master_vol">Volumen principal: %1$d%%</string>
+    <string name="sd_movie_vol">Volumen de vídeos: %1$d%%</string>
+    <string name="sd_launcher_music">Música de fondo del launcher</string>
+    <string name="sd_launcher_music_btn_on">Música del launcher: SÍ</string>
+    <string name="sd_launcher_music_btn_off">Música del launcher: NO</string>
+    <string name="sd_launcher_language">Idioma del launcher</string>
+    <string name="sd_launcher_language_btn">Idioma del launcher: %1$s</string>
+    <string name="sd_title_launcher">LAUNCHER</string>
+    <string name="sd_title_options">CONFIGURACIÓN / OPCIONES</string>
+    <string name="sd_upscaler_auto">Automático</string>
+    <string name="sd_upscaler_none">Ninguno</string>
+    <string name="sd_upscaler_linear">Linear</string>
+    <string name="sd_upscaler_mpv">MPV</string>
+
+    <!-- General -->
+    <string name="sd_general_retail_heading">Opciones de juego (Config.DAT)</string>
+    <string name="sd_text_view">Mostrar texto / subtítulos</string>
+    <string name="sd_skip_unread">Saltar escenas no leídas</string>
+    <string name="sd_super_skip">SuperSkip / saltar a la siguiente decisión</string>
+    <string name="sd_auto_draw">Dibujo automático (Auto draw)</string>
+    <string name="sd_auto_mode">Modo automático (Auto mode)</string>
+    <string name="sd_general_engine_heading">Opciones del motor (settings.json)</string>
+    <string name="sd_swap_ab">Intercambiar botones A/B del mando</string>
+    <string name="sd_forced_subtitles">Activar subtítulos forzados (.ass)</string>
+    <string name="sd_lxh_heading">Expansión opcional (Kotonoha.ini)</string>
+    <string name="sd_enable_lxh">Activar finales L×H</string>
+    <string name="sd_enable_lxh_desc">Activa los siete epílogos adicionales cuando los archivos necesarios estén disponibles.</string>
+    <string name="sd_lxh_state_active">L×H activo (7 epílogos)</string>
+    <string name="sd_lxh_state_off">HQ base (L×H desactivado)</string>
+    <string name="sd_lxh_state_missing_pack">HQ base (falta Packs/LxH.GPK)</string>
+    <string name="sd_lxh_state_missing_lang">HQ base (traducción L×H no disponible en este idioma)</string>
+
+    <!-- Idioma -->
+    <string name="sd_lang_active">Seleccionado: %1$s</string>
+    <string name="sd_lang_gpk_heading">Paquetes GPK nativos (translations/scripts/)</string>
+    <string name="sd_lang_json_heading">Diccionarios JSON (translations/jsons/)</string>
+    <string name="sd_lang_note">Las traducciones del HQ base funcionan sin L×H. Con L×H activado, se requieren los archivos L×H del idioma elegido sin retroceso silencioso.</string>
+
+    <!-- Archivos -->
+    <string name="sd_files_summary">Paquetes retail: %1$d / 29 (LxH.GPK opcional: %2$s)\nRuta (ktnroute): %3$s\nstyles.ass: %4$s\nforced_subtitles/: %5$s\noverlay/: %6$s</string>
+    <string name="sd_status_ok">OK</string>
+    <string name="sd_status_missing">Falta</string>
+    <string name="sd_status_optional">No presente (opcional)</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">Activar Rich Presence</string>
+    <string name="sd_discord_description">Comparte tu actividad de juego con la aplicación Discord. No es necesario iniciar sesión de nuevo.</string>
+</resources>

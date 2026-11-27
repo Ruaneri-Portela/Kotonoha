@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-// Small game-specific GlobalFlag payload policy. File creation, Unicode
-// filenames, flush, publication and cleanup are handled by the shared
-// Kotonoha::Filesystem SDL backend; no OS-specific I/O belongs here.
+// School Days-specific FlgH size and fault policy; the shared Filesystem
+// atomic helper owns Unicode paths, exclusive temporaries, native sync/rename
+// and old orphan cleanup. No platform-specific I/O belongs in this port.
 namespace Kotonoha::SchoolDaysAtomicFile {
 
 enum class Fault {

@@ -229,6 +229,7 @@ void VoiceDubbingApplet::refreshSceneAudio() {
   sceneAudio_ = engine_.GetRuntime().debugSceneAudio();
   if (active.empty())
     return;
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
   for (const auto &node : engine_.debugNodes()) {
     const bool same =
         node.id == active || (active.size() > node.id.size() &&
@@ -242,6 +243,7 @@ void VoiceDubbingApplet::refreshSceneAudio() {
                        [&](const auto &item) { return item.id == asset; }))
         sceneAudio_.push_back({asset, {}, {}});
   }
+#endif
 }
 
 void VoiceDubbingApplet::openAsset(const std::string &id) {
@@ -448,9 +450,15 @@ void VoiceDubbingApplet::save() {
   const auto root = engine_.ensureAssetOverlay();
   const auto output = root / std::filesystem::path(id);
   std::filesystem::create_directories(output.parent_path());
+  const auto canonicalRoot = std::filesystem::canonical(root);
+  const auto canonicalParent = std::filesystem::canonical(output.parent_path());
+  const auto relativeParent = canonicalParent.lexically_relative(canonicalRoot);
+  if (relativeParent.empty() || *relativeParent.begin() == ".." ||
+      std::filesystem::is_symlink(output))
+    throw std::runtime_error("Dubbing output escapes its overlay directory");
   const auto bytes = wavSelection(take_, selectionStart_, selectionEnd_);
   auto temporary = output;
-  temporary += ".tmp";
+  temporary += ".tmp-" + std::to_string(SDL_GetTicksNS());
   {
     Kotonoha::Filesystem::OutputFile file(temporary,
                                           std::ios::binary | std::ios::trunc);
@@ -458,15 +466,29 @@ void VoiceDubbingApplet::save() {
       throw std::runtime_error("Cannot write overlay audio");
   }
   std::error_code error;
+  std::filesystem::path backup;
+  if (std::filesystem::exists(output)) {
+    backup = output;
+    for (unsigned suffix = 1; ; ++suffix) {
+      backup = output;
+      backup += ".bak-" + std::to_string(suffix);
+      if (!std::filesystem::exists(backup)) break;
+    }
+    std::filesystem::rename(output, backup, error);
+    if (error)
+      throw std::runtime_error("Cannot back up existing dub: " + error.message());
+  }
   std::filesystem::rename(temporary, output, error);
   if (error) {
-    std::filesystem::remove(output, error);
-    error.clear();
-    std::filesystem::rename(temporary, output, error);
+    if (!backup.empty()) {
+      std::error_code restoreError;
+      std::filesystem::rename(backup, output, restoreError);
+      if (restoreError)
+        throw std::runtime_error("Cannot install new dub; original backup is at " +
+                                 backup.string());
+    }
+    throw std::runtime_error("Cannot install overlay audio: " + error.message());
   }
-  if (error)
-    throw std::runtime_error("Cannot replace overlay audio: " +
-                             error.message());
   // Re-index the same provider-owned overlay so regular game playback sees
   // the new file. The dubbing applet never creates a private overlay root.
   engine_.GetAssets().setOverlay(root);
@@ -799,8 +821,10 @@ void VoiceDubbingApplet::draw() {
               engine_.GetRuntime().translationRoute(), row.text);
           ImGui::TextWrapped("%s", localized.c_str());
           ImGui::TextDisabled("%s", id.c_str());
+#if !defined(KOTONOHA_DISTRIBUTION_BUILD)
           if (ImGui::SmallButton("Translate line"))
             engine_.GetDebug().trackActiveTranslation();
+#endif
         } else
           ImGui::TextWrapped("%s", id.c_str());
         ImGui::TableSetColumnIndex(2);

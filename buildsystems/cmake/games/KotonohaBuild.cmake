@@ -24,4 +24,3 @@ if((KOTONOHA_BUILD_ALL OR KOTONOHA_BUILD_LAUNCHER) AND
    EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/launcher/CMakeLists.txt")
     add_subdirectory(launcher)
 endif()
-

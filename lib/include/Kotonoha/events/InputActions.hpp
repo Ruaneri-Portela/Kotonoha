@@ -3,6 +3,7 @@
 #include <map>
 #include <optional>
 #include <set>
+#include <vector>
 namespace Kotonoha {
 class Engine;
 bool HandleNavigation(Engine &, EventRef);
@@ -36,6 +37,27 @@ public:
   bool translate(EventRef event, WindowRef window, SDL_Event &pointer);
   bool cancel(WindowRef window, SDL_Event &pointer);
 };
+#if defined(__ANDROID__) || defined(ANDROID)
+// One Android ingress adapter for all game/engine screens. Finger events are
+// normalized only once into window-space mouse/key/wheel actions, then the
+// regular renderer logical-presentation conversion handles all coordinates.
+// Desktop input and its original hover-first semantics are left untouched.
+class MobileTouchAdapter {
+  using FingerKey = std::pair<SDL_TouchID, SDL_FingerID>;
+  std::optional<FingerKey> primary_;
+  std::set<FingerKey> fingers_;
+  float startX_ = 0, startY_ = 0, lastX_ = 0, lastY_ = 0;
+  float scrollRemainder_ = 0;
+  Uint64 pressedAtNs_ = 0;
+  bool dragged_ = false, blocked_ = false, backSent_ = false;
+  bool dragControls_ = false;
+
+public:
+  std::vector<SDL_Event> translate(EventRef raw, WindowRef window,
+                                   bool nativeDragControls = false);
+  void reset();
+};
+#endif
 // Reusable drag/wheel/keyboard scrolling for touch-aware lists and histories.
 class ScrollGesture {
   bool dragging = false, touch = false;

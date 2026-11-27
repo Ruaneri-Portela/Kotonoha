@@ -309,6 +309,12 @@
 		4332F5A89D1EAFBE1B815ABB /* SchoolDaysCmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 70350B0C081AF7299E279C76 /* SchoolDaysCmap.cpp */; };
 		43579D17B2A69B5F888C4ED0 /* SchoolDaysRetailConfigPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5591B8819718BEC4E78682AF /* SchoolDaysRetailConfigPolicy.cpp */; };
 		4364CDC290D180F803B90DD5 /* Catalog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5D6FE67ABAF25925E010354 /* Catalog.cpp */; };
+		6688CE99EFF3BEF2F3DE340D /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		ACA353B43313FF6C91A71B34 /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		0EA4772245595C64D3FFA85F /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		E295F4CE1CD91B5A5992441E /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		49CC482463BB1D404191461B /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		6426D32ADFC5EE674619A892 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		43B41D7390F1389516092E63 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCDD65DDEFCFD0B2650E483 /* main.cpp */; };
 		43DF1DC8E74EE3EE4626B2F1 /* SchoolDaysSubtitleTypography.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */; };
 		44317D469FC8A2AA4136038B /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
@@ -921,6 +927,143 @@
 		B6929F7C10A67A512866076E /* compression.cc in Sources */ = {isa = PBXBuildFile; fileRef = D7EAC5281C319934868F14C9 /* compression.cc */; };
 		B6A03631D6DBADB838230817 /* Python-iOS.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 22958217A619E67794485CB5 /* Python-iOS.xcframework */; };
 		B6B600000000000000000031 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000007 /* main.cpp */; };
+		B6B600000000000000000032 /* Map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA79F738679D8D14664576A6 /* Map.cpp */; };
+		B6B600000000000000000033 /* Media.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 19112695FD55F58CBC83DE39 /* Media.cpp */; };
+		B6B600000000000000000034 /* MinigameScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 497D73E81AA69211967F7D13 /* MinigameScene.cpp */; };
+		B6B600000000000000000035 /* N2ArchiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */; };
+		B6B600000000000000000036 /* N2Runtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */; };
+		B6B600000000000000000037 /* Native.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C2E1634FC1DAEE8E650A08 /* Native.cpp */; };
+		F2000000000000000000007C /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F2000000000000000000007D /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F2000000000000000000007E /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
+		F30000000000000000000068 /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F30000000000000000000069 /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
+		B6B60000000000000000003A /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
+		B6B60000000000000000003B /* PmailAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */; };
+		B6B60000000000000000003C /* PmailBacklog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C691896FFE305192A639A31D /* PmailBacklog.cpp */; };
+		B6B60000000000000000003D /* PmailComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */; };
+		B6B60000000000000000003E /* PmailGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */; };
+		B6B60000000000000000003F /* PmailPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 398635A8C71257F8CFD5A4DA /* PmailPack.cpp */; };
+		B6B600000000000000000040 /* PmailPauseMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E085600FDC5B674373709D53 /* PmailPauseMenu.cpp */; };
+		B6B600000000000000000041 /* PmailRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 35E9BCF53B0390115C61637A /* PmailRuntime.cpp */; };
+		B6B600000000000000000042 /* PmailSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8FC4F26F74C05F0AA51508B /* PmailSession.cpp */; };
+		B6B600000000000000000043 /* PmailStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8DC84839B2219CE992D6BBBB /* PmailStage.cpp */; };
+		B6B600000000000000000044 /* PmailTextBox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */; };
+		B6B600000000000000000045 /* PmailTitleMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */; };
+		B6B600000000000000000046 /* PonscripterAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */; };
+		B6B600000000000000000047 /* PonscripterCommands.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */; };
+		B6B600000000000000000048 /* PonscripterRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */; };
+		B6B600000000000000000049 /* PonscripterTypes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1E68409B2FB7E5B8920D7856 /* PonscripterTypes.cpp */; };
+		B6B60000000000000000004A /* PonscripterVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DA71E6C6B0DC29DAA0C1AAA /* PonscripterVm.cpp */; };
+		B6B60000000000000000004B /* Pss.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1955C99F04872E5EDFA4A3FB /* Pss.cpp */; };
+		B6B60000000000000000004C /* Python.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */; };
+		B6B60000000000000000004D /* RealLiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */; };
+		B6B60000000000000000004E /* RealLiveRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */; };
+		B6B60000000000000000004F /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
+		B6B600000000000000000050 /* SaveSerializer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18D58932EC2483DD04214A21 /* SaveSerializer.cpp */; };
+		B6B600000000000000000051 /* SaveState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */; };
+		B6B600000000000000000052 /* scenario.cc in Sources */ = {isa = PBXBuildFile; fileRef = 6CBA5F70D300D87328ECC945 /* scenario.cc */; };
+		B6B600000000000000000053 /* Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6C4FC97B6BFABD20E782D042 /* Scene.cpp */; };
+		B6B600000000000000000054 /* SceneGraph.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A3CD07849C395B9908654AE /* SceneGraph.cpp */; };
+		B6B600000000000000000055 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */; };
+		B6B600000000000000000056 /* SchoolDaysAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 404AC76CB983D414A589654F /* SchoolDaysAssets.cpp */; };
+		B6B600000000000000000057 /* SchoolDaysAtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */; };
+		B6B600000000000000000058 /* SchoolDaysBackLog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E9EFF082D1157F2E14352985 /* SchoolDaysBackLog.cpp */; };
+		B6B600000000000000000059 /* SchoolDaysBackLogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09BA2F0E241E1C34C21A1BA5 /* SchoolDaysBackLogEngine.cpp */; };
+		B6B60000000000000000005A /* SchoolDaysBackLogPresenter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 326F875C5011356E5AD0FFDC /* SchoolDaysBackLogPresenter.cpp */; };
+		B6B60000000000000000005B /* SchoolDaysBackRules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 070BE1DBD7F6734D963AD180 /* SchoolDaysBackRules.cpp */; };
+		B6B60000000000000000005C /* SchoolDaysChoiceTextPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA27F01E9EC7708C4CA0F013 /* SchoolDaysChoiceTextPlan.cpp */; };
+		B6B60000000000000000005D /* SchoolDaysCmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 70350B0C081AF7299E279C76 /* SchoolDaysCmap.cpp */; };
+		B6B60000000000000000005E /* SchoolDaysConfigMenuModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACA0F098A7088702A203F5DF /* SchoolDaysConfigMenuModel.cpp */; };
+		B6B60000000000000000005F /* SchoolDaysConfigMenuRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE94DCA59EC1C10663C0ED0A /* SchoolDaysConfigMenuRenderPlan.cpp */; };
+		B6B600000000000000000060 /* SchoolDaysConfigStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEEE40FBDD2849CBAEEEE378 /* SchoolDaysConfigStorage.cpp */; };
+		B6B600000000000000000061 /* SchoolDaysDisplayPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04C29A9EA7CE0AE5ECC40C87 /* SchoolDaysDisplayPolicy.cpp */; };
+		B6B600000000000000000062 /* SchoolDaysEndBackgroundResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9468B2F50950EA58F77F77 /* SchoolDaysEndBackgroundResolver.cpp */; };
+		B6B600000000000000000063 /* SchoolDaysExitViewModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 750FFD6471EB984A3CE519CB /* SchoolDaysExitViewModel.cpp */; };
+		B6B600000000000000000064 /* SchoolDaysExitViewRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C69AF4FF207AB433644FC3C5 /* SchoolDaysExitViewRenderPlan.cpp */; };
+		B6B600000000000000000065 /* SchoolDaysFontData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5896982C3DAB54827C102C60 /* SchoolDaysFontData.cpp */; };
+		B6B600000000000000000066 /* SchoolDaysGpkArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCA9A64DD44702C5B9B9668D /* SchoolDaysGpkArchive.cpp */; };
+		B6B600000000000000000067 /* SchoolDaysGpkIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D426AE20CF319F1A184611 /* SchoolDaysGpkIndex.cpp */; };
+		B6B600000000000000000068 /* SchoolDaysHistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0B2149FF23014807BCA7B58 /* SchoolDaysHistory.cpp */; };
+		B6B600000000000000000069 /* SchoolDaysKtrfGameplayBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA2D4B79E4E945CAE63D2610 /* SchoolDaysKtrfGameplayBridge.cpp */; };
+		B6B60000000000000000006A /* SchoolDaysKtrfProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A0BB04C014A9271AFB3B4364 /* SchoolDaysKtrfProfile.cpp */; };
+		B6B60000000000000000006B /* SchoolDaysKtrfSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FCEB3EB28E661CF01E787621 /* SchoolDaysKtrfSession.cpp */; };
+		B6B60000000000000000006C /* SchoolDaysLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C82B39DA702C2E4996A235CC /* SchoolDaysLauncher.cpp */; };
+		B6B60000000000000000006D /* SchoolDaysMenuBarLayout.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3106CA759CAF0ED179DC2490 /* SchoolDaysMenuBarLayout.cpp */; };
+		B6B60000000000000000006E /* SchoolDaysMenuBarPresenter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */; };
+		B6B60000000000000000006F /* SchoolDaysPersistence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E573E867E8DCC86F1FAD8DCD /* SchoolDaysPersistence.cpp */; };
+		B6B600000000000000000070 /* SchoolDaysPersistenceCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3E089F29CF0373043C48D52 /* SchoolDaysPersistenceCodec.cpp */; };
+		B6B600000000000000000071 /* SchoolDaysPlayDataSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7915062DFFA73630E029942F /* SchoolDaysPlayDataSession.cpp */; };
+		B6B600000000000000000072 /* SchoolDaysReplayModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 268A2F47C9EAEB16EDAA405D /* SchoolDaysReplayModel.cpp */; };
+		B6B600000000000000000073 /* SchoolDaysReplayPlaybackSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EA693D6F019624AB7DB078D /* SchoolDaysReplayPlaybackSession.cpp */; };
+		B6B600000000000000000074 /* SchoolDaysReplayRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D95BBE186320E33727DB65D3 /* SchoolDaysReplayRenderPlan.cpp */; };
+		B6B600000000000000000075 /* SchoolDaysReplayScriptOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */; };
+		B6B600000000000000000076 /* SchoolDaysRetailConfigPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5591B8819718BEC4E78682AF /* SchoolDaysRetailConfigPolicy.cpp */; };
+		B6B600000000000000000077 /* SchoolDaysRouteMapModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85937B1A5E621B0A46884D3A /* SchoolDaysRouteMapModel.cpp */; };
+		B6B600000000000000000078 /* SchoolDaysRouteMapOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */; };
+		B6B600000000000000000079 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
+		B6B60000000000000000007A /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		4B0BC76DA438F5A755FEDCC4 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		BA55D9CDA696199A90EBF13A /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		96C45F68857B9BAE513BC24D /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		4B50F3746E670DE76BC4CC01 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		79B021011846D42449A0333A /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		F38AEE674A37FFB68322099A /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
+		B6B60000000000000000007B /* SchoolDaysSaveFeelModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */; };
+		B6B60000000000000000007C /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */; };
+		B6B60000000000000000007D /* SchoolDaysSaveLoadModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */; };
+		B6B60000000000000000007E /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDCD2319A08A9AD7AF38D4A0 /* SchoolDaysSaveLoadRenderPlan.cpp */; };
+		B6B60000000000000000007F /* SchoolDaysSaveMetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 31DB4FD263CB2B7E0A026B54 /* SchoolDaysSaveMetadata.cpp */; };
+		B6B600000000000000000080 /* SchoolDaysSaveMetadataState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0889A624989F7E3085C489DC /* SchoolDaysSaveMetadataState.cpp */; };
+		B6B600000000000000000081 /* SchoolDaysSaveProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 780A7ADC9019B8F33BE1D3E5 /* SchoolDaysSaveProfile.cpp */; };
+		B6B600000000000000000082 /* SchoolDaysSaveService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */; };
+		B6B600000000000000000083 /* SchoolDaysSaveServiceRead.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25D4F7ED89890B0AA3BABA20 /* SchoolDaysSaveServiceRead.cpp */; };
+		B6B600000000000000000084 /* SchoolDaysSaveStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */; };
+		B6B600000000000000000085 /* SchoolDaysScenes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 051BE4DA1D87AB250C0FDFF0 /* SchoolDaysScenes.cpp */; };
+		B6B600000000000000000086 /* SchoolDaysSubtitleTypography.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */; };
+		B6B600000000000000000087 /* SchoolDaysSystemUi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC9B90F9186D399CDD6DCA9D /* SchoolDaysSystemUi.cpp */; };
+		B6B600000000000000000088 /* SchoolDaysTitleModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9DF50A6E55898419DBE03DF9 /* SchoolDaysTitleModel.cpp */; };
+		B6B600000000000000000089 /* SchoolDaysTitleProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66D8FCA228CF79166F2651A9 /* SchoolDaysTitleProfile.cpp */; };
+		B6B60000000000000000008A /* SchoolDaysTitleRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */; };
+		B6B60000000000000000008B /* SchoolDaysTopMeterModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C2C54C4DDDC0D8F489C35C0 /* SchoolDaysTopMeterModel.cpp */; };
+		B6B60000000000000000008C /* SchoolDaysTopMeterRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7ED2CC95DA4471E479460CA0 /* SchoolDaysTopMeterRenderPlan.cpp */; };
+		B6B60000000000000000008D /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 60D5B6274B9869891928D08D /* Script.cpp */; };
+		B6B60000000000000000008E /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7EF4F9023D498F09F8041F36 /* Script.cpp */; };
+		B6B60000000000000000008F /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 958F20C6564ED0D6B805C3A9 /* Script.cpp */; };
+		B6B600000000000000000090 /* ScriptBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */; };
+		B6B600000000000000000091 /* ScriptExecutor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */; };
+		B6B600000000000000000092 /* ScriptIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */; };
+		B6B600000000000000000093 /* ScriptVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A039740292658EB792C886C9 /* ScriptVm.cpp */; };
+		B6B600000000000000000094 /* Session.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5E9FC32439DA5680D8113B0C /* Session.cpp */; };
+		B6B600000000000000000095 /* Session.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7393DCCC9970E48C7D54966 /* Session.cpp */; };
+		B6B600000000000000000096 /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
+		B6B600000000000000000097 /* SnowComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2323B73AF87856D39A096CB /* SnowComponents.cpp */; };
+		B6B600000000000000000098 /* SnowLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CDA95F2216A98537A0054444 /* SnowLauncher.cpp */; };
+		B6B600000000000000000099 /* SnowRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */; };
+		B6B60000000000000000009A /* SnowSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27BCE616C3E92D664BB9EFDB /* SnowSession.cpp */; };
+		B6B60000000000000000009B /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
+		B6B60000000000000000009C /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 940698E23CA94DA1B92F0074 /* Source.cpp */; };
+		B6B60000000000000000009D /* SummerAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC4B76E74D4407182235347D /* SummerAssets.cpp */; };
+		B6B60000000000000000009E /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		B6B60000000000000000009F /* System.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93BD379D29100188F3773D8F /* System.cpp */; };
+		B6B6000000000000000000A0 /* TextFormatter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2546EE42B786DD73AB620B7E /* TextFormatter.cpp */; };
+		B6B6000000000000000000A1 /* TimelineParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7844705E0B00AF60488FA150 /* TimelineParser.cpp */; };
+		B6B6000000000000000000A2 /* Transition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 569CCFB593BC05FD5D5A2A08 /* Transition.cpp */; };
+		B6B6000000000000000000A3 /* UnifiedLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000009 /* UnifiedLauncher.cpp */; };
+		B6B6000000000000000000A4 /* Vag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF9EB911E757B53D9E52AEC5 /* Vag.cpp */; };
+		B6B6000000000000000000A5 /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73AE439517659FF3DAE39A4A /* Value.cpp */; };
+		B6B6000000000000000000A6 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */; };
+		B6B6000000000000000000A7 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */; };
+		B6B6000000000000000000A8 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */; };
+		B6B6000000000000000000A9 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FE8923635C71B59FC1168B1 /* Vm.cpp */; };
+		B6B6000000000000000000AA /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22002F273400D20C622C670 /* Vm.cpp */; };
+		B6B6000000000000000000AB /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E94739250EC5458B6C11E2B1 /* Vm.cpp */; };
+		B6B6000000000000000000AC /* Voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 60FF7E28B850F9BF1AE57DC2 /* Voice.cpp */; };
+		B6B6000000000000000000AD /* Xp3Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */; };
+		B6B6000000000000000000AE /* ZeroComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */; };
+		B6B6000000000000000000AF /* ZeroLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */; };
+		B6B6000000000000000000B0 /* ZeroRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 49E45658D3CD024F171CEEC6 /* ZeroRuntime.cpp */; };
+		B6B6000000000000000000B1 /* ZeroSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4472A9E75D52E9DCED7B74D4 /* ZeroSession.cpp */; };
 		B6B6000000000000000000B4 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
 		B6B6000000000000000000B5 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 03728BEA8C79EFB39BEF2440 /* KotonohaEngine.framework */; };
 		B6B6000000000000000000B6 /* Python-macOS.xcframework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7A99BDAEF7E3EDA577E9E91D /* Python-macOS.xcframework */; };
@@ -947,6 +1090,12 @@
 		BAD898863D72131944D05FA9 /* bytecode.cc in Sources */ = {isa = PBXBuildFile; fileRef = DAD6436D0624C8A1998CFF1D /* bytecode.cc */; };
 		BADFE096FD9BA106B17B7C31 /* PcmPlayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3D97835A95238791202E8E9 /* PcmPlayer.cpp */; };
 		BB12AC3EC734485EDCE27417 /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		306BEF5A17245620E8D68E86 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		4800CD1A0F722DC20AE1ADDD /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		ABA81BE967C68859D6D7C21F /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		8DB01CBA3C007AA6FB489BF6 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		CFF75D8EC66F9A35084021F7 /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		D245BC0EA934BB6C5C80CAFD /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		BB57C77D69734A293012B9B5 /* KtrfRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4D3B71392CBBCCC90D9235 /* KtrfRuntime.cpp */; };
 		BB898AD35D50D84BBBC99B29 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
 		BBDB4159D97146F17696E390 /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
@@ -1127,6 +1276,143 @@
 		D779C783D5E6F195FF8AC2FA /* VNSave.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 06439E9FBD83DAEF5EBF50FE /* VNSave.cpp */; };
 		D77C444C0860690362C8301C /* scenario.cc in Sources */ = {isa = PBXBuildFile; fileRef = 6CBA5F70D300D87328ECC945 /* scenario.cc */; };
 		D7D70000000000000000003E /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000007 /* main.cpp */; };
+		D7D70000000000000000003F /* Map.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EA79F738679D8D14664576A6 /* Map.cpp */; };
+		D7D700000000000000000040 /* Media.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 19112695FD55F58CBC83DE39 /* Media.cpp */; };
+		D7D700000000000000000041 /* MinigameScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 497D73E81AA69211967F7D13 /* MinigameScene.cpp */; };
+		D7D700000000000000000042 /* N2ArchiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D3683F089CA573ACAEA3AE74 /* N2ArchiveAssets.cpp */; };
+		D7D700000000000000000043 /* N2Runtime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EF37725F3CC934BDF93D8B09 /* N2Runtime.cpp */; };
+		D7D700000000000000000044 /* Native.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E4C2E1634FC1DAEE8E650A08 /* Native.cpp */; };
+		F20000000000000000000082 /* PackImage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* PackImage.cpp */; };
+		F20000000000000000000083 /* PackAnimation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000002 /* PackAnimation.cpp */; };
+		F20000000000000000000084 /* PackAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* PackAudio.cpp */; };
+		F3000000000000000000006A /* Codec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000001 /* Codec.cpp */; };
+		F3000000000000000000006B /* Images.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F30000000000000000000002 /* Images.cpp */; };
+		D7D700000000000000000047 /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
+		D7D700000000000000000048 /* PmailAudio.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A31D21EDCFBFACFB87FBC4B2 /* PmailAudio.cpp */; };
+		D7D700000000000000000049 /* PmailBacklog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C691896FFE305192A639A31D /* PmailBacklog.cpp */; };
+		D7D70000000000000000004A /* PmailComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 10AD1DF9A3EA1A0FF604E678 /* PmailComponents.cpp */; };
+		D7D70000000000000000004B /* PmailGame.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CCFBCB04C6B7A6FDE92053A2 /* PmailGame.cpp */; };
+		D7D70000000000000000004C /* PmailPack.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 398635A8C71257F8CFD5A4DA /* PmailPack.cpp */; };
+		D7D70000000000000000004D /* PmailPauseMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E085600FDC5B674373709D53 /* PmailPauseMenu.cpp */; };
+		D7D70000000000000000004E /* PmailRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 35E9BCF53B0390115C61637A /* PmailRuntime.cpp */; };
+		D7D70000000000000000004F /* PmailSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8FC4F26F74C05F0AA51508B /* PmailSession.cpp */; };
+		D7D700000000000000000050 /* PmailStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8DC84839B2219CE992D6BBBB /* PmailStage.cpp */; };
+		D7D700000000000000000051 /* PmailTextBox.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BA1A2231F5DE9908D1FFD3EB /* PmailTextBox.cpp */; };
+		D7D700000000000000000052 /* PmailTitleMenu.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */; };
+		D7D700000000000000000053 /* PonscripterAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02244B9FBB75E4DC31E5ECB0 /* PonscripterAssets.cpp */; };
+		D7D700000000000000000054 /* PonscripterCommands.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD28A9453E7FAAF5E2424C0A /* PonscripterCommands.cpp */; };
+		D7D700000000000000000055 /* PonscripterRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AFF3E2A6496DED8FA9ACD68D /* PonscripterRuntime.cpp */; };
+		D7D700000000000000000056 /* PonscripterTypes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1E68409B2FB7E5B8920D7856 /* PonscripterTypes.cpp */; };
+		D7D700000000000000000057 /* PonscripterVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4DA71E6C6B0DC29DAA0C1AAA /* PonscripterVm.cpp */; };
+		D7D700000000000000000058 /* Pss.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1955C99F04872E5EDFA4A3FB /* Pss.cpp */; };
+		D7D700000000000000000059 /* Python.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FC2BC0CC5C1C4CDAE4E355A5 /* Python.cpp */; };
+		D7D70000000000000000005A /* RealLiveAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 226C941B21C1F85269ADD270 /* RealLiveAssets.cpp */; };
+		D7D70000000000000000005B /* RealLiveRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6CCEEC7CC335B1CBE767AEBA /* RealLiveRuntime.cpp */; };
+		D7D70000000000000000005C /* Replay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 59EDD75E548BEEB417C71E02 /* Replay.cpp */; };
+		D7D70000000000000000005D /* SaveSerializer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 18D58932EC2483DD04214A21 /* SaveSerializer.cpp */; };
+		D7D70000000000000000005E /* SaveState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C8048E50DB6AEBB3E39E5A74 /* SaveState.cpp */; };
+		D7D70000000000000000005F /* scenario.cc in Sources */ = {isa = PBXBuildFile; fileRef = 6CBA5F70D300D87328ECC945 /* scenario.cc */; };
+		D7D700000000000000000060 /* Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6C4FC97B6BFABD20E782D042 /* Scene.cpp */; };
+		D7D700000000000000000061 /* SceneGraph.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2A3CD07849C395B9908654AE /* SceneGraph.cpp */; };
+		D7D700000000000000000062 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 45EDF70AF5BAB139AD8D47EA /* SchoolDaysAssetMount.cpp */; };
+		D7D700000000000000000063 /* SchoolDaysAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 404AC76CB983D414A589654F /* SchoolDaysAssets.cpp */; };
+		D7D700000000000000000064 /* SchoolDaysAtomicFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C0C000000000000000000001 /* SchoolDaysAtomicFile.cpp */; };
+		D7D700000000000000000065 /* SchoolDaysBackLog.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E9EFF082D1157F2E14352985 /* SchoolDaysBackLog.cpp */; };
+		D7D700000000000000000066 /* SchoolDaysBackLogEngine.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 09BA2F0E241E1C34C21A1BA5 /* SchoolDaysBackLogEngine.cpp */; };
+		D7D700000000000000000067 /* SchoolDaysBackLogPresenter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 326F875C5011356E5AD0FFDC /* SchoolDaysBackLogPresenter.cpp */; };
+		D7D700000000000000000068 /* SchoolDaysBackRules.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 070BE1DBD7F6734D963AD180 /* SchoolDaysBackRules.cpp */; };
+		D7D700000000000000000069 /* SchoolDaysChoiceTextPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DA27F01E9EC7708C4CA0F013 /* SchoolDaysChoiceTextPlan.cpp */; };
+		D7D70000000000000000006A /* SchoolDaysCmap.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 70350B0C081AF7299E279C76 /* SchoolDaysCmap.cpp */; };
+		D7D70000000000000000006B /* SchoolDaysConfigMenuModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = ACA0F098A7088702A203F5DF /* SchoolDaysConfigMenuModel.cpp */; };
+		D7D70000000000000000006C /* SchoolDaysConfigMenuRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EE94DCA59EC1C10663C0ED0A /* SchoolDaysConfigMenuRenderPlan.cpp */; };
+		D7D70000000000000000006D /* SchoolDaysConfigStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EEEE40FBDD2849CBAEEEE378 /* SchoolDaysConfigStorage.cpp */; };
+		D7D70000000000000000006E /* SchoolDaysDisplayPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 04C29A9EA7CE0AE5ECC40C87 /* SchoolDaysDisplayPolicy.cpp */; };
+		D7D70000000000000000006F /* SchoolDaysEndBackgroundResolver.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 8C9468B2F50950EA58F77F77 /* SchoolDaysEndBackgroundResolver.cpp */; };
+		D7D700000000000000000070 /* SchoolDaysExitViewModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 750FFD6471EB984A3CE519CB /* SchoolDaysExitViewModel.cpp */; };
+		D7D700000000000000000071 /* SchoolDaysExitViewRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C69AF4FF207AB433644FC3C5 /* SchoolDaysExitViewRenderPlan.cpp */; };
+		D7D700000000000000000072 /* SchoolDaysFontData.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5896982C3DAB54827C102C60 /* SchoolDaysFontData.cpp */; };
+		D7D700000000000000000073 /* SchoolDaysGpkArchive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BCA9A64DD44702C5B9B9668D /* SchoolDaysGpkArchive.cpp */; };
+		D7D700000000000000000074 /* SchoolDaysGpkIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2D426AE20CF319F1A184611 /* SchoolDaysGpkIndex.cpp */; };
+		D7D700000000000000000075 /* SchoolDaysHistory.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0B2149FF23014807BCA7B58 /* SchoolDaysHistory.cpp */; };
+		D7D700000000000000000076 /* SchoolDaysKtrfGameplayBridge.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CA2D4B79E4E945CAE63D2610 /* SchoolDaysKtrfGameplayBridge.cpp */; };
+		D7D700000000000000000077 /* SchoolDaysKtrfProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A0BB04C014A9271AFB3B4364 /* SchoolDaysKtrfProfile.cpp */; };
+		D7D700000000000000000078 /* SchoolDaysKtrfSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FCEB3EB28E661CF01E787621 /* SchoolDaysKtrfSession.cpp */; };
+		D7D700000000000000000079 /* SchoolDaysLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C82B39DA702C2E4996A235CC /* SchoolDaysLauncher.cpp */; };
+		D7D70000000000000000007A /* SchoolDaysMenuBarLayout.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3106CA759CAF0ED179DC2490 /* SchoolDaysMenuBarLayout.cpp */; };
+		D7D70000000000000000007B /* SchoolDaysMenuBarPresenter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */; };
+		D7D70000000000000000007C /* SchoolDaysPersistence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E573E867E8DCC86F1FAD8DCD /* SchoolDaysPersistence.cpp */; };
+		D7D70000000000000000007D /* SchoolDaysPersistenceCodec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3E089F29CF0373043C48D52 /* SchoolDaysPersistenceCodec.cpp */; };
+		D7D70000000000000000007E /* SchoolDaysPlayDataSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7915062DFFA73630E029942F /* SchoolDaysPlayDataSession.cpp */; };
+		D7D70000000000000000007F /* SchoolDaysReplayModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 268A2F47C9EAEB16EDAA405D /* SchoolDaysReplayModel.cpp */; };
+		D7D700000000000000000080 /* SchoolDaysReplayPlaybackSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5EA693D6F019624AB7DB078D /* SchoolDaysReplayPlaybackSession.cpp */; };
+		D7D700000000000000000081 /* SchoolDaysReplayRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D95BBE186320E33727DB65D3 /* SchoolDaysReplayRenderPlan.cpp */; };
+		D7D700000000000000000082 /* SchoolDaysReplayScriptOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F0F4CCEBB9B31A0A778B9994 /* SchoolDaysReplayScriptOracle.cpp */; };
+		D7D700000000000000000083 /* SchoolDaysRetailConfigPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5591B8819718BEC4E78682AF /* SchoolDaysRetailConfigPolicy.cpp */; };
+		D7D700000000000000000084 /* SchoolDaysRouteMapModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 85937B1A5E621B0A46884D3A /* SchoolDaysRouteMapModel.cpp */; };
+		D7D700000000000000000085 /* SchoolDaysRouteMapOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */; };
+		D7D700000000000000000086 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
+		D7D700000000000000000087 /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		C9AC662193EC4788E5ED0E18 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		22DA4F39042EF1D0A605707F /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		201CF55245A2F2059AF8955B /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		7C1C60669824D0D6D1659C03 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		CB0B5914D336F2CDC235190B /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		A1C714F2D16DA5183C979CB0 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
+		D7D700000000000000000088 /* SchoolDaysSaveFeelModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */; };
+		D7D700000000000000000089 /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */; };
+		D7D70000000000000000008A /* SchoolDaysSaveLoadModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */; };
+		D7D70000000000000000008B /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FDCD2319A08A9AD7AF38D4A0 /* SchoolDaysSaveLoadRenderPlan.cpp */; };
+		D7D70000000000000000008C /* SchoolDaysSaveMetadata.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 31DB4FD263CB2B7E0A026B54 /* SchoolDaysSaveMetadata.cpp */; };
+		D7D70000000000000000008D /* SchoolDaysSaveMetadataState.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0889A624989F7E3085C489DC /* SchoolDaysSaveMetadataState.cpp */; };
+		D7D70000000000000000008E /* SchoolDaysSaveProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 780A7ADC9019B8F33BE1D3E5 /* SchoolDaysSaveProfile.cpp */; };
+		D7D70000000000000000008F /* SchoolDaysSaveService.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 133FEB14CFB5BEAF36775A44 /* SchoolDaysSaveService.cpp */; };
+		D7D700000000000000000090 /* SchoolDaysSaveServiceRead.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 25D4F7ED89890B0AA3BABA20 /* SchoolDaysSaveServiceRead.cpp */; };
+		D7D700000000000000000091 /* SchoolDaysSaveStorage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5CA619DF85A2D64DC71181D0 /* SchoolDaysSaveStorage.cpp */; };
+		D7D700000000000000000092 /* SchoolDaysScenes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 051BE4DA1D87AB250C0FDFF0 /* SchoolDaysScenes.cpp */; };
+		D7D700000000000000000093 /* SchoolDaysSubtitleTypography.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */; };
+		D7D700000000000000000094 /* SchoolDaysSystemUi.cpp in Sources */ = {isa = PBXBuildFile; fileRef = EC9B90F9186D399CDD6DCA9D /* SchoolDaysSystemUi.cpp */; };
+		D7D700000000000000000095 /* SchoolDaysTitleModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 9DF50A6E55898419DBE03DF9 /* SchoolDaysTitleModel.cpp */; };
+		D7D700000000000000000096 /* SchoolDaysTitleProfile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 66D8FCA228CF79166F2651A9 /* SchoolDaysTitleProfile.cpp */; };
+		D7D700000000000000000097 /* SchoolDaysTitleRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D487B040E6AE1CCCAC8C59AB /* SchoolDaysTitleRenderPlan.cpp */; };
+		D7D700000000000000000098 /* SchoolDaysTopMeterModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7C2C54C4DDDC0D8F489C35C0 /* SchoolDaysTopMeterModel.cpp */; };
+		D7D700000000000000000099 /* SchoolDaysTopMeterRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7ED2CC95DA4471E479460CA0 /* SchoolDaysTopMeterRenderPlan.cpp */; };
+		D7D70000000000000000009A /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 60D5B6274B9869891928D08D /* Script.cpp */; };
+		D7D70000000000000000009B /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7EF4F9023D498F09F8041F36 /* Script.cpp */; };
+		D7D70000000000000000009C /* Script.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 958F20C6564ED0D6B805C3A9 /* Script.cpp */; };
+		D7D70000000000000000009D /* ScriptBuffer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5FD846ABD52229FF1A602543 /* ScriptBuffer.cpp */; };
+		D7D70000000000000000009E /* ScriptExecutor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 498217BFCCA8F59BCAC414E4 /* ScriptExecutor.cpp */; };
+		D7D70000000000000000009F /* ScriptIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7684BA2CC0FEC25FB9CE283 /* ScriptIndex.cpp */; };
+		D7D7000000000000000000A0 /* ScriptVm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A039740292658EB792C886C9 /* ScriptVm.cpp */; };
+		D7D7000000000000000000A1 /* Session.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 5E9FC32439DA5680D8113B0C /* Session.cpp */; };
+		D7D7000000000000000000A2 /* Session.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C7393DCCC9970E48C7D54966 /* Session.cpp */; };
+		D7D7000000000000000000A3 /* SnowAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 44878821F495891FD2362550 /* SnowAssets.cpp */; };
+		D7D7000000000000000000A4 /* SnowComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2323B73AF87856D39A096CB /* SnowComponents.cpp */; };
+		D7D7000000000000000000A5 /* SnowLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CDA95F2216A98537A0054444 /* SnowLauncher.cpp */; };
+		D7D7000000000000000000A6 /* SnowRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E585EAD1BC6893A777235CFB /* SnowRuntime.cpp */; };
+		D7D7000000000000000000A7 /* SnowSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27BCE616C3E92D664BB9EFDB /* SnowSession.cpp */; };
+		D7D7000000000000000000A8 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
+		D7D7000000000000000000A9 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 940698E23CA94DA1B92F0074 /* Source.cpp */; };
+		D7D7000000000000000000AA /* SummerAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = AC4B76E74D4407182235347D /* SummerAssets.cpp */; };
+		D7D7000000000000000000AB /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		D7D7000000000000000000AC /* System.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 93BD379D29100188F3773D8F /* System.cpp */; };
+		D7D7000000000000000000AD /* TextFormatter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2546EE42B786DD73AB620B7E /* TextFormatter.cpp */; };
+		D7D7000000000000000000AE /* TimelineParser.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7844705E0B00AF60488FA150 /* TimelineParser.cpp */; };
+		D7D7000000000000000000AF /* Transition.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 569CCFB593BC05FD5D5A2A08 /* Transition.cpp */; };
+		D7D7000000000000000000B0 /* UnifiedLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B5B500000000000000000009 /* UnifiedLauncher.cpp */; };
+		D7D7000000000000000000B1 /* Vag.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DF9EB911E757B53D9E52AEC5 /* Vag.cpp */; };
+		D7D7000000000000000000B2 /* Value.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 73AE439517659FF3DAE39A4A /* Value.cpp */; };
+		D7D7000000000000000000B3 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 26FE9B9F0EB84A2F4135EF06 /* VariableStore.cpp */; };
+		D7D7000000000000000000B4 /* VariableStore.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F7A7B3492CE48639D7D84CBD /* VariableStore.cpp */; };
+		D7D7000000000000000000B5 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 1A071AD9D4D49D8DA6B2D9D2 /* Vm.cpp */; };
+		D7D7000000000000000000B6 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 6FE8923635C71B59FC1168B1 /* Vm.cpp */; };
+		D7D7000000000000000000B7 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22002F273400D20C622C670 /* Vm.cpp */; };
+		D7D7000000000000000000B8 /* Vm.cpp in Sources */ = {isa = PBXBuildFile; fileRef = E94739250EC5458B6C11E2B1 /* Vm.cpp */; };
+		D7D7000000000000000000B9 /* Voice.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 60FF7E28B850F9BF1AE57DC2 /* Voice.cpp */; };
+		D7D7000000000000000000BA /* Xp3Archive.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7372E52FDC89DC2EFB26BE7F /* Xp3Archive.cpp */; };
+		D7D7000000000000000000BB /* ZeroComponents.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CF96F1307DEFE04F63539C65 /* ZeroComponents.cpp */; };
+		D7D7000000000000000000BC /* ZeroLauncher.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEB4A5936E2DA9ED50D85D1C /* ZeroLauncher.cpp */; };
+		D7D7000000000000000000BD /* ZeroRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 49E45658D3CD024F171CEEC6 /* ZeroRuntime.cpp */; };
+		D7D7000000000000000000BE /* ZeroSession.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4472A9E75D52E9DCED7B74D4 /* ZeroSession.cpp */; };
 		D7D7000000000000000000BF /* AppleDocuments.mm in Sources */ = {isa = PBXBuildFile; fileRef = D7D700000000000000000003 /* AppleDocuments.mm */; };
 		D7D7000000000000000000C3 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		D7D7000000000000000000C4 /* KotonohaEngine.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 4A9582677B40D6ECCD2770E2 /* KotonohaEngine.framework */; };
@@ -1424,6 +1710,12 @@
 		FF1F79C3B01DDBB18C52E509 /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4CD7359ED5E7D6A1EBB231 /* KotonohaImGui.framework */; };
 		FF89A9E9B1E594E4E5F12062 /* Ps2SoundBank.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BDB627B41F00994945F9190D /* Ps2SoundBank.cpp */; };
 		FFBA4A0F4CBB3C0FF9662E59 /* SummerRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4550E52D8FF52E9957E326 /* SummerRuntime.cpp */; };
+		3019480E18F79CC5C79C5230 /* DubbingOverlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */; };
+		0CF181B9E0BE0CEA461EB03E /* DubbingOverlay.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */; };
+		B5BA432A7949CDCEA45D697E /* DocumentMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */; };
+		D20D0899C5E814EFC1DFDD8C /* DocumentMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */; };
+		080F540815FA31C5E6C727AB /* StartupStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */; };
+		00A84D7790C292B992F8DBB4 /* StartupStage.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -2434,6 +2726,12 @@
 		3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysSubtitleTypography.cpp; path = "../../games/school-days/src/SchoolDaysSubtitleTypography.cpp"; sourceTree = SOURCE_ROOT; };
 		3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysRuntime.cpp; path = "../../games/school-days/src/SchoolDaysRuntime.cpp"; sourceTree = SOURCE_ROOT; };
 		3BAEAB838DE491EFDC616B11 /* KotonohaLauncherCore.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = KotonohaLauncherCore.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysDiscordPresence.cpp; path = "../../games/school-days/src/SchoolDaysDiscordPresence.cpp"; sourceTree = SOURCE_ROOT; };
+		214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysPresencePreference.cpp; path = "../../games/school-days/src/SchoolDaysPresencePreference.cpp"; sourceTree = SOURCE_ROOT; };
+		2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysPresencePolicy.cpp; path = "../../games/school-days/src/SchoolDaysPresencePolicy.cpp"; sourceTree = SOURCE_ROOT; };
+		2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysRuntimePresence.cpp; path = "../../games/school-days/src/SchoolDaysRuntimePresence.cpp"; sourceTree = SOURCE_ROOT; };
+		B55FEFD0E27935F752B91119 /* RichPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RichPresence.cpp; path = "../../lib/src/integrations/RichPresence.cpp"; sourceTree = SOURCE_ROOT; };
+		279A29EC61457F4BDA33EE6C /* NullPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NullPresence.cpp; path = "../../lib/src/integrations/NullPresence.cpp"; sourceTree = SOURCE_ROOT; };
 		3C5A9DABEDBC8EBC44761F06 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../../games/n2system/game-assets"; sourceTree = SOURCE_ROOT; };
 		3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailTitleMenu.cpp; path = ../../games/pmail/src/PmailTitleMenu.cpp; sourceTree = SOURCE_ROOT; };
 		3D216FD739A4CDADA245F32C /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../games/meo/src/main.cpp; sourceTree = SOURCE_ROOT; };
@@ -2821,6 +3119,9 @@
 		FF242C49F26C09A041D6631C /* Config.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Config.cpp; path = ../../games/reallive/src/Config.cpp; sourceTree = SOURCE_ROOT; };
 		FF43CE57F88486C6645207F5 /* SchoolDaysMenuBarPresenter.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysMenuBarPresenter.cpp; path = "../../games/school-days/src/SchoolDaysMenuBarPresenter.cpp"; sourceTree = SOURCE_ROOT; };
 		FFB62FA9D91BB0AE5ADD83BC /* PonscripterGame.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PonscripterGame.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DubbingOverlay.cpp; path = ../../lib/src/debug/DubbingOverlay.cpp; sourceTree = SOURCE_ROOT; };
+		C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DocumentMount.cpp; path = ../../lib/src/mobile/DocumentMount.cpp; sourceTree = SOURCE_ROOT; };
+		02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = StartupStage.cpp; path = ../../lib/src/mobile/StartupStage.cpp; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -3435,6 +3736,12 @@
 			children = (
 				C0FFEE00000000000000001E /* src */,
 				520B225442065EBAD6815C41 /* game-assets */,
+				D31A702A792A5505E0A79948 /* DebugOverlay.cpp */,
+				2EF2FF17DDC2EF7B54594909 /* DubbingOverlay.cpp */,
+				F1F1F100000000000000008E /* SystemInfo.cpp */,
+				F1F1F1000000000000000156 /* SystemInfo.hpp */,
+				5333ECFD929586DA073BF639 /* ImGuiTheme.cpp */,
+				C98208D243C8534A4A1D8CE9 /* VoiceDubbingApplet.cpp */,
 			);
 			name = "doki-doki-literature-club";
 			sourceTree = "<group>";
@@ -3788,6 +4095,12 @@
 				57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */,
 				7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */,
 				3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */,
+				0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */,
+				214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */,
+				2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */,
+				2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */,
+				B55FEFD0E27935F752B91119 /* RichPresence.cpp */,
+				279A29EC61457F4BDA33EE6C /* NullPresence.cpp */,
 				C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */,
 				CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */,
 				71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */,
@@ -4627,6 +4940,9 @@
 			isa = PBXGroup;
 			children = (
 				C0FFEE000000000000000088 /* src */,
+				18A81A34E8C7B94A1F557290 /* AndroidDisplay.cpp */,
+				C66D4A7F7155B146D1EC6757 /* DocumentMount.cpp */,
+				02659DE8B6EE867EB1DF8BA6 /* StartupStage.cpp */,
 			);
 			name = n2;
 			sourceTree = "<group>";
@@ -8301,6 +8617,12 @@
 				9A9D031071F2E036E5760413 /* SchoolDaysSystemUi.cpp in Sources */,
 				639C77629E0935CF4A092DC7 /* SchoolDaysMenuBarPresenter.cpp in Sources */,
 				42FF0A353E7CAD48DE1BC9BA /* SchoolDaysRuntime.cpp in Sources */,
+				6688CE99EFF3BEF2F3DE340D /* SchoolDaysDiscordPresence.cpp in Sources */,
+				ACA353B43313FF6C91A71B34 /* SchoolDaysPresencePreference.cpp in Sources */,
+				0EA4772245595C64D3FFA85F /* SchoolDaysPresencePolicy.cpp in Sources */,
+				E295F4CE1CD91B5A5992441E /* SchoolDaysRuntimePresence.cpp in Sources */,
+				49CC482463BB1D404191461B /* RichPresence.cpp in Sources */,
+				6426D32ADFC5EE674619A892 /* NullPresence.cpp in Sources */,
 				95DBF4505B3FFD3AF306AA53 /* SchoolDaysLauncher.cpp in Sources */,
 				FE00406C89EAF561350F9C6A /* SchoolDaysReplayRenderPlan.cpp in Sources */,
 				3D76F1A10B1A817AE9DADD0F /* KtrfAssetResolver.cpp in Sources */,
@@ -8496,6 +8818,9 @@
 				944D8937A0125B994947C6C6 /* GameMenu.cpp in Sources */,
 				5A61A3975BEE6B4802F6275A /* SplashScreen.cpp in Sources */,
 				798DD42F39B27B5CDE0365A7 /* AndroidDisplay.cpp in Sources */,
+				3019480E18F79CC5C79C5230 /* DubbingOverlay.cpp in Sources */,
+				B5BA432A7949CDCEA45D697E /* DocumentMount.cpp in Sources */,
+				080F540815FA31C5E6C727AB /* StartupStage.cpp in Sources */,
 				C0E7353BF2F3F875AD3A3397 /* KtrfRouter.cpp in Sources */,
 				9558E0A8CF0F436A00311435 /* KtrfRuntime.cpp in Sources */,
 				DF0C539DA00A437951F7CB63 /* KtrfAdapter.cpp in Sources */,
@@ -8909,6 +9234,9 @@
 				006067031992234D2BCCB4A0 /* GameMenu.cpp in Sources */,
 				CA4D4A1637B623345B9AFE81 /* SplashScreen.cpp in Sources */,
 				D31251C67A040635B0F47E85 /* AndroidDisplay.cpp in Sources */,
+				0CF181B9E0BE0CEA461EB03E /* DubbingOverlay.cpp in Sources */,
+				D20D0899C5E814EFC1DFDD8C /* DocumentMount.cpp in Sources */,
+				00A84D7790C292B992F8DBB4 /* StartupStage.cpp in Sources */,
 				2E4CA11973A08C07F823F4E7 /* KtrfRouter.cpp in Sources */,
 				BB57C77D69734A293012B9B5 /* KtrfRuntime.cpp in Sources */,
 				504F71AB09E7E9F62C12236B /* KtrfAdapter.cpp in Sources */,
@@ -9051,6 +9379,154 @@
 			buildActionMask = 2147483647;
 			files = (
 				B6B600000000000000000031 /* main.cpp in Sources */,
+				B6B600000000000000000032 /* Map.cpp in Sources */,
+				B6B600000000000000000033 /* Media.cpp in Sources */,
+				B6B600000000000000000034 /* MinigameScene.cpp in Sources */,
+				B6B600000000000000000035 /* N2ArchiveAssets.cpp in Sources */,
+				B6B600000000000000000036 /* N2Runtime.cpp in Sources */,
+				B6B600000000000000000037 /* Native.cpp in Sources */,
+				F2000000000000000000007C /* PackImage.cpp in Sources */,
+				F2000000000000000000007D /* PackAnimation.cpp in Sources */,
+				F2000000000000000000007E /* PackAudio.cpp in Sources */,
+				F30000000000000000000068 /* Codec.cpp in Sources */,
+				F30000000000000000000069 /* Images.cpp in Sources */,
+				B6B60000000000000000003A /* PmailAssets.cpp in Sources */,
+				B6B60000000000000000003B /* PmailAudio.cpp in Sources */,
+				B6B60000000000000000003C /* PmailBacklog.cpp in Sources */,
+				B6B60000000000000000003D /* PmailComponents.cpp in Sources */,
+				B6B60000000000000000003E /* PmailGame.cpp in Sources */,
+				B6B60000000000000000003F /* PmailPack.cpp in Sources */,
+				B6B600000000000000000040 /* PmailPauseMenu.cpp in Sources */,
+				B6B600000000000000000041 /* PmailRuntime.cpp in Sources */,
+				B6B600000000000000000042 /* PmailSession.cpp in Sources */,
+				B6B600000000000000000043 /* PmailStage.cpp in Sources */,
+				B6B600000000000000000044 /* PmailTextBox.cpp in Sources */,
+				B6B600000000000000000045 /* PmailTitleMenu.cpp in Sources */,
+				B6B600000000000000000046 /* PonscripterAssets.cpp in Sources */,
+				B6B600000000000000000047 /* PonscripterCommands.cpp in Sources */,
+				B6B600000000000000000048 /* PonscripterRuntime.cpp in Sources */,
+				B6B600000000000000000049 /* PonscripterTypes.cpp in Sources */,
+				B6B60000000000000000004A /* PonscripterVm.cpp in Sources */,
+				B6B60000000000000000004B /* Pss.cpp in Sources */,
+				B6B60000000000000000004C /* Python.cpp in Sources */,
+				B6B60000000000000000004D /* RealLiveAssets.cpp in Sources */,
+				B6B60000000000000000004E /* RealLiveRuntime.cpp in Sources */,
+				B6B60000000000000000004F /* Replay.cpp in Sources */,
+				B6B600000000000000000050 /* SaveSerializer.cpp in Sources */,
+				CE0187B230B160ED00A74244 /* DebugCatalog.cpp in Sources */,
+				B6B600000000000000000051 /* SaveState.cpp in Sources */,
+				B6B600000000000000000052 /* scenario.cc in Sources */,
+				B6B600000000000000000053 /* Scene.cpp in Sources */,
+				B6B600000000000000000054 /* SceneGraph.cpp in Sources */,
+				B6B600000000000000000055 /* SchoolDaysAssetMount.cpp in Sources */,
+				B6B600000000000000000056 /* SchoolDaysAssets.cpp in Sources */,
+				B6B600000000000000000057 /* SchoolDaysAtomicFile.cpp in Sources */,
+				B6B600000000000000000058 /* SchoolDaysBackLog.cpp in Sources */,
+				B6B600000000000000000059 /* SchoolDaysBackLogEngine.cpp in Sources */,
+				B6B60000000000000000005A /* SchoolDaysBackLogPresenter.cpp in Sources */,
+				B6B60000000000000000005B /* SchoolDaysBackRules.cpp in Sources */,
+				B6B60000000000000000005C /* SchoolDaysChoiceTextPlan.cpp in Sources */,
+				B6B60000000000000000005D /* SchoolDaysCmap.cpp in Sources */,
+				B6B60000000000000000005E /* SchoolDaysConfigMenuModel.cpp in Sources */,
+				B6B60000000000000000005F /* SchoolDaysConfigMenuRenderPlan.cpp in Sources */,
+				B6B600000000000000000060 /* SchoolDaysConfigStorage.cpp in Sources */,
+				B6B600000000000000000061 /* SchoolDaysDisplayPolicy.cpp in Sources */,
+				B6B600000000000000000062 /* SchoolDaysEndBackgroundResolver.cpp in Sources */,
+				B6B600000000000000000063 /* SchoolDaysExitViewModel.cpp in Sources */,
+				B6B600000000000000000064 /* SchoolDaysExitViewRenderPlan.cpp in Sources */,
+				B6B600000000000000000065 /* SchoolDaysFontData.cpp in Sources */,
+				B6B600000000000000000066 /* SchoolDaysGpkArchive.cpp in Sources */,
+				B6B600000000000000000067 /* SchoolDaysGpkIndex.cpp in Sources */,
+				B6B600000000000000000068 /* SchoolDaysHistory.cpp in Sources */,
+				B6B600000000000000000069 /* SchoolDaysKtrfGameplayBridge.cpp in Sources */,
+				B6B60000000000000000006A /* SchoolDaysKtrfProfile.cpp in Sources */,
+				B6B60000000000000000006B /* SchoolDaysKtrfSession.cpp in Sources */,
+				B6B60000000000000000006C /* SchoolDaysLauncher.cpp in Sources */,
+				B6B60000000000000000006D /* SchoolDaysMenuBarLayout.cpp in Sources */,
+				B6B60000000000000000006E /* SchoolDaysMenuBarPresenter.cpp in Sources */,
+				B6B60000000000000000006F /* SchoolDaysPersistence.cpp in Sources */,
+				B6B600000000000000000070 /* SchoolDaysPersistenceCodec.cpp in Sources */,
+				B6B600000000000000000071 /* SchoolDaysPlayDataSession.cpp in Sources */,
+				B6B600000000000000000072 /* SchoolDaysReplayModel.cpp in Sources */,
+				B6B600000000000000000073 /* SchoolDaysReplayPlaybackSession.cpp in Sources */,
+				B6B600000000000000000074 /* SchoolDaysReplayRenderPlan.cpp in Sources */,
+				B6B600000000000000000075 /* SchoolDaysReplayScriptOracle.cpp in Sources */,
+				B6B600000000000000000076 /* SchoolDaysRetailConfigPolicy.cpp in Sources */,
+				B6B600000000000000000077 /* SchoolDaysRouteMapModel.cpp in Sources */,
+				B6B600000000000000000078 /* SchoolDaysRouteMapOracle.cpp in Sources */,
+				B6B600000000000000000079 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */,
+				B6B60000000000000000007A /* SchoolDaysRuntime.cpp in Sources */,
+				4B0BC76DA438F5A755FEDCC4 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				BA55D9CDA696199A90EBF13A /* SchoolDaysPresencePreference.cpp in Sources */,
+				96C45F68857B9BAE513BC24D /* SchoolDaysPresencePolicy.cpp in Sources */,
+				4B50F3746E670DE76BC4CC01 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				79B021011846D42449A0333A /* RichPresence.cpp in Sources */,
+				F38AEE674A37FFB68322099A /* NullPresence.cpp in Sources */,
+				B6B60000000000000000007B /* SchoolDaysSaveFeelModel.cpp in Sources */,
+				B6B60000000000000000007C /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */,
+				B6B60000000000000000007D /* SchoolDaysSaveLoadModel.cpp in Sources */,
+				B6B60000000000000000007E /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */,
+				B6B60000000000000000007F /* SchoolDaysSaveMetadata.cpp in Sources */,
+				B6B600000000000000000080 /* SchoolDaysSaveMetadataState.cpp in Sources */,
+				B6B600000000000000000081 /* SchoolDaysSaveProfile.cpp in Sources */,
+				B6B600000000000000000082 /* SchoolDaysSaveService.cpp in Sources */,
+				B6B600000000000000000083 /* SchoolDaysSaveServiceRead.cpp in Sources */,
+				B6B600000000000000000084 /* SchoolDaysSaveStorage.cpp in Sources */,
+				B6B600000000000000000085 /* SchoolDaysScenes.cpp in Sources */,
+				B6B600000000000000000086 /* SchoolDaysSubtitleTypography.cpp in Sources */,
+				B6B600000000000000000087 /* SchoolDaysSystemUi.cpp in Sources */,
+				B6B600000000000000000088 /* SchoolDaysTitleModel.cpp in Sources */,
+				B6B600000000000000000089 /* SchoolDaysTitleProfile.cpp in Sources */,
+				B6B60000000000000000008A /* SchoolDaysTitleRenderPlan.cpp in Sources */,
+				B6B60000000000000000008B /* SchoolDaysTopMeterModel.cpp in Sources */,
+				B6B60000000000000000008C /* SchoolDaysTopMeterRenderPlan.cpp in Sources */,
+				B6B60000000000000000008D /* Script.cpp in Sources */,
+				B6B60000000000000000008E /* Script.cpp in Sources */,
+				B6B60000000000000000008F /* Script.cpp in Sources */,
+				B6B600000000000000000090 /* ScriptBuffer.cpp in Sources */,
+				B6B600000000000000000091 /* ScriptExecutor.cpp in Sources */,
+				CECBF67630B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
+				B6B600000000000000000092 /* ScriptIndex.cpp in Sources */,
+				B6B600000000000000000093 /* ScriptVm.cpp in Sources */,
+				B6B600000000000000000094 /* Session.cpp in Sources */,
+				B6B600000000000000000095 /* Session.cpp in Sources */,
+				B6B600000000000000000096 /* SnowAssets.cpp in Sources */,
+				F200000000000000000000A6 /* Pack.cpp in Sources */,
+				B6B600000000000000000097 /* SnowComponents.cpp in Sources */,
+				B6B600000000000000000098 /* SnowLauncher.cpp in Sources */,
+				B6B600000000000000000099 /* SnowRuntime.cpp in Sources */,
+				B6B60000000000000000009A /* SnowSession.cpp in Sources */,
+				CE0187A830B160B400A74244 /* MeoAudio.cpp in Sources */,
+				B6B60000000000000000009B /* Source.cpp in Sources */,
+				B6B60000000000000000009C /* Source.cpp in Sources */,
+				B6B60000000000000000009D /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000012 /* Pack.cpp in Sources */,
+				B6B60000000000000000009E /* SummerRuntime.cpp in Sources */,
+				B6B60000000000000000009F /* System.cpp in Sources */,
+				B6B6000000000000000000A0 /* TextFormatter.cpp in Sources */,
+				B6B6000000000000000000A1 /* TimelineParser.cpp in Sources */,
+				B6B6000000000000000000A2 /* Transition.cpp in Sources */,
+				B6B6000000000000000000A3 /* UnifiedLauncher.cpp in Sources */,
+				178E6CB211B5CA1CBC93185D /* PfsArchive.cpp in Sources */,
+				0C7C0181E872AB5FF21C27DF /* ArtemisAssets.cpp in Sources */,
+				D89E1186B903043E625383C1 /* AstParser.cpp in Sources */,
+				288F4370B085AFACA1EF1C3D /* ArtemisVm.cpp in Sources */,
+				6D580B5B1C99A23B8B1FD88B /* ArtemisRuntime.cpp in Sources */,
+				B6B6000000000000000000A4 /* Vag.cpp in Sources */,
+				B6B6000000000000000000A5 /* Value.cpp in Sources */,
+				B6B6000000000000000000A6 /* VariableStore.cpp in Sources */,
+				B6B6000000000000000000A7 /* VariableStore.cpp in Sources */,
+				B6B6000000000000000000A8 /* Vm.cpp in Sources */,
+				B6B6000000000000000000A9 /* Vm.cpp in Sources */,
+				B6B6000000000000000000AA /* Vm.cpp in Sources */,
+				B6B6000000000000000000AB /* Vm.cpp in Sources */,
+				B6B6000000000000000000AC /* Voice.cpp in Sources */,
+				B6B6000000000000000000AD /* Xp3Archive.cpp in Sources */,
+				B6B6000000000000000000AE /* ZeroComponents.cpp in Sources */,
+				B6B6000000000000000000AF /* ZeroLauncher.cpp in Sources */,
+				B6B6000000000000000000B0 /* ZeroRuntime.cpp in Sources */,
+				B6B6000000000000000000B1 /* ZeroSession.cpp in Sources */,
+				E8A000000000000000000011 /* LauncherBridge.cpp in Sources */,
 				A1AC00000000000000000001 /* KotonohaMacLauncherView.swift in Sources */,
 				A1AC00000000000000000002 /* KotonohaMacLauncherHost.mm in Sources */,
 			);
@@ -9134,6 +9610,153 @@
 			buildActionMask = 2147483647;
 			files = (
 				D7D70000000000000000003E /* main.cpp in Sources */,
+				D7D70000000000000000003F /* Map.cpp in Sources */,
+				D7D700000000000000000040 /* Media.cpp in Sources */,
+				D7D700000000000000000041 /* MinigameScene.cpp in Sources */,
+				D7D700000000000000000042 /* N2ArchiveAssets.cpp in Sources */,
+				D7D700000000000000000043 /* N2Runtime.cpp in Sources */,
+				D7D700000000000000000044 /* Native.cpp in Sources */,
+				F20000000000000000000082 /* PackImage.cpp in Sources */,
+				F20000000000000000000083 /* PackAnimation.cpp in Sources */,
+				F20000000000000000000084 /* PackAudio.cpp in Sources */,
+				F3000000000000000000006A /* Codec.cpp in Sources */,
+				F3000000000000000000006B /* Images.cpp in Sources */,
+				D7D700000000000000000047 /* PmailAssets.cpp in Sources */,
+				D7D700000000000000000048 /* PmailAudio.cpp in Sources */,
+				D7D700000000000000000049 /* PmailBacklog.cpp in Sources */,
+				D7D70000000000000000004A /* PmailComponents.cpp in Sources */,
+				D7D70000000000000000004B /* PmailGame.cpp in Sources */,
+				D7D70000000000000000004C /* PmailPack.cpp in Sources */,
+				D7D70000000000000000004D /* PmailPauseMenu.cpp in Sources */,
+				D7D70000000000000000004E /* PmailRuntime.cpp in Sources */,
+				D7D70000000000000000004F /* PmailSession.cpp in Sources */,
+				D7D700000000000000000050 /* PmailStage.cpp in Sources */,
+				D7D700000000000000000051 /* PmailTextBox.cpp in Sources */,
+				D7D700000000000000000052 /* PmailTitleMenu.cpp in Sources */,
+				D7D700000000000000000053 /* PonscripterAssets.cpp in Sources */,
+				D7D700000000000000000054 /* PonscripterCommands.cpp in Sources */,
+				D7D700000000000000000055 /* PonscripterRuntime.cpp in Sources */,
+				D7D700000000000000000056 /* PonscripterTypes.cpp in Sources */,
+				D7D700000000000000000057 /* PonscripterVm.cpp in Sources */,
+				D7D700000000000000000058 /* Pss.cpp in Sources */,
+				D7D700000000000000000059 /* Python.cpp in Sources */,
+				D7D70000000000000000005A /* RealLiveAssets.cpp in Sources */,
+				D7D70000000000000000005B /* RealLiveRuntime.cpp in Sources */,
+				D7D70000000000000000005C /* Replay.cpp in Sources */,
+				D7D70000000000000000005D /* SaveSerializer.cpp in Sources */,
+				D7D70000000000000000005E /* SaveState.cpp in Sources */,
+				D7D70000000000000000005F /* scenario.cc in Sources */,
+				D7D700000000000000000060 /* Scene.cpp in Sources */,
+				D7D700000000000000000061 /* SceneGraph.cpp in Sources */,
+				D7D700000000000000000062 /* SchoolDaysAssetMount.cpp in Sources */,
+				D7D700000000000000000063 /* SchoolDaysAssets.cpp in Sources */,
+				D7D700000000000000000064 /* SchoolDaysAtomicFile.cpp in Sources */,
+				D7D700000000000000000065 /* SchoolDaysBackLog.cpp in Sources */,
+				D7D700000000000000000066 /* SchoolDaysBackLogEngine.cpp in Sources */,
+				D7D700000000000000000067 /* SchoolDaysBackLogPresenter.cpp in Sources */,
+				D7D700000000000000000068 /* SchoolDaysBackRules.cpp in Sources */,
+				D7D700000000000000000069 /* SchoolDaysChoiceTextPlan.cpp in Sources */,
+				D7D70000000000000000006A /* SchoolDaysCmap.cpp in Sources */,
+				D7D70000000000000000006B /* SchoolDaysConfigMenuModel.cpp in Sources */,
+				D7D70000000000000000006C /* SchoolDaysConfigMenuRenderPlan.cpp in Sources */,
+				D7D70000000000000000006D /* SchoolDaysConfigStorage.cpp in Sources */,
+				D7D70000000000000000006E /* SchoolDaysDisplayPolicy.cpp in Sources */,
+				D7D70000000000000000006F /* SchoolDaysEndBackgroundResolver.cpp in Sources */,
+				D7D700000000000000000070 /* SchoolDaysExitViewModel.cpp in Sources */,
+				D7D700000000000000000071 /* SchoolDaysExitViewRenderPlan.cpp in Sources */,
+				D7D700000000000000000072 /* SchoolDaysFontData.cpp in Sources */,
+				D7D700000000000000000073 /* SchoolDaysGpkArchive.cpp in Sources */,
+				D7D700000000000000000074 /* SchoolDaysGpkIndex.cpp in Sources */,
+				D7D700000000000000000075 /* SchoolDaysHistory.cpp in Sources */,
+				D7D700000000000000000076 /* SchoolDaysKtrfGameplayBridge.cpp in Sources */,
+				D7D700000000000000000077 /* SchoolDaysKtrfProfile.cpp in Sources */,
+				D7D700000000000000000078 /* SchoolDaysKtrfSession.cpp in Sources */,
+				D7D700000000000000000079 /* SchoolDaysLauncher.cpp in Sources */,
+				D7D70000000000000000007A /* SchoolDaysMenuBarLayout.cpp in Sources */,
+				D7D70000000000000000007B /* SchoolDaysMenuBarPresenter.cpp in Sources */,
+				D7D70000000000000000007C /* SchoolDaysPersistence.cpp in Sources */,
+				D7D70000000000000000007D /* SchoolDaysPersistenceCodec.cpp in Sources */,
+				D7D70000000000000000007E /* SchoolDaysPlayDataSession.cpp in Sources */,
+				D7D70000000000000000007F /* SchoolDaysReplayModel.cpp in Sources */,
+				D7D700000000000000000080 /* SchoolDaysReplayPlaybackSession.cpp in Sources */,
+				D7D700000000000000000081 /* SchoolDaysReplayRenderPlan.cpp in Sources */,
+				D7D700000000000000000082 /* SchoolDaysReplayScriptOracle.cpp in Sources */,
+				D7D700000000000000000083 /* SchoolDaysRetailConfigPolicy.cpp in Sources */,
+				D7D700000000000000000084 /* SchoolDaysRouteMapModel.cpp in Sources */,
+				D7D700000000000000000085 /* SchoolDaysRouteMapOracle.cpp in Sources */,
+				D7D700000000000000000086 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */,
+				D7D700000000000000000087 /* SchoolDaysRuntime.cpp in Sources */,
+				C9AC662193EC4788E5ED0E18 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				22DA4F39042EF1D0A605707F /* SchoolDaysPresencePreference.cpp in Sources */,
+				201CF55245A2F2059AF8955B /* SchoolDaysPresencePolicy.cpp in Sources */,
+				7C1C60669824D0D6D1659C03 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				CB0B5914D336F2CDC235190B /* RichPresence.cpp in Sources */,
+				A1C714F2D16DA5183C979CB0 /* NullPresence.cpp in Sources */,
+				D7D700000000000000000088 /* SchoolDaysSaveFeelModel.cpp in Sources */,
+				D7D700000000000000000089 /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */,
+				D7D70000000000000000008A /* SchoolDaysSaveLoadModel.cpp in Sources */,
+				D7D70000000000000000008B /* SchoolDaysSaveLoadRenderPlan.cpp in Sources */,
+				D7D70000000000000000008C /* SchoolDaysSaveMetadata.cpp in Sources */,
+				D7D70000000000000000008D /* SchoolDaysSaveMetadataState.cpp in Sources */,
+				D7D70000000000000000008E /* SchoolDaysSaveProfile.cpp in Sources */,
+				D7D70000000000000000008F /* SchoolDaysSaveService.cpp in Sources */,
+				D7D700000000000000000090 /* SchoolDaysSaveServiceRead.cpp in Sources */,
+				D7D700000000000000000091 /* SchoolDaysSaveStorage.cpp in Sources */,
+				D7D700000000000000000092 /* SchoolDaysScenes.cpp in Sources */,
+				D7D700000000000000000093 /* SchoolDaysSubtitleTypography.cpp in Sources */,
+				D7D700000000000000000094 /* SchoolDaysSystemUi.cpp in Sources */,
+				D7D700000000000000000095 /* SchoolDaysTitleModel.cpp in Sources */,
+				D7D700000000000000000096 /* SchoolDaysTitleProfile.cpp in Sources */,
+				D7D700000000000000000097 /* SchoolDaysTitleRenderPlan.cpp in Sources */,
+				D7D700000000000000000098 /* SchoolDaysTopMeterModel.cpp in Sources */,
+				D7D700000000000000000099 /* SchoolDaysTopMeterRenderPlan.cpp in Sources */,
+				D7D70000000000000000009A /* Script.cpp in Sources */,
+				D7D70000000000000000009B /* Script.cpp in Sources */,
+				D7D70000000000000000009C /* Script.cpp in Sources */,
+				D7D70000000000000000009D /* ScriptBuffer.cpp in Sources */,
+				D7D70000000000000000009E /* ScriptExecutor.cpp in Sources */,
+				D7D70000000000000000009F /* ScriptIndex.cpp in Sources */,
+				D7D7000000000000000000A0 /* ScriptVm.cpp in Sources */,
+				D7D7000000000000000000A1 /* Session.cpp in Sources */,
+				D7D7000000000000000000A2 /* Session.cpp in Sources */,
+				D7D7000000000000000000A3 /* SnowAssets.cpp in Sources */,
+				F200000000000000000000A8 /* Pack.cpp in Sources */,
+				D7D7000000000000000000A4 /* SnowComponents.cpp in Sources */,
+				D7D7000000000000000000A5 /* SnowLauncher.cpp in Sources */,
+				CECBF67730B340B1007CF3B9 /* NsbSnapshot.cpp in Sources */,
+				D7D7000000000000000000A6 /* SnowRuntime.cpp in Sources */,
+				D7D7000000000000000000A7 /* SnowSession.cpp in Sources */,
+				D7D7000000000000000000A8 /* Source.cpp in Sources */,
+				D7D7000000000000000000A9 /* Source.cpp in Sources */,
+				D7D7000000000000000000AA /* SummerAssets.cpp in Sources */,
+				AA5500000000000000000013 /* Pack.cpp in Sources */,
+				D7D7000000000000000000AB /* SummerRuntime.cpp in Sources */,
+				D7D7000000000000000000AC /* System.cpp in Sources */,
+				D7D7000000000000000000AD /* TextFormatter.cpp in Sources */,
+				D7D7000000000000000000AE /* TimelineParser.cpp in Sources */,
+				D7D7000000000000000000AF /* Transition.cpp in Sources */,
+				D7D7000000000000000000B0 /* UnifiedLauncher.cpp in Sources */,
+				EA3C68C73FA5FE545D592B9C /* PfsArchive.cpp in Sources */,
+				4FEA48485F60F3252B807195 /* ArtemisAssets.cpp in Sources */,
+				53213555E158F83278ACA536 /* AstParser.cpp in Sources */,
+				7A49C3D6C40D43354B344A02 /* ArtemisVm.cpp in Sources */,
+				4EDE7440EA2B11407E6956A6 /* ArtemisRuntime.cpp in Sources */,
+				D7D7000000000000000000B1 /* Vag.cpp in Sources */,
+				D7D7000000000000000000B2 /* Value.cpp in Sources */,
+				D7D7000000000000000000B3 /* VariableStore.cpp in Sources */,
+				D7D7000000000000000000B4 /* VariableStore.cpp in Sources */,
+				D7D7000000000000000000B5 /* Vm.cpp in Sources */,
+				D7D7000000000000000000B6 /* Vm.cpp in Sources */,
+				D7D7000000000000000000B7 /* Vm.cpp in Sources */,
+				D7D7000000000000000000B8 /* Vm.cpp in Sources */,
+				D7D7000000000000000000B9 /* Voice.cpp in Sources */,
+				D7D7000000000000000000BA /* Xp3Archive.cpp in Sources */,
+				D7D7000000000000000000BB /* ZeroComponents.cpp in Sources */,
+				D7D7000000000000000000BC /* ZeroLauncher.cpp in Sources */,
+				D7D7000000000000000000BD /* ZeroRuntime.cpp in Sources */,
+				D7D7000000000000000000BE /* ZeroSession.cpp in Sources */,
+				D7D7000000000000000000BF /* AppleDocuments.mm in Sources */,
+				E8A000000000000000000012 /* LauncherBridge.cpp in Sources */,
 				E8A000000000000000000021 /* KotonohaIOSBookmarkStore.swift in Sources */,
 				E8A000000000000000000023 /* KotonohaLauncherView.swift in Sources */,
 				E8A000000000000000000025 /* KotonohaIOSLauncherHost.mm in Sources */,
@@ -9470,6 +10093,12 @@
 				6E2366722FEA86C24A9C6FE0 /* SchoolDaysSystemUi.cpp in Sources */,
 				296ACCA108D2AE6F8B9C64FC /* SchoolDaysMenuBarPresenter.cpp in Sources */,
 				BB12AC3EC734485EDCE27417 /* SchoolDaysRuntime.cpp in Sources */,
+				306BEF5A17245620E8D68E86 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				4800CD1A0F722DC20AE1ADDD /* SchoolDaysPresencePreference.cpp in Sources */,
+				ABA81BE967C68859D6D7C21F /* SchoolDaysPresencePolicy.cpp in Sources */,
+				8DB01CBA3C007AA6FB489BF6 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				CFF75D8EC66F9A35084021F7 /* RichPresence.cpp in Sources */,
+				D245BC0EA934BB6C5C80CAFD /* NullPresence.cpp in Sources */,
 				6C94BEA7E336684115EE10E7 /* SchoolDaysLauncher.cpp in Sources */,
 				AE978CA769A76FAA1AE5A8EC /* SchoolDaysReplayRenderPlan.cpp in Sources */,
 				35B6C77D0C68A57C2A90B7C3 /* KtrfAssetResolver.cpp in Sources */,

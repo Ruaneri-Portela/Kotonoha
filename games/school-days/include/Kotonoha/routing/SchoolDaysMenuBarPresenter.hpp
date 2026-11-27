@@ -224,6 +224,8 @@ public:
     int Selection() const { return selection_; }
     uint8_t BarAlpha() const { return barAlpha_; }
     bool PointerInsideBar() const { return pointerInsideBar_; }
+    // The new upstream Ctrl+A / Ctrl+R controls never override the
+    // pending-choice or frozen-result render/input gate.
     bool AutoHideLocked() const { return autoHideLocked_; }
     bool TopMeterHidden() const { return topMeterHidden_; }
     void ToggleAutoHideLock() {

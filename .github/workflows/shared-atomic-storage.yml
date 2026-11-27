@@ -5,8 +5,8 @@ on:
     paths:
       - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
       - 'lib/src/filesystem/AtomicFile.cpp'
-      - 'lib/src/filesystem/Sources/SDLFileSource.cpp'
-      - 'lib/src/filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/src/filesystem/sources/SDLFileSource.cpp'
+      - 'lib/src/filesystem/adapters/StreamAdapter.cpp'
       - 'lib/tests/AtomicFileTests.cpp'
       - 'games/school-days/**'
       - 'tools/check_school_days_platform_io.py'
@@ -16,8 +16,8 @@ on:
     paths:
       - 'lib/include/Kotonoha/Filesystem/AtomicFile.hpp'
       - 'lib/src/filesystem/AtomicFile.cpp'
-      - 'lib/src/filesystem/Sources/SDLFileSource.cpp'
-      - 'lib/src/filesystem/Adapters/StreamAdapter.cpp'
+      - 'lib/src/filesystem/sources/SDLFileSource.cpp'
+      - 'lib/src/filesystem/adapters/StreamAdapter.cpp'
       - 'lib/tests/AtomicFileTests.cpp'
       - 'games/school-days/**'
       - 'tools/check_school_days_platform_io.py'

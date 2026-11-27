@@ -59,3 +59,7 @@ See the [MIT license](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) an
 **Commercial game data is not distributed.** Use only legally obtained assets and keep them out of Git. The expected folder for local game data is `games/<game>/game-assets/`. See the corresponding [port README](games/README.md) for required files. Original-game compatibility and intellectual property remain with their respective owners.
 
 Contributions should keep the engine platform-neutral, document new options in both languages, and preserve historical investigation records when refactoring active guides.
+
+## Fork integration and School Days Windows L4 QA
+
+The fork retains Windows L4 retail-parity tests, local QA reports, and a distinct `dev`/hybrid integration history. See [`docs/KNOWN_STATE.md`](docs/KNOWN_STATE.md) and [`games/school-days/docs/`](games/school-days/docs/) for implementation-specific limits. Before replay, retail gameplay or save migration, use isolated `--documents` profiles; never alter private commercial GPK packs or personal saves during integration. Historical fork README detail is preserved in the independently verified pre-sync backup.

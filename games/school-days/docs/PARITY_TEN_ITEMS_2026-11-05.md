@@ -11,6 +11,18 @@ The table describes verified **retail behavior** separately from the current
 implementation. High-speed controls intentionally have different visible
 labels and internal clock rates; do not silently equate the two.
 
+**Historical correction (2026-11-18), item 5:** the original row predates
+the user's later retail observation and the deeper static audit. Pending
+SetSELECT displays **choices only**, not Feel. Standalone Feel after a manual
+choice requires a detected change to raw `001`/`002`; omission/no-change does
+not show it. The latch at interface `+0x770` is physically
+**outerHost+0x79C**, not `outerHost+0x770`. The native host also separates
+input `outerHost+0x254` and visual suppression `outerHost+0x258`; SetSELECT
+clears visual suppression before calling `_SetFeeling@8`. The **current**
+implementation and unresolved unlock timing are documented in
+`parity/TOP_MENU_FEEL_COMPOSITION_REA_2026-11-18.md`; do not treat the old
+row's unconditional meter-on-result language as the current rule.
+
 | Item | Retail evidence (source) | Kotonoha change / verification |
 | --- | --- | --- |
 | 1. Replay Data waiting card | `replay-data-slot0-*`: after selection the Replay gallery darkens, `System/SAVELOAD/POPUP_LOAD` / “Please wait. Now loading.” appears, is then blacked out before playback. | `SchoolDaysLoadTransition::Destination::ReplayData`, `Runtime::updateLoadTransition` creates private PlayData only at the opaque handoff; same loading-card renderer as LOAD. `SchoolDaysReplayRuntimeUiTest`, `SchoolDaysFrontendTransitionTest`. **Direct DEV GUI proof** using isolated copies of the retail QA saves: `v3-replay-qa-load-early-*` (gallery darkens), `v3-replay-qa-load-card-*` (retail loading card), and `v3-replay-qa-load-late-*` (card darkens). |
