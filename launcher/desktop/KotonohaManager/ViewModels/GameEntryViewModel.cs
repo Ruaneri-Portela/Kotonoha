@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using Avalonia.Media;
 using Kotonoha.Manager.Models;
@@ -9,19 +10,30 @@ namespace Kotonoha.Manager.ViewModels;
 /// One card in the library list. Mirrors the Android item_game_card.xml and
 /// the iOS/macOS KotonohaGameItem detail pane.
 /// </summary>
-public sealed class GameEntryViewModel : ViewModelBase
+public sealed class GameEntryViewModel : ViewModelBase, IDisposable
 {
-    public CatalogGame Game { get; }
+    public CatalogGame Game { get; private set; }
 
     public GameEntryViewModel(CatalogGame game)
     {
         Game = game;
-        Localization.Instance.PropertyChanged += (_, _) =>
-        {
-            OnPropertyChanged(nameof(StatusText));
-            OnPropertyChanged(nameof(ActionLabel));
-        };
+        Localization.Instance.PropertyChanged += OnLocalizationChanged;
     }
+
+    private void OnLocalizationChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        OnPropertyChanged(nameof(StatusText));
+        OnPropertyChanged(nameof(ActionLabel));
+    }
+
+    public void UpdateGame(CatalogGame game)
+    {
+        Game = game;
+        Refresh();
+    }
+
+    public void Dispose() =>
+        Localization.Instance.PropertyChanged -= OnLocalizationChanged;
 
     public string Title => string.IsNullOrWhiteSpace(Game.Title)
         ? Path.GetFileName(Game.Path.TrimEnd(Path.DirectorySeparatorChar))
