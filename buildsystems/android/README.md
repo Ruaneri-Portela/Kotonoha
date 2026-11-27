@@ -2,7 +2,7 @@
 
 **English (US)** | [Português (Brasil)](README.pt-BR.md)
 
-Open this folder in Android Studio. Required: **JDK 17**, Android **SDK 36**, **NDK 28.2.13676358**, **CMake 3.22.1**, Git, and a vcpkg checkout. Use the Gradle wrapper.
+Open this folder in Android Studio. Required: **JDK 17**, Android **SDK 36**, **NDK 30.0.16248370**, **CMake 3.22.1**, Git, and a vcpkg checkout. Use the Gradle wrapper.
 
 ```sh
 export VCPKG_ROOT=/path/to/vcpkg

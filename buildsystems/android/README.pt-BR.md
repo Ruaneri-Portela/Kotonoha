@@ -2,7 +2,7 @@
 
 [English (US)](README.md) | **Português (Brasil)**
 
-Abra a pasta no Android Studio. Requisitos: **JDK 17**, Android **SDK 36**, **NDK 28.2.13676358**, **CMake 3.22.1**, Git e vcpkg. Utilize o wrapper Gradle.
+Abra a pasta no Android Studio. Requisitos: **JDK 17**, Android **SDK 36**, **NDK 30.0.16248370**, **CMake 3.22.1**, Git e vcpkg. Utilize o wrapper Gradle.
 
 ```sh
 export VCPKG_ROOT=/caminho/para/vcpkg

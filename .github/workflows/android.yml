@@ -31,7 +31,7 @@ jobs:
         if: steps.deps-cache.outputs.cache-hit != 'true'
         run: |
           sdkmanager "platforms;android-36" "build-tools;36.0.0" \
-            "ndk;28.2.13676358" "cmake;3.22.1"
+            "ndk;30.0.16248370" "cmake;3.22.1"
 
       - name: Install host autotools for vcpkg
         if: steps.deps-cache.outputs.cache-hit != 'true'
@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           mkdir -p vcpkg-binary-cache
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,readwrite"
           for triplet in arm64-android arm-neon-android; do
             "$VCPKG_ROOT/vcpkg" install --triplet="$triplet" --x-feature=android-python \
@@ -97,7 +97,7 @@ jobs:
       - name: Install Android build tools
         run: |
           sdkmanager "platforms;android-36" "build-tools;36.0.0" \
-            "ndk;28.2.13676358" "cmake;3.22.1"
+            "ndk;30.0.16248370" "cmake;3.22.1"
 
       - name: Install host autotools for vcpkg
         run: |
@@ -151,7 +151,7 @@ jobs:
       - name: Build all game APKs from the Gradle matrix (ARM64 and ARMv7 NEON Debug)
         working-directory: buildsystems/android
         run: |
-          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/28.2.13676358"
+          export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/30.0.16248370"
           export VCPKG_BINARY_SOURCES="clear;files,$GITHUB_WORKSPACE/vcpkg-binary-cache,read"
           # Includes DokiDoki (CPython from the vcpkg android-python feature).
           # SDL3 native/Java, SDL3_ttf and ImGui remain submodule sources.

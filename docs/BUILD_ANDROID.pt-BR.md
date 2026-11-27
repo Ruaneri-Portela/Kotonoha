@@ -2,7 +2,7 @@
 
 [English (US)](BUILD_ANDROID.md) | **Português (Brasil)**
 
-Android usa `buildsystems/android/`, com uma variante Gradle por jogo. Requisitos: Android Studio (ou ferramentas SDK), **JDK 17**, **SDK 36**, **NDK 28.2.13676358**, **CMake 3.22.1**, Git e vcpkg.
+Android usa `buildsystems/android/`, com uma variante Gradle por jogo. Requisitos: Android Studio (ou ferramentas SDK), **JDK 17**, **SDK 36**, **NDK 30.0.16248370**, **CMake 3.22.1**, Git e vcpkg.
 
 ```sh
 export VCPKG_ROOT=/caminho/para/vcpkg
