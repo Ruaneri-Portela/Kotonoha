@@ -118,6 +118,55 @@ public enum KotonohaLauncher {
         return decode([DiscoveredGame].self, from: json, fallback: [])
     }
 
+    /// Box usado pelo callback nativo (executado em threads de varredura).
+    private final class ScanBox {
+        let lock = NSLock()
+        let handler: ((DiscoveredGame) -> Void)?
+        var entries: [DiscoveredGame] = []
+        init(_ handler: ((DiscoveredGame) -> Void)?) { self.handler = handler }
+        func add(_ entry: DiscoveredGame) {
+            lock.lock()
+            entries.append(entry)
+            lock.unlock()
+            handler?(entry)
+        }
+    }
+
+    /// Scan com callback por jogo e profundidade configuravel (0 = padrao).
+    /// Cada jogo e entregue a `onGame` assim que e detectado.
+    public static func scanRoots(
+        _ roots: [String],
+        splitSavesByGame: Bool = false,
+        customSaveRoot: String = "",
+        maxDepth: Int = 0,
+        onGame: ((DiscoveredGame) -> Void)? = nil
+    ) -> [DiscoveredGame] {
+        let owned = roots.map { strdup($0)! }
+        defer { owned.forEach { free($0) } }
+        let pointers = UnsafeMutableBufferPointer<UnsafePointer<CChar>?>.allocate(
+            capacity: max(owned.count, 1))
+        defer { pointers.deallocate() }
+        for (index, value) in owned.enumerated() { pointers[index] = UnsafePointer(value) }
+
+        let box = ScanBox(onGame)
+        let userData = Unmanaged.passUnretained(box).toOpaque()
+        let callback: @convention(c) (UnsafePointer<CChar>?, UnsafeMutableRawPointer?) -> Void = { json, data in
+            guard let json, let data else { return }
+            let value = String(cString: json)
+            KotonohaLauncherFreeString(UnsafeMutablePointer(mutating: json))
+            let array = decode([DiscoveredGame].self,
+                               from: "[" + value + "]", fallback: [])
+            if let entry = array.first {
+                Unmanaged<ScanBox>.fromOpaque(data).takeUnretainedValue().add(entry)
+            }
+        }
+        KotonohaLauncherScanRootsJsonWithCallback(
+            pointers.baseAddress, Int32(roots.count),
+            splitSavesByGame ? 1 : 0, customSaveRoot, Int32(maxDepth),
+            callback, userData)
+        return box.entries.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+    }
+
     /// Detect a single folder or disc image.
     public static func detectPath(
         _ path: String,

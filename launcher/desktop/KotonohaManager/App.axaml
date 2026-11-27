@@ -1,0 +1,9 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Kotonoha.Manager.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <Fluent2Theme />
+        <StyleInclude Source="avares://KotonohaManager/Styles/Theme.axaml" />
+    </Application.Styles>
+</Application>

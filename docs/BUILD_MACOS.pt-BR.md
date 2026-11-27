@@ -16,35 +16,6 @@ cmake --build build/macos --target Kotonoha
 
 Para outros ports, use a opção/alvo do jogo. Quando o vcpkg não for detectado automaticamente, defina `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"`.
 
-## Presets CMake (macOS 15.0+)
-
-O `CMakePresets.json` versionado cobre a matriz completa de macOS
-(`<platform>-<arch>-native-<provider>-<config>`): `arm64` e `amd64` (a grafia
-`x86_64` é mantida no triplet e nas flags do compilador), cada um com
-dependências `vcpkg` ou `system` (Homebrew) e configurações `debug`/`release`.
-Todos os presets usam Ninja, definem `KOTONOHA_BUILD_ALL=ON`,
-`KOTONOHA_BUILD_EXAMPLE=ON` e `KOTONOHA_BUILD_MACOS_BUNDLES=ON`, e usam
-`out/build/<preset>` para não alterar a árvore `build` existente.
-
-| Arquitetura | vcpkg | system (Homebrew) |
-| --- | --- | --- |
-| arm64 | `macos-arm64-native-vcpkg-{debug,release}` | `macos-arm64-native-system-{debug,release}` |
-| amd64 | `macos-amd64-native-vcpkg-{debug,release}` | `macos-amd64-native-system-{debug,release}` |
-
-```sh
-# Apple Silicon, pacotes do sistema, Release
-cmake --preset macos-arm64-native-system-release
-cmake --build --preset macos-arm64-native-system-release --target Kotonoha
-
-# Apple Silicon, triplet dinâmico vcpkg, Debug
-cmake --preset macos-arm64-native-vcpkg-debug
-cmake --build --preset macos-arm64-native-vcpkg-debug --target Kotonoha
-
-# Intel (nativo ou cross-compilado com o SDK x86_64), vcpkg Release
-cmake --preset macos-amd64-native-vcpkg-release
-cmake --build --preset macos-amd64-native-vcpkg-release --target Kotonoha
-```
-
 ## Triplets vcpkg dinâmicos (macOS 15.0)
 
 Dois triplets de overlay dedicados em `vcpkg-overlays/triplets/` compilam todas
@@ -54,9 +25,8 @@ macOS 15.0:
 - `macos-arm64-vcpkg.cmake` — Apple Silicon (`arm64`)
 - `macos-amd64-vcpkg.cmake` — Intel (`x86_64`)
 
-A grafia `amd64` é apenas um nome: triplet, preset e diretório de build a
-usam, enquanto o compilador e o vcpkg continuam visando `x86_64`
-internamente.
+A grafia `amd64` é apenas um nome: o triplet e o diretório de build a usam,
+enquanto o compilador e o vcpkg continuam visando `x86_64` internamente.
 
 A camada de arquitetura `amd64` fixa `Python3_EXECUTABLE=/usr/bin/python3`,
 `Python3_ROOT_DIR` e `Python3_FIND_FRAMEWORK=FIRST` para que o FindPython3
@@ -77,8 +47,8 @@ ports de overlay no **primeiro** configure.
 cmake -S . -B out/build/macos-arm64-native-vcpkg-release -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=macos-arm64-vcpkg \
-  -DVCPKG_OVERLAY_TRIPLETS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
-  -DVCPKG_OVERLAY_PORTS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
+  -DVCPKG_OVERLAY_TRIPLETS=$PWD/vcpkg-overlays/triplets \
+  -DVCPKG_OVERLAY_PORTS=$PWD/vcpkg-overlays/ports \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
   -DKOTONOHA_SDL_PROVIDER=VCPKG \
   -DKOTONOHA_IMGUI_PROVIDER=VCPKG \
@@ -87,15 +57,14 @@ cmake -S . -B out/build/macos-arm64-native-vcpkg-release -G Ninja \
 cmake --build out/build/macos-arm64-native-vcpkg-release --parallel
 
 # Intel (x86_64), all game ports, Release, dynamic vcpkg libraries.
-# As opções Python3_* e CMAKE_EXE_LINKER_FLAGS abaixo já são definidas por
-# `cmake --preset macos-amd64-native-vcpkg-release`; mantenha-as apenas em configures manuais.
-# The Xcode Python3.framework is universal (x86_64 + arm64); Homebrew's
-# Python and libunibreak are arm64-only and cannot be used for x86_64.
+# As opções Python3_* e CMAKE_EXE_LINKER_FLAGS abaixo são necessárias para que
+# o bundle x86_64 incorpore o Python3.framework universal do Xcode.
+# O Python do Homebrew e o libunibreak são arm64-only e não servem para x86_64.
 cmake -S . -B out/build/macos-amd64-native-vcpkg-release -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   -DVCPKG_TARGET_TRIPLET=macos-amd64-vcpkg \
-  -DVCPKG_OVERLAY_TRIPLETS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
-  -DVCPKG_OVERLAY_PORTS=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
+  -DVCPKG_OVERLAY_TRIPLETS=$PWD/vcpkg-overlays/triplets \
+  -DVCPKG_OVERLAY_PORTS=$PWD/vcpkg-overlays/ports \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
   -DKOTONOHA_SDL_PROVIDER=VCPKG \
   -DKOTONOHA_IMGUI_PROVIDER=VCPKG \
@@ -122,34 +91,31 @@ de bootstrap de host tools do vcpkg), pré-popule a árvore de instalação com
 
 ```sh
 vcpkg install --triplet macos-arm64-vcpkg \
-  --overlay-triplets=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
-  --overlay-ports=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
+  --overlay-triplets=$PWD/vcpkg-overlays/triplets \
+  --overlay-ports=$PWD/vcpkg-overlays/ports \
   --x-feature=sdl-vcpkg \
-  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-arm64-native-vcpkg-release/vcpkg_installed
+  --x-install-root=$PWD/out/build/macos-arm64-native-vcpkg-release/vcpkg_installed
 
-# On an arm64 host, keep Homebrew's arm64-only libunibreak out of the x86_64
-# pkg-config search path so libass does not link the wrong architecture
+# Em host arm64, mantenha o libunibreak arm64-only do Homebrew fora do
+# pkg-config de x86_64 para que o libass não link a arquitetura errada
 # (ld: ignoring file .../libunibreak.dylib: found architecture 'arm64').
-# The macos-amd64-native-vcpkg-release preset exports PKG_CONFIG_LIBDIR automatically and the
-# triplet passes it through to meson-based ports, so `cmake --preset
-# macos-amd64-native-vcpkg-release` needs no manual pre-install for this. Set it explicitly
-# only when invoking vcpkg directly:
-VCPKG_LIBDIR=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-native-vcpkg-release/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig
+# Defina PKG_CONFIG_LIBDIR explicitamente no configure e em um `vcpkg install`
+# direto; o triplet repassa a variável aos ports baseados em meson:
+VCPKG_LIBDIR=$PWD/out/build/macos-amd64-native-vcpkg-release/vcpkg_installed/macos-amd64-vcpkg/lib/pkgconfig
 PKG_CONFIG_LIBDIR="$VCPKG_LIBDIR" \
 vcpkg install --triplet macos-amd64-vcpkg \
-  --overlay-triplets=/Users/nero/Codes/Kotonoha/vcpkg-overlays/triplets \
-  --overlay-ports=/Users/nero/Codes/Kotonoha/vcpkg-overlays/ports \
+  --overlay-triplets=$PWD/vcpkg-overlays/triplets \
+  --overlay-ports=$PWD/vcpkg-overlays/ports \
   --x-feature=sdl-vcpkg \
-  --x-install-root=/Users/nero/Codes/Kotonoha/out/build/macos-amd64-native-vcpkg-release/vcpkg_installed
+  --x-install-root=$PWD/out/build/macos-amd64-native-vcpkg-release/vcpkg_installed
 ```
 
-O preset `macos-amd64-native-vcpkg-release` define `PKG_CONFIG_LIBDIR` apontando para o
-diretório `lib/pkgconfig` do triplet em seu bloco `environment`, e o triplet
-declara `VCPKG_ENV_PASSTHROUGH_UNTRACKED` para que o vcpkg repasse o valor aos
-ports baseados em meson sem incluir o caminho absoluto no hash de ABI. Assim, o
+Defina `PKG_CONFIG_LIBDIR` apontando para o diretório `lib/pkgconfig` do triplet
+antes do configure e de qualquer `vcpkg install` direto. O triplet declara
+`VCPKG_ENV_PASSTHROUGH_UNTRACKED` para que o vcpkg repasse o valor aos ports
+baseados em meson sem incluir o caminho absoluto no hash de ABI. Assim, o
 `libunibreak.pc` arm64-only do Homebrew fica fora do build x86_64 do libass
-mesmo quando o vcpkg é invocado automaticamente pelo toolchain do CMake durante
-`cmake --preset macos-amd64-native-vcpkg-release`.
+mesmo quando o vcpkg é invocado automaticamente pelo toolchain do CMake.
 
 O `BundleApp.cmake` prepara `Python.framework` e `Python3.framework` como
 framework bundles reais, remove o helper `Python.app` aninhado e reescreve a

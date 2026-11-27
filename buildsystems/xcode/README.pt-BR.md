@@ -17,6 +17,6 @@ xcodebuild -project buildsystems/xcode/Kotonoha.xcodeproj \
 
 **Dependências:** Configure `Config/*.xcconfig` para SDL3, SDL3_ttf, FFmpeg, libass, bibliotecas de fontes e vcpkg locais. DokiDoki também exige frameworks CPython e biblioteca padrão compatíveis com a plataforma; consulte `tools/PrepareApple.py` para os passos disponíveis. Frameworks SDL devem corresponder ao SDK selecionado e ser incorporados aos bundles. Dados comerciais devem ficar fora do Git.
 
-**Cobertura atual:** N2System compila via CMake/Android, porém ainda não tem schemes macOS/iOS no projeto Xcode versionado. O campo `xcode_pending` do `ProjectManifest.json` registra essa pendência para não afirmar uma compilação Apple inexistente.
+**Cobertura atual:** Todos os 16 aplicativos de jogo e o `KotonohaLauncher` têm schemes macOS e iOS (34 no total). O `ProjectManifest.json` registra `xcode_pending: []`; incluir um port não dispensa compilação real em dispositivo/simulador antes de afirmar suporte Apple.
 
-**Limitações:** Rodar em iOS físico exige assinatura. Comandos históricos do gerador `ruby tools/UpdateGameTargets.rb` não funcionam neste checkout. Consulte os guias [macOS](../../docs/BUILD_MACOS.pt-BR.md), [iOS](../../docs/BUILD_IOS.pt-BR.md) e [validação](../../docs/BUILD_VALIDATION.pt-BR.md).
+**Limitações:** Rodar em iOS físico exige assinatura. Consulte os guias [macOS](../../docs/BUILD_MACOS.pt-BR.md), [iOS](../../docs/BUILD_IOS.pt-BR.md) e [validação](../../docs/BUILD_VALIDATION.pt-BR.md).

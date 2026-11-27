@@ -199,7 +199,7 @@ void PmailTextBox::renderIndicator(Kotonoha::RendererRef renderer) {
       LoadTextBoxGraphic(renderer, name + ".anim#" + std::to_string(frame));
   if (!texture)
     return;
-  const auto &placement = assets_.AnimationOf(name).frames.at(frame);
+  const auto &placement = assets_.AnimationOf(name).frames.at(static_cast<size_t>(frame));
   const SDL_FRect dst{placement.x, placement.y, placement.w, placement.h};
   Kotonoha::RenderUpscaledTexture(&renderer, texture, nullptr, &dst);
 }

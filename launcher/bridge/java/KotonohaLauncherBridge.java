@@ -35,6 +35,11 @@ public final class KotonohaLauncherBridge {
     public static native String nativeScanRootsJson(
             String[] roots, boolean splitSavesByGame, String customSaveRoot);
 
+    /** maxDepth=0 (padrao) visita apenas a raiz e seus filhos diretos. */
+    public static native String nativeScanRootsJsonWithDepth(
+            String[] roots, boolean splitSavesByGame, String customSaveRoot,
+            int maxDepth);
+
     public static native String nativeDetectPathJson(
             String path, boolean splitSavesByGame, String customSaveRoot);
 

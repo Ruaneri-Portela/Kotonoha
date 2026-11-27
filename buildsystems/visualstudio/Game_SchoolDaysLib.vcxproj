@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|ARM64">
+      <Configuration>Debug</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|ARM64">
+      <Configuration>Release</Configuration>
+      <Platform>ARM64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{DD4940E9-1711-4D72-1A1B-9F6810A5F125}</ProjectGuid>
+    <RootNamespace>Game_SchoolDaysLib</RootNamespace>
+    <KotonohaGroup>games</KotonohaGroup>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v145</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup><LanguageStandard>stdcpp17</LanguageStandard></PropertyGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\school-days\src\**\*.cpp" Exclude="$(RepoRoot)games\school-days\src\main.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="KotonohaEngine.vcxproj">
+      <Project>{C9DE5DC1-B9B9-48E7-688A-9D9D76541551}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Amagami.vcxproj">
+      <Project>{926F0FE9-C24C-22E2-C756-2B6348A250E5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Artemis.vcxproj">
+      <Project>{401EE67D-92B0-F120-D7E9-40E650E7A14D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Kag.vcxproj">
+      <Project>{A77091D9-841D-697F-525C-B1058D14EA54}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Meo.vcxproj">
+      <Project>{623B96D7-ECCB-FD0E-49DE-98E65C03E49C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_N2System.vcxproj">
+      <Project>{B77D12C7-5534-7661-F843-2C439996E79B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Pmail.vcxproj">
+      <Project>{B5A18B79-B15C-2B08-2FC8-967D7C2B1967}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Ponscripter.vcxproj">
+      <Project>{36718B92-7E8A-1FDC-5304-3E4D5E576950}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_RealLive.vcxproj">
+      <Project>{C29C4468-9110-9B72-C6C5-5DB6D797F033}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_RenPy.vcxproj">
+      <Project>{7ADCE1DE-630A-57EB-D92B-D2C9C2B2BF7D}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_SnowRadish.vcxproj">
+      <Project>{F93E8597-870F-D0DF-9992-99604E5311EB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_SummerRadish.vcxproj">
+      <Project>{199301BC-F9AC-1768-08B0-622801D25071}</Project>
+    </ProjectReference>
+    <ProjectReference Include="VM_Tjs2.vcxproj">
+      <Project>{A61D742E-61F4-82F8-5EF0-53F463479719}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_CZ.vcxproj">
+      <Project>{CBCB2982-56D0-D16E-2AA8-8C4D6D375128}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_TLG.vcxproj">
+      <Project>{F8D5E538-3CEB-0F20-FAE4-4AB52D2C2B2C}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_TIM2.vcxproj">
+      <Project>{2075F3D6-8292-0F7C-715D-27C0FDEEF9D0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_TEX.vcxproj">
+      <Project>{9F84A53F-7084-8AD6-9695-7F4F6595458B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_CRGB.vcxproj">
+      <Project>{17BFF716-4EDE-9003-8673-A472A6381CD9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_EVD.vcxproj">
+      <Project>{A7298275-58A3-5A1B-D827-DA33FD230117}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_UIAtlas.vcxproj">
+      <Project>{A4DF219B-8848-77C9-DB19-12DE12915DDB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_ADPCM.vcxproj">
+      <Project>{CAFA5CAC-DF68-CDC9-527E-68DE16405DE8}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_CRI.vcxproj">
+      <Project>{06712496-B9FE-6B23-65BD-97E71857D551}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_SPU.vcxproj">
+      <Project>{8D28F8CF-469E-7A4E-615F-52D71A8C29B9}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_BlockPCM.vcxproj">
+      <Project>{2F6DBA84-889C-1EAF-65BF-656FCF10203B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_SMFD.vcxproj">
+      <Project>{2A1038EE-D0B5-650A-B138-B8FC4E6D7607}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_ANM.vcxproj">
+      <Project>{9CD19263-D2F7-3C77-B45E-66870B4CE19B}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Format_PSB.vcxproj">
+      <Project>{A9727C8C-8F0F-EAEB-625B-F3EB34676684}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Adv.vcxproj">
+      <Project>{46231C4E-7280-367B-37BD-4841053F7DE5}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Amagami.vcxproj">
+      <Project>{441EB1C9-80CD-6564-FAA8-C0C4CBCB86CB}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Artemis.vcxproj">
+      <Project>{2E7D8D2F-1A40-25D5-271B-3722926DC9B1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Cmp.vcxproj">
+      <Project>{5B7B1D26-4001-2E88-2622-5E9038C2B3A0}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Gpk.vcxproj">
+      <Project>{D8206AF9-F0D0-1008-34C6-1017A78E40C1}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_N2.vcxproj">
+      <Project>{1EAAB529-043B-A065-2D99-CD7257DA0015}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Pak.vcxproj">
+      <Project>{DE30DA4D-B2A3-19AE-D53B-63FD268FE71A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Pmail.vcxproj">
+      <Project>{B5AD2D20-8D4F-5F90-A84D-9A80A52CE778}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Ponscripter.vcxproj">
+      <Project>{A9600D17-9AAD-6FB1-B605-06C4C25DEE93}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_RealLive.vcxproj">
+      <Project>{79C07CB9-C7AF-6BA5-4DC4-A0B5AD9B6985}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Rpa.vcxproj">
+      <Project>{2C19B9A0-7C84-2234-2BF7-81A8F2185C0A}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Xp3.vcxproj">
+      <Project>{CDC77FDC-BF00-522C-03C3-90C32F273A69}</Project>
+    </ProjectReference>
+    <ProjectReference Include="Provider_Zero.vcxproj">
+      <Project>{73536A9D-BBFC-DCB0-D361-FD0F5E0DD36F}</Project>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

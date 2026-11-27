@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Imported automaticamente por todos os projetos da solucao Visual Studio. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <!-- O compilador cruzado ARM64 do MSVC 14.52 tem um ICE (/O2) em um dos
+       fontes de School Days; /Od evita o bug sem alterar a semantica. -->
+  <ItemDefinitionGroup Condition="'$(Platform)' == 'ARM64'">
+    <ClCompile>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <!-- Item lists nao sao permitidas em metadados padrao (ItemDefinitionGroup);
+       aplica-se aos itens reais logo antes da compilacao. -->
+  <Target Name="KotonohaIncludeDirectories" BeforeTargets="ClCompile">
+    <ItemGroup>
+      <ClCompile>
+        <AdditionalIncludeDirectories>@(KotonohaIncludeDir);%(ClCompile.AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      </ClCompile>
+    </ItemGroup>
+  </Target>
+
+  <!-- Copia as DLLs de runtime do vcpkg para junto do executavel (app-local). -->
+  <Target Name="KotonohaCopyVcpkgRuntime"
+          AfterTargets="Build"
+          Condition="'$(ConfigurationType)' == 'Application' And Exists('$(KotonohaVcpkgRoot)bin')">
+    <ItemGroup>
+      <KotonohaVcpkgDll Include="$(KotonohaVcpkgRoot)bin\*.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(KotonohaVcpkgDll)"
+          DestinationFolder="$(OutDir)"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

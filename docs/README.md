@@ -9,6 +9,7 @@ Start with the [project README](../README.md), then choose a topic:
 | Visual identity | [Official Kotonoha brand README](../design/README.md) |
 | Build overview | [Build guides](BUILD_GUIDES.md) |
 | Native dependencies | [Homebrew / apt / MSYS2 UCRT / vcpkg / submodules](DEPENDENCIES.md) |
+| Windows (native solution) | [Visual Studio 18 / v145](BUILD_VISUAL_STUDIO.md) |
 | Windows cross-build | [MinGW on macOS/Linux hosts](BUILD_WINDOWS.md) |
 | Android | [Android](BUILD_ANDROID.md) · [Gradle details](../buildsystems/android/README.md) |
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |

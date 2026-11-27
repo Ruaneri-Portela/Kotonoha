@@ -1020,7 +1020,7 @@ RootFiles readRootFiles(const std::filesystem::path &root) {
     auto size = std::filesystem::file_size(it->path());
     if (size > 32 * 1024 * 1024 || total + size > 64 * 1024 * 1024)
       throw std::runtime_error("DDLC user files exceed replay save limit");
-    total += size;
+    total += static_cast<size_t>(size);
     Kotonoha::Filesystem::InputFile in(it->path(), std::ios::binary);
     if (!in)
       throw std::runtime_error("Cannot read DDLC user file");
@@ -1789,7 +1789,7 @@ struct Game {
     const float h = float(items.size()) * 36 + float(items.size() - 1) * 6;
     float y = katawa ? (kH - h) / 2 : (kH - h) * .8f;
     for (auto &[l, a] : items) {
-      navButton(r, l, katawa ? (pauseMenu ? 922 : 680) : 80, y, w, a);
+      navButton(r, l, static_cast<float>(katawa ? (pauseMenu ? 922 : 680) : 80), y, w, a);
       y += 42;
     }
   }

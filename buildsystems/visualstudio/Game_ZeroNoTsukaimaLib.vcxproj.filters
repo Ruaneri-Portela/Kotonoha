@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{3EE4CCF5-E2A7-42F9-0183-D45FDBEC04C4}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)games\zero-no-tsukaima\src\**\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

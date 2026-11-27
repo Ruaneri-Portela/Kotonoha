@@ -9,6 +9,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Identidade visual | [Carta de estilo oficial](../design/README.md) |
 | Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
 | Dependências nativas | [Homebrew / apt / MSYS2 UCRT / vcpkg / submódulos](DEPENDENCIES.pt-BR.md) |
+| Windows (solução nativa) | [Visual Studio 18 / v145](BUILD_VISUAL_STUDIO.pt-BR.md) |
 | Cross-build Windows | [MinGW em hosts macOS/Linux](BUILD_WINDOWS.pt-BR.md) |
 | Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |

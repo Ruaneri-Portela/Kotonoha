@@ -1,0 +1,113 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Kotonoha.Manager.ViewModels"
+        x:Class="Kotonoha.Manager.Views.GameParametersWindow"
+        x:DataType="vm:GameParametersViewModel"
+        Width="640" Height="680" WindowStartupLocation="CenterOwner"
+        Title="{Binding Title}">
+
+    <DockPanel Margin="18">
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="10" Margin="0,14,0,0">
+            <Button Classes="Ghost" Content="{Binding Strings.Reset}" Command="{Binding ResetCommand}" />
+            <Button Classes="Ghost" Content="{Binding Strings.Cancel}" Click="Cancel_Click" />
+            <Button Classes="Primary" Content="{Binding Strings.SaveBtn}" Click="Save_Click" />
+        </StackPanel>
+
+        <ScrollViewer>
+            <StackPanel Spacing="14">
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.OverlaysLocalization}" Classes="Accent" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.AssetOverlay}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding AssetOverlayPath}" />
+                            <Button x:Name="BrowseOverlay" Grid.Column="2" Content="{Binding Strings.Browse}"
+                                    Margin="6,0,0,0" Click="BrowseFolder_Click" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.Translation}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding TranslationPath}" />
+                            <Button x:Name="BrowseTranslation" Grid.Column="2" Content="{Binding Strings.Browse}"
+                                    Margin="6,0,0,0" Click="BrowseFile_Click" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.SubtitleStyle}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding SubtitleStylePath}" />
+                            <Button x:Name="BrowseSubtitleStyle" Grid.Column="2" Content="{Binding Strings.Browse}"
+                                    Margin="6,0,0,0" Click="BrowseFile_Click" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Surface" Padding="14" IsVisible="{Binding IsSchoolDays}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.SchoolDaysHQ}" Classes="Accent" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.RouteKtrf}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding KtrfPath}" />
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="6,0,0,0">
+                                <Button x:Name="BrowseRoute" Content="{Binding Strings.Browse}" Click="BrowseFile_Click" />
+                                <Button Content="{Binding Strings.Validate}" Margin="6,0,0,0"
+                                        Command="{Binding ValidateRouteCommand}" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.ScriptsDir}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding ScriptsDir}" />
+                            <Button x:Name="BrowseScripts" Grid.Column="2" Content="{Binding Strings.Browse}"
+                                    Margin="6,0,0,0" Click="BrowseFolder_Click" />
+                        </Grid>
+                        <TextBlock Text="{Binding RouteInfo}" Classes="Muted" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.SavesStartup}" Classes="Accent" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.DocumentsDir}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding CustomDocumentsDir}" />
+                            <Button x:Name="BrowseDocuments" Grid.Column="2" Content="{Binding Strings.Browse}"
+                                    Margin="6,0,0,0" Click="BrowseFolder_Click" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="{Binding Strings.StartScenario}" VerticalAlignment="Center" Classes="Muted" />
+                            <TextBox Grid.Column="1" Text="{Binding StartScenario}" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border Classes="Surface" Padding="14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Strings.GraphicsOverrides}" Classes="Accent" FontWeight="SemiBold" />
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="Renderer" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding RendererOptions}"
+                                      SelectedItem="{Binding RendererBackend}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="Upscaler" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding UpscalerOptions}"
+                                      SelectedItem="{Binding UpscalerBackend}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*">
+                            <TextBlock Grid.Column="0" Text="Preset" VerticalAlignment="Center" Classes="Muted" />
+                            <ComboBox Grid.Column="1" ItemsSource="{Binding PresetOptions}"
+                                      SelectedItem="{Binding UpscalerPreset}" HorizontalAlignment="Stretch" />
+                        </Grid>
+                        <Grid ColumnDefinitions="150,*,Auto">
+                            <TextBlock Grid.Column="0" Text="Fator de escala" VerticalAlignment="Center" Classes="Muted" />
+                            <Slider Grid.Column="1" Minimum="1" Maximum="4" TickFrequency="0.25"
+                                    IsSnapToTickEnabled="True" Value="{Binding UpscalerFactor}" />
+                            <TextBlock Grid.Column="2" Text="{Binding FactorText}" Margin="10,0,0,0"
+                                       VerticalAlignment="Center" />
+                        </Grid>
+                        <Button Classes="Ghost" Content="{Binding Strings.UseGlobal}"
+                                Command="{Binding UseGlobalGraphicsCommand}" HorizontalAlignment="Left" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

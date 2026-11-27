@@ -205,7 +205,7 @@ Pack::Pack(std::shared_ptr<Kotonoha::Filesystem::Filesystem> mounted,
     if (!signatureOk)
       continue;
     size_t candidateStart = word(footer, 4);
-    if (candidateStart > length - 12)
+    if (candidateStart > static_cast<size_t>(length - 12))
       continue;
     auto encoded = readSlice(*filesystem, sourceId, candidateStart,
                              static_cast<size_t>(length - 8 - candidateStart));

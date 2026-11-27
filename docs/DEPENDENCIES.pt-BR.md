@@ -89,34 +89,23 @@ pacman -S mingw-w64-ucrt-x86_64-toolchain \
 ```
 
 `CMAKE_PREFIX_PATH` e `PKG_CONFIG_PATH` capturam `$MSYSTEM_PREFIX`
-(p.ex. `C:/msys64/ucrt64`) automaticamente. Use os presets canônicos
-`windows-x64-mingw-system-{debug,release}` (ou o alias de compatibilidade
-`windows-ucrt-system`) ou um diretório de build novo. Builds MinGW cross a
-partir de macOS/Linux são diferentes: **vcpkg é obrigatório**, pois apt/Homebrew
-não fornecem bibliotecas para o alvo Windows.
+(p.ex. `C:/msys64/ucrt64`) automaticamente. Sempre use um diretório de build
+novo ao trocar de provedor. Builds MinGW cross a partir de macOS/Linux são
+diferentes: **vcpkg é obrigatório**, pois apt/Homebrew não fornecem bibliotecas
+para o alvo Windows.
 
 ## Exemplos de configuração
 
 ```sh
-# macOS arm64, somente Homebrew (o preset já seleciona SYSTEM + ImGui SUBMODULES)
-cmake --preset macos-arm64-native-system-release
-cmake --build --preset macos-arm64-native-system-release --target Kotonoha
-
-# Linux, SDL3/SDL3_ttf do apt + ImGui do submódulo fixado
-cmake -S . -B build-system -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+# SDL3/SDL3_ttf do sistema (apt/Homebrew/MSYS2 UCRT) + ImGui do submódulo fixado
+cmake -S . -B build-system -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DKOTONOHA_DEPS_PROVIDER=SYSTEM \
   -DKOTONOHA_SDL_PROVIDER=SYSTEM \
   -DKOTONOHA_IMGUI_PROVIDER=SUBMODULES \
   -DKOTONOHA_BUILD_EXAMPLE=ON
 cmake --build build-system --target Kotonoha
 
-# MSYS2 UCRT64, somente pacman (no shell UCRT64)
-cmake --preset windows-x64-mingw-system-release
-# alias: cmake --preset windows-ucrt-system
-
 # vcpkg para tudo (SDL3, SDL3_ttf e ImGui)
-cmake --preset macos-arm64-native-vcpkg-release
-# ou:
 cmake -S . -B build-vcpkg -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
@@ -157,16 +146,15 @@ Use um diretório de build **novo** ao trocar de provedor: entradas em cache
 | Windows MinGW cross (host macOS/Linux) | **proibido (FATAL_ERROR)** | somente vcpkg `*-mingw-dynamic` | não usado | vcpkg |
 | Windows MSVC | permitido com instalação nativa/pkg-config ABI-compatível (emite aviso) | triplet MSVC nativo (`x64-windows`, ...) | SDL do submódulo, mídia de instalação nativa | vcpkg se o toolchain estiver ativo; senão sistema |
 | Android | SDL forçado para submódulo (mídia do vcpkg) | vcpkg por ABI | submódulo SDL (padrão) | mídia vcpkg + submódulo SDL |
-| WebAssembly | pacotes Emscripten do sistema | vcpkg `wasm32-emscripten` (`sdl-vcpkg;imgui-vcpkg`) | não usado pelos presets | vcpkg se o toolchain estiver ativo; senão sistema |
+| WebAssembly | pacotes Emscripten do sistema | vcpkg `wasm32-emscripten` (`sdl-vcpkg;imgui-vcpkg`) | não usado | vcpkg se o toolchain estiver ativo; senão sistema |
 
 Em todas as linhas, o Dear ImGui segue sua própria regra: `SUBMODULES` nos
 builds nativos/`SYSTEM`; `VCPKG` em builds com provedor principal vcpkg (ou
-quando `KOTONOHA_IMGUI_PROVIDER=VCPKG` é pedido explicitamente). Os presets
-versionados definem isso explicitamente: os presets `-system-*` usam
-`SUBMODULES` e os `-vcpkg-*` usam `VCPKG` com a feature de manifesto
-`imgui-vcpkg` (inclusive em `wasm32-emscripten`, cujo port vcpkg instala os
-bindings SDL3). No Android o submódulo fixado continua sendo o padrão.
-`SYSTEM` nunca é um provedor válido para ImGui.
+quando `KOTONOHA_IMGUI_PROVIDER=VCPKG` é pedido explicitamente). Para builds
+vcpkg, adicione a feature de manifesto `imgui-vcpkg` (inclusive em
+`wasm32-emscripten`, cujo port vcpkg instala os bindings SDL3). No Android o
+submódulo fixado continua sendo o padrão. `SYSTEM` nunca é um provedor válido
+para ImGui.
 
 ## Notas de ABI e MSYS2
 
@@ -193,5 +181,5 @@ bindings SDL3). No Android o submódulo fixado continua sendo o padrão.
 - `buildsystems/cmake/dependencies/KotonohaImGui.cmake` — resolução do ImGui via submódulo/vcpkg; rejeita `SYSTEM`.
 - `buildsystems/cmake/dependencies/KotonohaMedia.cmake` — descoberta de FFmpeg/libass/json-c.
 - `vcpkg.json` — features de manifesto `sdl-vcpkg` e `imgui-vcpkg`.
-- `CMakePresets.json` — presets `*-native` selecionam `SYSTEM` + `KOTONOHA_IMGUI_PROVIDER=SUBMODULES`; presets `*-vcpkg` selecionam `VCPKG` + `KOTONOHA_IMGUI_PROVIDER=VCPKG`.
+- `buildsystems/visualstudio/Directory.Build.props` — a solução nativa linka SDL3, SDL3_ttf e Dear ImGui do vcpkg (`sdl-vcpkg` + `imgui-vcpkg`).
 - `.github/workflows/linux-system-deps.yml` — cobertura de CI para apt/`SYSTEM`.

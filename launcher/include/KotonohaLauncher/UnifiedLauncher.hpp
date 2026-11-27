@@ -111,7 +111,7 @@ std::string sanitizeGameProfileId(std::string_view titleOrPath);
 
 // Resolves the per-game isolated user-data root and concrete save directory
 // for `entry`. When `splitSavesByGame` is true, returns a per-title root
-// `<baseUserData>/Kotonoha-Profiles/<saveProfileId>` so `StoragePaths` places
+// `<baseUserData>/Kotonoha/Profiles/<saveProfileId>` so `StoragePaths` places
 // saves under `<root>/Kotonoha/<packageId>/save`.
 std::string resolveIsolatedUserDataRoot(const DiscoveredGameEntry &entry,
                                         bool splitSavesByGame = true,
@@ -143,17 +143,22 @@ DiscoveredGameEntry
 buildDiscoveredGameEntry(const std::string &path,
                          const Kotonoha::Filesystem::DetectedEngine &detected);
 
-// Scans a single game directory/disc image or a multi-game library folder
-// and returns all recognized games sorted by title. Automatically pairs
-// companion patch folders (e.g. DDLC_PT-BR_Patch -> DDLC).
-std::vector<DiscoveredGameEntry>
-scanGameLibrary(const std::string &libraryOrGamePath);
+// Callback invoked as soon as one game is found. The entry is fully resolved
+// (engine, save profile and persisted parameters) before the callback runs.
+using GameFoundCallback = std::function<void(const DiscoveredGameEntry &)>;
 
-// Scans multiple roots (e.g. Documents/games, Documents, bookmarked external
-// folders/ISOs, or Android SAF URIs), deduplicating by canonical path and
-// pairing companion overlays across roots.
+// Scans a single game directory/disc image or a multi-game library folder.
+// maxDepth defaults to 0: only the root and its direct children are visited.
+// Candidates are probed in parallel; results are sorted by title.
 std::vector<DiscoveredGameEntry>
-scanGameLibraryRoots(const std::vector<std::string> &roots);
+scanGameLibrary(const std::string &libraryOrGamePath, int maxDepth = 0,
+                GameFoundCallback callback = {});
+
+// Scans multiple roots (Documents/games, Documents, bookmarked folders/ISOs,
+// Android SAF URIs), deduplicating by canonical path and pairing overlays.
+std::vector<DiscoveredGameEntry>
+scanGameLibraryRoots(const std::vector<std::string> &roots, int maxDepth = 0,
+                     GameFoundCallback callback = {});
 
 // Persistent per-game launch parameter store shared by Desktop ImGui, iOS
 // SwiftUI, and Android Material 3 launchers.

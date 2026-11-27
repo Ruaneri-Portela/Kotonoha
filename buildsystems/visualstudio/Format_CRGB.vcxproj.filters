@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{B865254A-A611-AA1A-1A32-6E8E481131A6}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)modules\formats\image\crgb\src\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

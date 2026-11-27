@@ -18,43 +18,42 @@ cmake --build build-web --target RealLive
 
 Os caminhos das toolchains variam conforme a instalação. `KOTONOHA_BUILD_ALL=ON` seleciona os ports web suportados, mas exclui DDLC. Sirva o resultado por **HTTP**, não por `file://`.
 
-## Presets CMake (`wasm-vcpkg-debug` / `wasm-vcpkg-release`)
+## MSYS2 UCRT64 (`mingw-w64-ucrt-x86_64-emscripten`)
 
-O WASM tem exatamente dois presets: `<name>-<provider>-<config>` com `vcpkg`
-obrigatório (não existe variante system). Ambos usam Ninja, a toolchain vcpkg
-com o arquivo de chainload do Emscripten
-`$EMSCRIPTEN_ROOT/cmake/Modules/Platform/Emscripten.cmake`, o triplet
-`wasm32-emscripten`, `VCPKG_OVERLAY_PORTS=vcpkg-overlays/ports`,
-`VCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg` e
-`KOTONOHA_IMGUI_PROVIDER=VCPKG` (o port suporta os bindings SDL3). Os diretórios
-de build são `out/build/wasm-vcpkg-debug` e `out/build/wasm-vcpkg-release`; o
-diretório clássico `build-web` acima não é modificado. As flags do Asyncify
-continuam em `buildsystems/cmake/games/KotonohaApp.cmake`.
+No Windows o pacote do MSYS2 fornece o Emscripten sem emsdk. Na raiz do
+repositório, no shell MSYS2 UCRT64:
 
 ```sh
-source /path/to/emsdk/emsdk_env.sh
-cmake --preset wasm-vcpkg-release
-cmake --build --preset wasm-vcpkg-release --target RealLive
-
-cmake --preset wasm-vcpkg-debug
-cmake --build --preset wasm-vcpkg-debug --target RealLive
+pacman -S mingw-w64-ucrt-x86_64-emscripten
+./tools/build-wasm.sh
 ```
 
+`tools/build-wasm.sh` configura em `build-wasm/` com `emcmake cmake`, o triplet
+`wasm32-emscripten` e os overlay ports, e depois compila o alvo `Kotonoha`.
+Sobrescreva `KOTONOHA_WASM_TARGET`, `KOTONOHA_WASM_BUILD_DIR` e
+`KOTONOHA_WASM_JOBS`, ou passe flags extras do CMake como argumentos. No
+PowerShell use `& .\tools\build-wasm.ps1`. A saída fica em `build-wasm/outputs/<target>/`.
+
+## Auxiliar de configuração (`tools/configure_wasm.sh`)
+
 Algumas instalações (por exemplo, Emscripten via Homebrew) não exportam
-`EMSCRIPTEN_ROOT`, que o triplet do vcpkg exige. Use o auxiliar abaixo: ele
-descobre a raiz a partir do `emcc` no `PATH` e executa o preset release por
-padrão (defina `WASM_PRESET=wasm-vcpkg-debug` para o debug):
+`EMSCRIPTEN_ROOT`, que o triplet do vcpkg exige. `tools/configure_wasm.sh`
+descobre a raiz a partir do `emcc` no `PATH` e executa `emcmake cmake` com o
+triplet `wasm32-emscripten`, os overlays de ports e as features `sdl-vcpkg` /
+`imgui-vcpkg` em `build-web/`. `VCPKG_ROOT` deve estar definido. As flags do
+Asyncify continuam em `buildsystems/cmake/games/KotonohaApp.cmake`.
 
 ```sh
 ./tools/configure_wasm.sh
-cmake --build --preset wasm-vcpkg-release --target RealLive
+cmake --build build-web --target RealLive
 
-WASM_PRESET=wasm-vcpkg-debug ./tools/configure_wasm.sh
-cmake --build --preset wasm-vcpkg-debug --target RealLive
+KOTONOHA_WASM_CONFIG=Debug ./tools/configure_wasm.sh
+cmake --build build-web --target Kotonoha
 ```
 
-Sempre carregue `emsdk_env.sh` (ou defina `EMSCRIPTEN_ROOT`) antes do primeiro
-configure: a toolchain Emscripten é escolhida nesse momento.
+Sobrescreva `KOTONOHA_WASM_BUILD_DIR` ou passe flags extras do CMake como
+argumentos. Sempre carregue `emsdk_env.sh` (ou defina `EMSCRIPTEN_ROOT`) antes
+do primeiro configure: a toolchain Emscripten é escolhida nesse momento.
 
 ## Um PWA instalável para cada jogo web
 

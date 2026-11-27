@@ -89,34 +89,23 @@ pacman -S mingw-w64-ucrt-x86_64-toolchain \
 ```
 
 `CMAKE_PREFIX_PATH` and `PKG_CONFIG_PATH` pick up `$MSYSTEM_PREFIX`
-(e.g. `C:/msys64/ucrt64`) automatically. Use the canonical
-`windows-x64-mingw-system-{debug,release}` presets (or the compatibility alias
-`windows-ucrt-system`) or a fresh build directory. Cross MinGW builds from
-macOS/Linux are different: **vcpkg is mandatory** there because apt/Homebrew
-cannot provide Windows target libraries.
+(e.g. `C:/msys64/ucrt64`) automatically. Always use a fresh build directory
+when switching providers. Cross MinGW builds from macOS/Linux are different:
+**vcpkg is mandatory** there because apt/Homebrew cannot provide Windows target
+libraries.
 
 ## Configuration examples
 
 ```sh
-# macOS arm64, Homebrew only (preset already selects SYSTEM + SUBMODULES ImGui)
-cmake --preset macos-arm64-native-system-release
-cmake --build --preset macos-arm64-native-system-release --target Kotonoha
-
-# Linux, apt SDL3/SDL3_ttf + pinned ImGui submodule
-cmake -S . -B build-system -G Ninja -DCMAKE_BUILD_TYPE=Debug \
+# System SDL3/SDL3_ttf (apt/Homebrew/MSYS2 UCRT) + pinned ImGui submodule
+cmake -S . -B build-system -G Ninja -DCMAKE_BUILD_TYPE=Release \
   -DKOTONOHA_DEPS_PROVIDER=SYSTEM \
   -DKOTONOHA_SDL_PROVIDER=SYSTEM \
   -DKOTONOHA_IMGUI_PROVIDER=SUBMODULES \
   -DKOTONOHA_BUILD_EXAMPLE=ON
 cmake --build build-system --target Kotonoha
 
-# MSYS2 UCRT64, pacman only (from the UCRT64 shell)
-cmake --preset windows-x64-mingw-system-release
-# alias: cmake --preset windows-ucrt-system
-
 # vcpkg for everything (SDL3, SDL3_ttf and ImGui)
-cmake --preset macos-arm64-native-vcpkg-release
-# or:
 cmake -S . -B build-vcpkg -G Ninja \
   -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
   '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
@@ -158,15 +147,14 @@ previous installation.
 | Windows MinGW cross (macOS/Linux host) | **forbidden (FATAL_ERROR)** | `*-mingw-dynamic` vcpkg only | not used | vcpkg |
 | Windows MSVC | allowed with an ABI-compatible native/pkg-config install (warning emitted) | native MSVC triplet (`x64-windows`, ...) | SDL from submodule, media from a native install | vcpkg if toolchain active, else system |
 | Android | SDL forced to submodule (media from vcpkg) | per-ABI vcpkg | SDL submodule (default) | vcpkg media + SDL submodule |
-| WebAssembly | system Emscripten packages | `wasm32-emscripten` vcpkg (`sdl-vcpkg;imgui-vcpkg`) | not used by presets | vcpkg if toolchain active, else system |
+| WebAssembly | system Emscripten packages | `wasm32-emscripten` vcpkg (`sdl-vcpkg;imgui-vcpkg`) | not used | vcpkg if toolchain active, else system |
 
 In every row, Dear ImGui follows its own rule: `SUBMODULES` for native/`SYSTEM`
 builds; `VCPKG` for a vcpkg master build (or when
-`KOTONOHA_IMGUI_PROVIDER=VCPKG` is requested explicitly). The checked-in
-presets set this explicitly: `-system-*` presets use `SUBMODULES`, `-vcpkg-*`
-presets use `VCPKG` with the `imgui-vcpkg` manifest feature (including
-`wasm32-emscripten`, whose vcpkg port installs the SDL3 bindings). Android
-keeps the pinned submodule. `SYSTEM` is never a valid ImGui provider.
+`KOTONOHA_IMGUI_PROVIDER=VCPKG` is requested explicitly). For vcpkg builds add
+the `imgui-vcpkg` manifest feature (including `wasm32-emscripten`, whose vcpkg
+port installs the SDL3 bindings). Android keeps the pinned submodule. `SYSTEM`
+is never a valid ImGui provider.
 
 ## ABI and MSYS2 notes
 
@@ -192,5 +180,5 @@ keeps the pinned submodule. `SYSTEM` is never a valid ImGui provider.
 - `buildsystems/cmake/dependencies/KotonohaImGui.cmake` — ImGui submodule/vcpkg resolution; rejects `SYSTEM`.
 - `buildsystems/cmake/dependencies/KotonohaMedia.cmake` — FFmpeg/libass/json-c discovery.
 - `vcpkg.json` — `sdl-vcpkg` and `imgui-vcpkg` manifest features.
-- `CMakePresets.json` — `*-native` presets select `SYSTEM` + `KOTONOHA_IMGUI_PROVIDER=SUBMODULES`; `*-vcpkg` presets select `VCPKG` + `KOTONOHA_IMGUI_PROVIDER=VCPKG`.
+- `buildsystems/visualstudio/Directory.Build.props` — native solution links SDL3, SDL3_ttf and Dear ImGui from vcpkg (`sdl-vcpkg` + `imgui-vcpkg`).
 - `.github/workflows/linux-system-deps.yml` — apt/`SYSTEM` CI coverage.

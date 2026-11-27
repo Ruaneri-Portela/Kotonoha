@@ -4,7 +4,9 @@
 // KotonohaLauncherCore.dll / .dylib / .so. All strings crossing the ABI are
 // UTF-8; pointers returned by the native side must be released with FreeString.
 using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 
 namespace Kotonoha.Launcher;
 
@@ -53,6 +55,17 @@ public static class KotonohaLauncher
         [MarshalAs(UnmanagedType.Bool)] bool splitSavesByGame,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string? customSaveRoot);
 
+    /// <summary>Native callback: game JSON must be released with FreeString.</summary>
+    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+    public delegate void GameFoundCallback(IntPtr gameJson, IntPtr userData);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    private static extern void KotonohaLauncherScanRootsJsonWithCallback(
+        IntPtr[] roots, int rootCount,
+        [MarshalAs(UnmanagedType.Bool)] bool splitSavesByGame,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string? customSaveRoot,
+        int maxDepth, GameFoundCallback callback, IntPtr userData);
+
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr KotonohaLauncherDetectPathJson(
         [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
@@ -78,6 +91,10 @@ public static class KotonohaLauncher
         [MarshalAs(UnmanagedType.LPUTF8Str)] string? upscalerBackend,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string? upscalerPreset,
         [MarshalAs(UnmanagedType.LPUTF8Str)] string? upscalerFactor);
+
+    [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
+    private static extern IntPtr KotonohaLauncherLaunchGame(
+        ref KotonohaGameLaunchRequest request);
 
     [DllImport(Library, CallingConvention = CallingConvention.Cdecl)]
     private static extern IntPtr KotonohaLauncherUpscalePresetsJson();
@@ -128,6 +145,36 @@ public static class KotonohaLauncher
         }
     }
 
+    /// <summary>
+    /// Scan roots and invoke `onGame` for each game as soon as it is found.
+    /// maxDepth=0 visits only the root and its direct children.
+    /// </summary>
+    public static void ScanRoots(string[] roots, Action<string> onGame,
+                                 bool splitSavesByGame = false,
+                                 string? customSaveRoot = null, int maxDepth = 0)
+    {
+        var native = new IntPtr[roots.Length];
+        for (int i = 0; i < roots.Length; ++i)
+            native[i] = Marshal.StringToCoTaskMemUTF8(roots[i] ?? string.Empty);
+        GameFoundCallback callback = (json, _) =>
+        {
+            if (json == IntPtr.Zero) return;
+            try { onGame(Marshal.PtrToStringUTF8(json) ?? string.Empty); }
+            finally { KotonohaLauncherFreeString(json); }
+        };
+        try
+        {
+            KotonohaLauncherScanRootsJsonWithCallback(
+                native, native.Length, splitSavesByGame, customSaveRoot,
+                maxDepth, callback, IntPtr.Zero);
+            GC.KeepAlive(callback);
+        }
+        finally
+        {
+            foreach (var ptr in native) Marshal.FreeCoTaskMem(ptr);
+        }
+    }
+
     /// <summary>Detect one game folder or disc image as a JSON object.</summary>
     public static string DetectPath(string path, bool splitSavesByGame = false,
                                     string? customSaveRoot = null) =>
@@ -151,6 +198,59 @@ public static class KotonohaLauncher
             subtitleStylePath, customDocumentsDir, ktrfPath, scriptsDir,
             startScenario, rendererBackend, upscalerBackend, upscalerPreset,
             upscalerFactor);
+
+    /// <summary>
+    /// Launches one game in-process. Returns JSON with ok, playable, phase,
+    /// message, frames and dryRun fields. Set request.DryRun=true to validate
+    /// without starting SDL.
+    /// </summary>
+    public static string LaunchGame(KotonohaGameLaunchRequest request) =>
+        TakeString(KotonohaLauncherLaunchGame(ref request));
+
+    /// <summary>Convenience overload for the most common launch fields.</summary>
+    public static string LaunchGame(
+        string gamePath, string engineSlug = "", string saveProfileId = "",
+        bool splitSavesByGame = true, string? customSaveRoot = null) =>
+        LaunchGame(new KotonohaGameLaunchRequest
+        {
+            GamePath = gamePath,
+            EngineSlug = engineSlug,
+            SaveProfileId = saveProfileId,
+            SplitSavesByGame = splitSavesByGame,
+            CustomSaveRoot = customSaveRoot,
+        });
+
+    /// <summary>
+    /// Windows "fork": starts the game in a RUNDLL32 host process so SDL runs
+    /// on that process main thread. stdin/stdout/stderr are inherited and
+    /// captured by the caller; the manager does not exit.
+    /// </summary>
+    public static Process LaunchGameDetached(KotonohaGameLaunchRequest request,
+                                             string launcherDllPath)
+    {
+        var json = JsonSerializer.Serialize(new
+        {
+            request.GamePath, request.EngineSlug, request.SaveProfileId,
+            request.SplitSavesByGame, request.CustomSaveRoot,
+            request.AssetOverlayPath, request.TranslationPath,
+            request.SubtitleStylePath, request.CustomDocumentsDir,
+            request.KtrfPath, request.ScriptsDir, request.StartScenario,
+            request.RendererBackend, request.UpscalerBackend,
+            request.UpscalerPreset, request.UpscalerFactor, request.DryRun
+        });
+        var psi = new ProcessStartInfo("rundll32.exe")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+        };
+        // RUNDLL32 exige "dll",EntryPoint exatamente; ArgumentList escaparia
+        // as aspas e o host terminaria sem executar a funcao exportada.
+        psi.Arguments = $"\"{launcherDllPath}\",KotonohaLauncherRunDll";
+        psi.Environment["KOTONOHA_LAUNCH_REQUEST_JSON"] = json;
+        return Process.Start(psi)
+               ?? throw new InvalidOperationException("rundll32 nao iniciou");
+    }
 
     /// <summary>List upscaler presets as JSON.</summary>
     public static string UpscalePresets() =>

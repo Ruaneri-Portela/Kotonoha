@@ -685,7 +685,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     rngSeed_ = (rngSeed_ * 1103515245 + 12345) & 0x7FFFFFFF;
     const long long limit =
         a.empty() ? 0 : static_cast<long long>(number(a, 0));
-    return VmValue::num(limit > 0 ? rngSeed_ % limit : 0);
+    return VmValue::num(static_cast<double>(limit > 0 ? rngSeed_ % limit : 0));
   }
   if (s == "ToAnswer" && r.object == self_.object) {
     choices_.clear();
@@ -762,7 +762,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
     for (const auto &key : {"ITEM_BASE", "ITEM_ICON"}) {
       if (!visuals_.count(key))
         continue;
-      animate(key, Tween::Alpha, closing || s == "hideItem" ? 0 : 1, 0, frames,
+      animate(key, Tween::Alpha, closing || s == "hideItem" ? 0.0f : 1.0f, 0, frames,
               1);
       if (opening || closing) {
         const float size = closing                           ? 0
@@ -1084,7 +1084,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   if (actorIds.count(t) && (s == "fadeIn" || s == "fadeOut")) {
     auto &v = visuals_[t];
     v.visible = true;
-    animate(t, Tween::Alpha, s == "fadeIn" ? 1 : 0, s == "fadeIn" ? 1 : 0,
+    animate(t, Tween::Alpha, s == "fadeIn" ? 1.0f : 0.0f, s == "fadeIn" ? 1.0f : 0.0f,
             a.size() >= 2 ? number(a, 1) : actorFadeFrames_, int(number(a, 0)));
     return r;
   }
@@ -1151,7 +1151,7 @@ std::optional<VmValue> Session::native(const VmValue &r, const std::string &s,
   }
   if (actorIds.count(t) && s == "setFace") {
     auto &v = visuals_[t];
-    int eye = int(number(a, 0)), mouth = int(number(a, 1, eye));
+    int eye = int(number(a, 0)), mouth = int(number(a, 1, static_cast<float>(eye)));
     if (eye >= 0 && eye < 9)
       v.expression = eye;
     if (mouth >= 0 && mouth < 9)

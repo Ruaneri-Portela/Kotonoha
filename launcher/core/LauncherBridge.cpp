@@ -4,6 +4,9 @@
 
 #include <Kotonoha/core/Engine.hpp>
 #include <SDL3/SDL.h>
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#include <json-c/json.h>
+#endif
 
 #if defined(__APPLE__)
 #include <dispatch/dispatch.h>
@@ -31,6 +34,22 @@
 namespace {
 
 namespace fs = std::filesystem;
+
+#if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+const char *jsonString(json_object *root, const char *key) {
+  json_object *value = nullptr;
+  return root && json_object_object_get_ex(root, key, &value) &&
+                 json_object_is_type(value, json_type_string)
+             ? json_object_get_string(value)
+             : nullptr;
+}
+
+bool jsonBool(json_object *root, const char *key) {
+  json_object *value = nullptr;
+  return root && json_object_object_get_ex(root, key, &value) &&
+         json_object_get_boolean(value);
+}
+#endif
 
 char *dupCString(const std::string &str) {
   auto *out = static_cast<char *>(std::malloc(str.size() + 1));
@@ -301,6 +320,36 @@ char *KotonohaLauncherScanRootsJson(const char *const *roots, int rootCount,
     return dupCString(out.str());
   } catch (...) {
     return dupCString("[]");
+  }
+}
+
+void KotonohaLauncherScanRootsJsonWithCallback(
+    const char *const *roots, int rootCount, int splitSavesByGame,
+    const char *customSaveRoot, int maxDepth,
+    void (*callback)(const char *gameJson, void *userData), void *userData) {
+  try {
+    std::vector<std::string> rootList;
+    if (roots && rootCount > 0) {
+      rootList.reserve(static_cast<std::size_t>(rootCount));
+      for (int i = 0; i < rootCount; ++i) {
+        if (roots[i] && roots[i][0] != '\0')
+          rootList.emplace_back(roots[i]);
+      }
+    }
+    const std::string saveRootStr = safeString(customSaveRoot);
+    const bool split = splitSavesByGame != 0;
+    KotonohaLauncher::GameFoundCallback found =
+        [&](const KotonohaLauncher::DiscoveredGameEntry &entry) {
+          if (!callback)
+            return;
+          std::ostringstream out;
+          appendEntryObject(out, entry, split, saveRootStr);
+          // O chamador libera com KotonohaLauncherFreeString.
+          callback(dupCString(out.str()), userData);
+        };
+    KotonohaLauncher::scanGameLibraryRoots(rootList, maxDepth, found);
+  } catch (...) {
+    // Um root invalido nao deve abortar a aplicacao.
   }
 }
 
@@ -672,7 +721,7 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
   try {
     KotonohaLauncher::DiscoveredGameEntry entry;
     entry.path = safeString(gamePath);
-    entry.title = fs::path(entry.path).filename().string();
+    entry.title = fs::u8path(entry.path).filename().u8string();
     entry.saveProfileId =
         saveProfileId && saveProfileId[0] != '\0'
             ? std::string(saveProfileId)
@@ -692,5 +741,62 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
 }
 
 void KotonohaLauncherFreeString(char *ptr) { std::free(ptr); }
+
+char *KotonohaLauncherLaunchGameJson(const char *requestJson) {
+#if defined(__ANDROID__) || defined(__EMSCRIPTEN__)
+  (void)requestJson;
+  return launchResponseJson(false, "error", "JSON launch is unavailable", 0,
+                            false, "", "");
+#else
+  if (!requestJson || !*requestJson)
+    return launchResponseJson(false, "error", "Empty launch request", 0,
+                              false, "", "");
+  json_object *root =
+      json_tokener_parse(requestJson);
+  if (!root)
+    return launchResponseJson(false, "error", "Invalid launch JSON", 0,
+                              false, "", "");
+  KotonohaGameLaunchRequest request{};
+  request.gamePath = jsonString(root, "GamePath");
+  request.engineSlug = jsonString(root, "EngineSlug");
+  request.saveProfileId = jsonString(root, "SaveProfileId");
+  request.splitSavesByGame = jsonBool(root, "SplitSavesByGame") ? 1 : 0;
+  request.customSaveRoot = jsonString(root, "CustomSaveRoot");
+  request.assetOverlayPath = jsonString(root, "AssetOverlayPath");
+  request.translationPath = jsonString(root, "TranslationPath");
+  request.subtitleStylePath = jsonString(root, "SubtitleStylePath");
+  request.customDocumentsDir = jsonString(root, "CustomDocumentsDir");
+  request.ktrfPath = jsonString(root, "KtrfPath");
+  request.scriptsDir = jsonString(root, "ScriptsDir");
+  request.startScenario = jsonString(root, "StartScenario");
+  request.rendererBackend = jsonString(root, "RendererBackend");
+  request.upscalerBackend = jsonString(root, "UpscalerBackend");
+  request.upscalerPreset = jsonString(root, "UpscalerPreset");
+  request.upscalerFactor = jsonString(root, "UpscalerFactor");
+  request.dryRun = jsonBool(root, "DryRun") ? 1 : 0;
+  char *result = KotonohaLauncherLaunchGame(&request);
+  json_object_put(root);
+  return result;
+#endif
+}
+
+#if defined(_WIN32)
+void CALLBACK KotonohaLauncherRunDll(void *, void *, char *commandLine, int) {
+  // O "fork" do Windows: o RUNDLL32 hospeda o jogo na propria main thread.
+  const char *request = nullptr;
+  if (const char *env = std::getenv("KOTONOHA_LAUNCH_REQUEST_JSON"))
+    if (*env)
+      request = env;
+  if (!request && commandLine && *commandLine)
+    request = commandLine;
+  if (!request)
+    return;
+  char *result = KotonohaLauncherLaunchGameJson(request);
+  if (result) {
+    std::fprintf(stderr, "[Kotonoha] game result: %s\n", result);
+    KotonohaLauncherFreeString(result);
+  }
+}
+#endif
 
 } // extern "C"

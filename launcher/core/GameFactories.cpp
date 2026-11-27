@@ -75,7 +75,7 @@ using Kotonoha::Filesystem::EngineKind;
 // sources, retain the disc path and let the provider's virtual mount resolve
 // dataPrefix. Never append a directory suffix to an ISO pathname.
 std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
-  const std::filesystem::path original(entry.path);
+  const std::filesystem::path original = std::filesystem::u8path(entry.path);
   if (entry.engine.dataPrefix.empty())
     return entry.path;
   std::error_code error;
@@ -92,7 +92,7 @@ std::string selectedSourcePath(const DiscoveredGameEntry &entry) {
     return entry.path;
   const auto nested = original / entry.engine.dataPrefix;
   if (std::filesystem::is_directory(nested, error))
-    return nested.string();
+    return nested.u8string();
   return entry.path;
 }
 

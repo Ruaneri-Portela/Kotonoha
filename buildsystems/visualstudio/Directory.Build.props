@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuracao comum a todos os projetos da solucao Visual Studio do Kotonoha.
+     Nenhum projeto invoca CMake: as fontes sao compiladas diretamente. -->
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildThisFileDirectory)GeneratedIncludeDirs.props" />
+  <PropertyGroup>
+    <RepoRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..'))\</RepoRoot>
+    <KotonohaGenerated>$(MSBuildThisFileDirectory)generated</KotonohaGenerated>
+    <OutDir>$(MSBuildThisFileDirectory)out\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(MSBuildThisFileDirectory)obj\$(Platform)\$(Configuration)\$(MSBuildProjectName)\</IntDir>
+    <TargetPlatformVersion>10.0</TargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+
+    <KotonohaVcpkgArch Condition="'$(Platform)' == 'Win32'">x86</KotonohaVcpkgArch>
+    <KotonohaVcpkgArch Condition="'$(Platform)' == 'x64'">x64</KotonohaVcpkgArch>
+    <KotonohaVcpkgArch Condition="'$(Platform)' == 'ARM64'">arm64</KotonohaVcpkgArch>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'Win32'">x86-windows</KotonohaVcpkgTriplet>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'x64'">x64-windows</KotonohaVcpkgTriplet>
+    <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'ARM64'">arm64-windows</KotonohaVcpkgTriplet>
+    <!-- Uma raiz por arquitetura: vcpkg em modo manifesto remove os outros
+         triplets da mesma raiz, entao x86/x64/arm64 nao podem compartilhar. -->
+    <KotonohaVcpkgRoot>$(MSBuildThisFileDirectory)vcpkg\$(KotonohaVcpkgArch)\$(KotonohaVcpkgTriplet)\</KotonohaVcpkgRoot>
+    <!-- A solucao instala e resolve o vcpkg por si (PrepareVisualStudio.ps1). -->
+    <VcpkgEnabled>false</VcpkgEnabled>
+    <VcpkgEnableManifest>false</VcpkgEnableManifest>
+
+    <KotonohaDefines>WIN32;_WINDOWS;_CRT_SECURE_NO_WARNINGS;_CRT_NONSTDC_NO_DEPRECATE;NOMINMAX;UNICODE;_UNICODE;_WIN32_WINNT=0x0A00;KOTONOHA_HAS_METALFX=0;KOTONOHA_ENABLE_UPSCALER=0;KOTONOHA_ENABLE_MCP=1</KotonohaDefines>
+  </PropertyGroup>
+
+  <!-- Headers publicos e fontes dos modulos: a raiz de cada include/src e
+       mantida automaticamente, sem duplicar listas em cada .vcxproj. -->
+  <ItemGroup>
+    <KotonohaIncludeDir Include="$(RepoRoot)lib\include;$(RepoRoot)lib\src;$(KotonohaGenerated)" />
+    <!-- SDL3, SDL3_ttf e Dear ImGui (inclusive imgui_stdlib.h) vem do vcpkg. -->
+    <KotonohaIncludeDir Include="@(KotonohaGeneratedIncludeDir)" />
+    <KotonohaIncludeDir Include="$(RepoRoot)games\reallive\vendor;$(RepoRoot)games\reallive\vendor\machine;$(RepoRoot)games\reallive\vendor\libreallive" />
+    <KotonohaIncludeDir Include="$(RepoRoot)launcher\include;$(RepoRoot)launcher\core;$(RepoRoot)launcher\bridge" />
+    <KotonohaIncludeDir Include="$(KotonohaVcpkgRoot)include;$(KotonohaVcpkgRoot)include\python3.14" />
+  </ItemGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <PreprocessorDefinitions>$(KotonohaDefines);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <WarningLevel>Level3</WarningLevel>
+      <!-- Conversoes numericas intencionais dos ports: mantem o build de todas
+           as arquiteturas livre de avisos repetitivos. -->
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <!-- vcpkg unordered linking: apenas as bibliotecas do triplet da plataforma. -->
+      <AdditionalDependencies>%(AdditionalDependencies);$(KotonohaVcpkgRoot)lib\*.lib;user32.lib;ws2_32.lib;shell32.lib;ole32.lib;advapi32.lib;opengl32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(KotonohaVcpkgRoot)lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <SubSystem>Console</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+</Project>

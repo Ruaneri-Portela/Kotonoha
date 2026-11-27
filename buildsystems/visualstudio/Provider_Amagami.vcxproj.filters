@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{137FE9A9-E7EE-301B-01BA-ED22420504DF}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)modules\providers\amagami\src\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

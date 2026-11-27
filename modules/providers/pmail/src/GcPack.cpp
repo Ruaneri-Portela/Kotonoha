@@ -324,11 +324,11 @@ std::vector<uint8_t> GcPackArchive::read(const std::string &name) const {
     return {};
   size_t totalRead = 0;
   while (totalRead < out.size()) {
-    const size_t got =
+    const auto read =
         file_->read(out.data() + totalRead, out.size() - totalRead);
-    if (got == 0)
+    if (read <= 0)
       break;
-    totalRead += got;
+    totalRead += static_cast<size_t>(read);
   }
   out.resize(totalRead);
   return out;

@@ -198,7 +198,7 @@ Script::Script(const Header& hdr,
   while (pos < dlen) {
     // Read element
     it = elts_.emplace_after(it, BytecodeElement::Read(stream, end, cdat));
-    cdat.offsets[pos] = it;
+    cdat.offsets[static_cast<unsigned long>(pos)] = it;
 
     // Keep track of the entrypoints
     int entrypoint = (*it)->GetEntrypoint();

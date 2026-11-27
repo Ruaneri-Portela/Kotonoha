@@ -24,7 +24,7 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 
 - **[Índice da documentação](docs/README.pt-BR.md)** — guias e plataformas.
 - **[Carta de estilo e identidade visual](design/README.md)** — K oficial, splash, paleta, temas e geração de ícones por plataforma.
-- **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS e WebAssembly.
+- **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS, WebAssembly e a solução Visual Studio nativa.
 - **[CI e vcpkg](docs/CI_VCPKG.pt-BR.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
 - **[Ports de jogos](games/README.pt-BR.md)** — módulos, limitações e instruções específicas.
 - **[Máquinas virtuais](modules/vms/README.pt-BR.md)** e **[provedores de assets](modules/providers/README.pt-BR.md)**.
@@ -42,13 +42,13 @@ O [launcher unificado independente](launcher/README.pt-BR.md) funciona no deskto
 
 | Pasta | Função |
 | --- | --- |
-| `launcher/` | Launcher unificado desktop para vários motores |
+| `launcher/` | Launcher unificado desktop para vários motores e gerenciador Avalonia (`desktop/KotonohaManager/`) |
 | `lib/` | Motor compartilhado, headers públicos e testes |
 | `modules/vms/` | Máquinas virtuais de scripts |
 | `modules/providers/` | Leitura de assets e arquivos compactados |
 | `games/` | Ports individuais e demonstração |
 | `assets/` | Recursos compartilhados e avisos de terceiros |
-| `buildsystems/` | CMake, projeto Gradle Android e projeto Xcode nativo |
+| `buildsystems/` | CMake, projeto Gradle Android, projeto Xcode nativo e solução Visual Studio independente (`visualstudio/Kotonoha.sln`) |
 | `docs/` | Documentação multiplataforma |
 | `tools/` | Utilitários de build e assets |
 

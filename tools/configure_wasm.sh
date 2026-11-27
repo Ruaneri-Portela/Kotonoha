@@ -1,6 +1,6 @@
 #!/bin/sh
-# Configure a `wasm-vcpkg-*` CMake preset with a valid EMSCRIPTEN_ROOT.
-# Default: wasm-vcpkg-release; override with WASM_PRESET=wasm-vcpkg-debug.
+# Configure a WASM build with a valid EMSCRIPTEN_ROOT and the vcpkg toolchain.
+# Default configuration: Release; override with KOTONOHA_WASM_CONFIG=Debug.
 #
 # emsdk layouts already export EMSDK/EMSCRIPTEN_ROOT via emsdk_env.sh.
 # Homebrew's Emscripten installs emcc in a versioned Cellar prefix, which
@@ -54,6 +54,27 @@ if ! valid_root "${EMSCRIPTEN_ROOT:-}"; then
     echo "cmake/Modules/Platform/Emscripten.cmake." >&2
     exit 1
 fi
+: "${VCPKG_ROOT:?Set VCPKG_ROOT to the vcpkg checkout}"
+if ! command -v emcmake >/dev/null 2>&1; then
+    echo "[Kotonoha] emcmake not found on PATH. Activate emsdk first." >&2
+    exit 1
+fi
+
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+BUILD_DIR="${KOTONOHA_WASM_BUILD_DIR:-$ROOT/build-web}"
+CONFIG="${KOTONOHA_WASM_CONFIG:-Release}"
 
 echo "[Kotonoha] EMSCRIPTEN_ROOT=$EMSCRIPTEN_ROOT"
-exec cmake --preset "${WASM_PRESET:-wasm-vcpkg-release}" "$@"
+echo "[Kotonoha] build dir: $BUILD_DIR ($CONFIG)"
+exec emcmake cmake -S "$ROOT" -B "$BUILD_DIR" -G Ninja \
+  -DCMAKE_BUILD_TYPE="$CONFIG" \
+  -DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" \
+  -DVCPKG_CHAINLOAD_TOOLCHAIN_FILE="$EMSCRIPTEN_ROOT/cmake/Modules/Platform/Emscripten.cmake" \
+  -DVCPKG_TARGET_TRIPLET=wasm32-emscripten \
+  -DVCPKG_OVERLAY_PORTS="$ROOT/vcpkg-overlays/ports" \
+  '-DVCPKG_MANIFEST_FEATURES=sdl-vcpkg;imgui-vcpkg' \
+  -DKOTONOHA_SDL_PROVIDER=VCPKG \
+  -DKOTONOHA_IMGUI_PROVIDER=VCPKG \
+  -DKOTONOHA_BUILD_EXAMPLE=ON \
+  -DBUILD_TESTING=OFF \
+  "$@"

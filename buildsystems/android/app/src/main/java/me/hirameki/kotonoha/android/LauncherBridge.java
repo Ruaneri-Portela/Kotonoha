@@ -39,6 +39,13 @@ public final class LauncherBridge {
             boolean splitSavesByGame,
             String customSaveRoot);
 
+    /** maxDepth=0 (padrao) visita apenas a raiz e seus filhos diretos. */
+    public static native String nativeScanRootsJsonWithDepth(
+            String[] roots,
+            boolean splitSavesByGame,
+            String customSaveRoot,
+            int maxDepth);
+
     public static native String nativeLoadGameParamsJson(String saveProfileId);
 
     public static native boolean nativeSaveGameParams(

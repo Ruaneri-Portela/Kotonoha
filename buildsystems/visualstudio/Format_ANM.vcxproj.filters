@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{D45FADE5-ABA4-2EF9-B04C-9D50C14A6323}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)modules\formats\animation\anm\src\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

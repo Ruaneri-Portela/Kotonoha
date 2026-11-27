@@ -233,7 +233,8 @@ Source::Source(const std::string &path)
       throw std::runtime_error("Invalid voice bank");
     h = disc_->read(voice.file, bank.offset, 8 + n * 8 + 8);
     auto entries = ParseAfs(h, bank.size);
-    uint64_t names = u32(h, 8 + n * 8), length = u32(h, 12 + n * 8);
+    uint64_t names = u32(h, static_cast<size_t>(8 + n * 8)),
+                                                     length = u32(h, static_cast<size_t>(12 + n * 8));
     if (names > bank.size || length > bank.size - names || n * 48 > length)
       throw std::runtime_error("Invalid AFS names");
     auto table = disc_->read(voice.file, bank.offset + names, n * 48);

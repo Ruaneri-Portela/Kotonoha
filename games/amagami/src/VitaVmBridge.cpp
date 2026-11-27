@@ -324,7 +324,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       picture.refresh();
       if (fields.empty())
         fields.resize(1);
-      fields[0] = VmValue::num(uid);
+      fields[0] = VmValue::num(static_cast<double>(uid));
       return receiver;
     }
     if (owner == "FontChar2" && number == 1)
@@ -417,7 +417,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
       auto &fields = spriteFields(receiver);
       if (fields.empty())
         fields.resize(1);
-      fields[0] = VmValue::num(uid);
+      fields[0] = VmValue::num(static_cast<double>(uid));
       return receiver;
     }
     if (classMethod)
@@ -587,7 +587,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         throw std::runtime_error(
             "Amagami Vita: Sprite texture id out of range");
       fields[0] =
-          VmValue::num(newSprite(uint32_t(tex), uint32_t(variant), layer));
+          VmValue::num(static_cast<double>(newSprite(uint32_t(tex), uint32_t(variant), layer)));
       return receiver;
     }
     if (number == 2) { // attach(sourceUid): clone source graphic
@@ -603,7 +603,7 @@ VitaVmBridge::primitive(const std::string &owner, const std::string &method,
         clone.uid = nextUid_++;
         clone.order = ++nextOrder_;
         sprites_.emplace(clone.uid, clone);
-        fields[0] = VmValue::num(clone.uid);
+        fields[0] = VmValue::num(static_cast<double>(clone.uid));
       }
       return receiver;
     }

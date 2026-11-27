@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Sources"><UniqueIdentifier>{B229FC89-153F-EDB6-6B3B-B46898F3D670}</UniqueIdentifier></Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="$(RepoRoot)modules\providers\rpa\src\*.cpp"><Filter>Sources</Filter></ClCompile>
+  </ItemGroup>
+</Project>

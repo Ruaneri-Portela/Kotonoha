@@ -171,11 +171,11 @@ void PmailAudio::Tick(Slot &slot, uint64_t now) {
   const double progress =
       std::min(1.0, double(now - slot.fadeStart) / slot.fadeDuration);
   // Native mixer steps its gain through 0..256 (0x420d90).
-  const float gain =
+  const float gain = static_cast<float>(
       std::floor(
           (slot.fadeFrom + (slot.state.fadeTarget - slot.fadeFrom) * progress) *
           256.0f) /
-      256.0f;
+      256.0f);
   slot.player.SetGain(std::clamp(gain, 0.0f, 1.0f));
   slot.state.gain = gain;
   if (progress >= 1) {
@@ -300,7 +300,7 @@ bool PmailAudio::Handle(int syscall, const std::vector<int> &numbers,
       Fade(*outgoingSe_, 0, fadeSeconds(number(1)));
     } else
       Stop(*outgoingSe_);
-    Play(1, id, number(0) != 0, syscall == 96 ? 1 : 0);
+    Play(1, id, number(0) != 0, static_cast<float>(syscall == 96 ? 1 : 0));
     if (syscall != 96)
       Fade(*slots_[1], 1, fadeSeconds(number(1)));
     return true;
