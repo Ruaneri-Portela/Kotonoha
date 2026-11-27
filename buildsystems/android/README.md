@@ -8,7 +8,7 @@ Open this folder in Android Studio. Required: **JDK 17**, Android **SDK 36**, **
 export VCPKG_ROOT=/path/to/vcpkg
 ./gradlew :app:assembleExampleDebug
 ./gradlew :app:assembleDokiDokiDebug -Pabis=arm64-v8a
-./gradlew :app:assembleSchoolDaysDebug -Pabis=armeabi-v7a
+./gradlew :app:assembleSchoolDaysDebug -Pabis=armeabi-v7a -PbundleGameAssets=false
 ```
 
 Run commands from `buildsystems/android/` (PowerShell: set `$env:VCPKG_ROOT` and use `.\gradlew.bat`). Other flavors include `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `RealLive`, `Kirikiri`, `LucaSystem`, and `Pmail`.
@@ -19,5 +19,8 @@ Run commands from `buildsystems/android/` (PowerShell: set `$env:VCPKG_ROOT` and
 - Gradle bundles engine `assets/`, but **excludes retail game `game-assets/` by default**. Only Example demo assets are always bundled. Explicit `-PbundleGameAssets=true` is for authorized private testing; Android `dist` always excludes retail game assets. Packaged resources are extracted on startup and saves stay separate.
 - On Android, iOS, and WebAssembly (WASM), user data and saves are stored directly in `pacote/**` (ignoring package/bundle name), while desktop standalone builds use `Kotonoha/pacote/**`. In unified launcher mode (`UnifiedLauncher`), package names are omitted for saves.
 - Folder and ZIP imports on Android use robust directory copying and SAF permission persistence.
+- School Days always loads the 29 original retail packs via SAF;
+  -PbundleGameAssets never embeds them. For its private portrait launcher,
+  -PincludeLauncherArt=false can disable local staging of the optional art.
 
 For external assets, overlays, OBB, and saved files, see the [directory policy](../../docs/DIRECTORY_POLICY.md). See also [Android build guide](../../docs/BUILD_ANDROID.md).

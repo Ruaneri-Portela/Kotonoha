@@ -40,9 +40,7 @@ void SDLCALL PcmPlayer::Feed(void *user, SDL_AudioStream *stream,
 
 bool PcmPlayer::Play(std::shared_ptr<AudioChannel> channel, Clip clip) {
   Stop();
-  if (clip.channels <= 0 || clip.rate <= 0 ||
-      clip.samples.size() < size_t(clip.channels))
-    return false;
+  if (clip.channels <= 0 || clip.rate <= 0 || clip.samples.size() < size_t(clip.channels)) return false;
   // Keep source PCM untouched. Amplifying S16 here clips loud peaks before
   // SDL can convert/mix in float; the old converter applied this gain after
   // sample format conversion.
@@ -53,24 +51,14 @@ bool PcmPlayer::Play(std::shared_ptr<AudioChannel> channel, Clip clip) {
   voice->cursor = std::min(clip.startFrame, voice->frames);
   const SDL_AudioSpec spec{SDL_AUDIO_S16, clip.channels, clip.rate};
   voice->clip = std::move(clip);
-  SDL_LogInfo(
-      SDL_LOG_CATEGORY_AUDIO,
-      "[audio] PcmPlayer::Play opening stream %dch %dHz %zu frames on %s",
-      clip.channels, clip.rate, clip.samples.size() / clip.channels,
-      channel ? channel->getName().c_str() : "(none)");
   SDL_AudioStream *stream = SDL_OpenAudioDeviceStream(
       SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, &spec, Feed, voice.get());
   if (!stream) {
-    SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO,
-                "[audio] PcmPlayer: cannot open stream: %s", SDL_GetError());
+    SDL_Log("[audio] cannot open stream: %s", SDL_GetError());
     return false;
   }
-  SDL_LogInfo(SDL_LOG_CATEGORY_AUDIO,
-              "[audio] PcmPlayer: stream opened OK on %s",
-              channel ? channel->getName().c_str() : "(none)");
   try {
-    if (channel)
-      channel->attach(stream, voice->clip.gain);
+    if (channel) channel->attach(stream, voice->clip.gain);
     else if (voice->clip.gain != 1.0f &&
              !SDL_SetAudioStreamGain(stream, voice->clip.gain))
       throw std::runtime_error(SDL_GetError());

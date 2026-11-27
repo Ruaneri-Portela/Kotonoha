@@ -5,8 +5,8 @@
 
 #include <algorithm>
 #include <array>
-#include <cstdint>
 #include <cstdio>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -34,14 +34,10 @@ struct Dimensions {
 
 Dimensions ForVariant(Model::Variant variant) {
   switch (variant) {
-  case Model::Variant::Standard:
-    return {800, 600};
-  case Model::Variant::Wide:
-    return {800, 450};
-  case Model::Variant::WideFull:
-    return {1280, 720};
-  case Model::Variant::WideNote:
-    return {1024, 576};
+  case Model::Variant::Standard: return {800, 600};
+  case Model::Variant::Wide: return {800, 450};
+  case Model::Variant::WideFull: return {1280, 720};
+  case Model::Variant::WideNote: return {1024, 576};
   }
   throw std::runtime_error("Unknown Route Map variant");
 }
@@ -50,24 +46,24 @@ Dimensions ForVariant(Model::Variant variant) {
 // reproduce or copy them: write an intentionally minimal synthetic CMAP with
 // one pixel for every control, so all page/selector state transitions can be
 // tested in DEV and DIST without running the commercial executable.
-void WriteSyntheticMap(const fs::path &root, Model::Variant variant, int major,
-                       int subpage) {
+void WriteSyntheticMap(const fs::path &root, Model::Variant variant,
+                       int major, int subpage) {
   const auto dims = ForVariant(variant);
   const auto page = Model::Page(major, subpage);
   const auto path = root / Model::CmapRelativePath(major, subpage, variant);
   Require(!path.empty(), "Route Map CMAP path missing");
   fs::create_directories(path.parent_path());
   std::vector<uint8_t> bytes(8u + static_cast<size_t>(dims.width) *
-                                      static_cast<size_t>(dims.height),
-                             0u);
+                                     static_cast<size_t>(dims.height), 0u);
   for (int i = 0; i < 4; ++i) {
-    bytes[static_cast<size_t>(i)] = static_cast<uint8_t>(dims.width >> (8 * i));
+    bytes[static_cast<size_t>(i)] =
+        static_cast<uint8_t>(dims.width >> (8 * i));
     bytes[static_cast<size_t>(i + 4)] =
         static_cast<uint8_t>(dims.height >> (8 * i));
   }
   auto stamp = [&](int x, int control) {
-    bytes[8u + 2u * static_cast<size_t>(dims.width) + static_cast<size_t>(x)] =
-        static_cast<uint8_t>(control + 1);
+    bytes[8u + 2u * static_cast<size_t>(dims.width) +
+          static_cast<size_t>(x)] = static_cast<uint8_t>(control + 1);
   };
   for (int control = 0; control <= 10; ++control)
     stamp(control + 1, control);
@@ -86,10 +82,10 @@ void CheckLoadButtonHover(const fs::path &root, Model::Variant variant) {
                     (std::to_string(static_cast<int>(variant)) + ".cmap");
   fs::create_directories(path.parent_path());
   std::vector<uint8_t> bytes(8u + static_cast<size_t>(dims.width) *
-                                      static_cast<size_t>(dims.height),
-                             0u);
+                                     static_cast<size_t>(dims.height), 0u);
   for (int i = 0; i < 4; ++i) {
-    bytes[static_cast<size_t>(i)] = static_cast<uint8_t>(dims.width >> (8 * i));
+    bytes[static_cast<size_t>(i)] =
+        static_cast<uint8_t>(dims.width >> (8 * i));
     bytes[static_cast<size_t>(i + 4)] =
         static_cast<uint8_t>(dims.height >> (8 * i));
   }
@@ -108,24 +104,22 @@ void CheckLoadButtonHover(const fs::path &root, Model::Variant variant) {
   };
   std::string error;
   SaveModel model;
-  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Load, false,
-                     &error),
-          "LOAD CMAP could not open: " + error);
+  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Load,
+                     false, &error), "LOAD CMAP could not open: " + error);
   Require(model.Selection() == -1 && !hasBlueMapButton(model),
           "LOAD Open Route Map has a permanent blue overlay at rest");
   model.RestoreSelection(21); // Original route->LOAD flow saves control 21.
   Require(model.Selection() == -1 && !hasBlueMapButton(model),
           "Returning from Route Map restored a stale blue LOAD button");
-  Require(model.SetSelectionFromPointer(12, 60) && model.Selection() == 21 &&
-              hasBlueMapButton(model),
+  Require(model.SetSelectionFromPointer(12, 60) &&
+              model.Selection() == 21 && hasBlueMapButton(model),
           "LOAD Open Route Map fails to highlight when hovered");
-  Require(model.SetSelectionFromPointer(-1, -1) && model.Selection() == -1 &&
-              !hasBlueMapButton(model),
+  Require(model.SetSelectionFromPointer(-1, -1) &&
+              model.Selection() == -1 && !hasBlueMapButton(model),
           "LOAD Open Route Map blue hover did not clear on pointer exit");
   model.Close();
-  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Save, false,
-                     &error),
-          "SAVE CMAP could not open: " + error);
+  Require(model.Open(path.string(), saveVariant, SaveModel::Mode::Save,
+                     false, &error), "SAVE CMAP could not open: " + error);
   (void)model.SetSelectionFromPointer(12, 60);
   Require(model.Selection() == -1 && !hasBlueMapButton(model),
           "SAVE mode must never expose Open Route Map");
@@ -151,11 +145,11 @@ void CheckPage(const fs::path &root, Model::Variant variant, int major,
   };
   Require(model.Selection() == -1 && !hasBlueClose(),
           "Route Map Close button has a permanent blue overlay at rest");
-  Require(model.SetSelectionFromPointer(7, 2) && model.Selection() == 6 &&
-              hasBlueClose(),
+  Require(model.SetSelectionFromPointer(7, 2) &&
+              model.Selection() == 6 && hasBlueClose(),
           "Route Map Close button fails to highlight on hover");
-  Require(model.SetSelectionFromPointer(-1, -1) && model.Selection() == -1 &&
-              !hasBlueClose(),
+  Require(model.SetSelectionFromPointer(-1, -1) &&
+              model.Selection() == -1 && !hasBlueClose(),
           "Route Map Close blue hover did not clear on pointer exit");
   const auto page = Model::Page(major, subpage);
   episodeNodes[static_cast<size_t>(major)] += page.nodeCount;
@@ -194,9 +188,12 @@ void CheckPage(const fs::path &root, Model::Variant variant, int major,
   // availability are independent of the node GlobalFlag projection.
   for (int control = 6; control <= 10; ++control) {
     const bool expected =
-        control == 6 || (control == 7 && major > 0) ||
-        (control == 8 && major < 5) || (control == 9 && subpage > 0) ||
-        (control == 10 && subpage + 1 < Model::SubpageCountForMajor(major));
+        control == 6 ||
+        (control == 7 && major > 0) ||
+        (control == 8 && major < 5) ||
+        (control == 9 && subpage > 0) ||
+        (control == 10 &&
+         subpage + 1 < Model::SubpageCountForMajor(major));
     Require(model.IsControlAvailable(control) == expected,
             "Route Map navigation availability regressed");
   }
@@ -216,9 +213,9 @@ int main(int argc, char **argv) {
     const fs::path root(argv[1]);
     constexpr std::array<int, 6> pages{{1, 1, 2, 4, 4, 4}};
     constexpr std::array<int, 6> hotspots{{4, 9, 11, 35, 57, 45}};
-    constexpr std::array<Model::Variant, 4> variants{
-        {Model::Variant::Standard, Model::Variant::Wide,
-         Model::Variant::WideFull, Model::Variant::WideNote}};
+    constexpr std::array<Model::Variant, 4> variants{{
+        Model::Variant::Standard, Model::Variant::Wide,
+        Model::Variant::WideFull, Model::Variant::WideNote}};
     for (const auto variant : variants) {
       CheckLoadButtonHover(root, variant);
       std::array<int, 6> nodes{};

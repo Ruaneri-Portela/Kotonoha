@@ -72,6 +72,11 @@ void encoding() {
   require(ConvertEncoding("\xE2\x82\xAC", "UTF-8", "CP1252") ==
               std::string("\x80", 1),
           "UTF-8 euro sign to CP1252");
+  require(ConvertEncoding(ConvertEncoding("caf\xe9 \x80", "CP1252"),
+                          "UTF-8", "CP1252") == "caf\xe9 \x80",
+          "CP1252 to UTF-8 and back preserves representable characters");
+  require(ConvertEncoding("\xF0\x9F\x8C\xB8", "UTF-8", "CP1252") == "?",
+          "CP1252 replaces nonrepresentable Unicode scalars");
   require(ConvertEncoding(std::string("\x81", 1), "CP1252") == "?",
           "Undefined CP1252 byte replacement");
   rejects([] { ConvertEncoding("x", "NOT-AN-ENCODING"); },

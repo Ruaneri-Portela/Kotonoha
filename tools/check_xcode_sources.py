@@ -122,6 +122,7 @@ def main() -> int:
         (ROOT / relative).resolve()
         for relative in tracked
         if relative.endswith((".cpp", ".mm"))
+        and not relative.startswith("lib/src/integrations/")  # Optional game-linked targets
     }
     for source in sorted(engine_sources):
         if source not in mac:

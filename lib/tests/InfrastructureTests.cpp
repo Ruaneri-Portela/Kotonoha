@@ -501,6 +501,9 @@ void testUnchangedWindowGeometry(Engine &engine) {
 
 void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   const auto original = engine.GetSettings();
+  // Register the channel that this synthetic mixer interaction is going to
+  // adjust. The engine's default audio/video channels are not named BGM.
+  engine.GetAudio().channel("BGM");
   engine.openSettings();
   SDL_FingerID fingerId = 98;
   auto touch = [&](Uint32 type, float x, float y) {
@@ -525,15 +528,13 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   require(!engine.GetSettingsMenu().isOpen(),
           "Edge swipe closes settings without leaving a held pointer");
   engine.openSettings();
-  const auto audioChannels = engine.GetAudio().getChannels();
-  require(!audioChannels.empty(),
+  require(!engine.GetAudio().getChannels().empty(),
           "Settings exposes at least one real audio channel");
-  const std::string firstChannel = audioChannels.front()->getName();
   tap(600, 105); // Audio tab.
   touch(SDL_EVENT_FINGER_DOWN, 700, 172);
   touch(SDL_EVENT_FINGER_MOTION, 945, 172);
   touch(SDL_EVENT_FINGER_UP, 945, 172);
-  tap(755, 268); // First audio channel gain.
+  tap(755, 268); // BGM gain (first sorted channel).
   tap(800, 105); // VN text tab (valid with and without the Input tab).
   tap(500, 172); // Typewriter speed.
   tap(500, 216); // 10 characters / second (second option).
@@ -548,11 +549,11 @@ void testTouchSettings(Engine &engine, EventRuntime &runtime) {
   tap(400, 646); // Apply.
   require(!engine.GetSettingsMenu().isOpen(),
           "Touch applies settings and closes the modal");
-  require(
-      std::abs(engine.GetSettings().masterVolume - .75f) < .01f &&
-          std::abs(engine.GetAudio().channel(firstChannel)->getUserVolume() -
-                   .25f) < .01f,
-      "Finger drag changes master gain and finger tap sets channel gain");
+  require(std::abs(engine.GetSettings().masterVolume - .75f) < .01f,
+          "Finger drag sets master gain without an extra release click");
+  require(std::abs(engine.GetAudio().channel("BGM")->getUserVolume() - .25f) <
+              .01f,
+          "Finger tap sets the expected BGM channel gain");
   require(engine.GetSettings().vnTextColorOverride &&
               engine.GetSettings().vnTextColor.r == 0,
           "Touch selects VN text colors through the shared selection box");
@@ -600,8 +601,7 @@ void testWindowAndMenu(Engine &engine, EventRuntime &runtime,
   engine.Event(&event);
   // Resolution now opens the shared scrollable selection modal rather than
   // cycling a fixed set of four sizes. Escape closes that modal first.
-  if (engine.GetSettingsMenu().isOpen())
-    engine.Event(&event);
+  if (engine.GetSettingsMenu().isOpen()) engine.Event(&event);
   require(!engine.GetSettingsMenu().isOpen() && !engine.isStoryPaused() &&
               engine.GetSettings().width == 960,
           "Cancel does not apply the draft or leak Escape");
@@ -930,10 +930,10 @@ int main(int argc, char **argv) {
     require(
         std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
             std::filesystem::path(EngineSettings::defaultPath("example"))
-                    .parent_path() == documentsDirectory("example") &&
+                    .parent_path() == preferredDocumentsDirectory("example") &&
             preferredDocumentsDirectory("example").parent_path() ==
                 documentsDirectory("example"),
-        "Settings use Documents while saves use its save child");
+        "Settings use writable saves and the parent is the Documents root");
     rejects([] { gameAssetDirectory("../game"); },
             "Reject invalid game identifiers");
     SDL_HideWindow(&engine.GetWindow());

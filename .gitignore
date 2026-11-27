@@ -1,4 +1,4 @@
-﻿# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
+# Created by https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 # Edit at https://www.toptal.com/developers/gitignore?templates=visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
 
 ### C++ ###
@@ -669,15 +669,27 @@ FodyWeavers.xsd
 # Additional files built by Visual Studio
 
 # End of https://www.toptal.com/developers/gitignore/api/visualstudio,visualstudiocode,androidstudio,c++,java,macos,vcpkg,cmake
+build/
+build-*/
+dist/
+vcpkg_installed/
+zips/
+# Runtime/game assets stay local. Anime4K shaders are redistributable third-party
+# runtime dependencies and are kept with their upstream license/provenance.
 
-# ============================================================
-# Kotonoha Engine - Project Specific Ignores
-# ============================================================
+assets/*
+games-assets/*
+!assets/Anime4K/
+!assets/ArtCNN/
+!assets/SchoolDays.ico
+!assets/icon.png
+!assets/SPLASH.PNG
+.research/
+*.ini
+.vscode
+.cxx
 /build/
-/build-*/
-/dist/
 /vcpkg_installed/
-/zips/
 /.cache/
 /.opencode/
 /forced_subtitles/
@@ -716,6 +728,7 @@ games-assets/*
 .research/
 *.ini
 /translation.json
+# Dumps/translations contain the games' script text
 /translations/
 
 # Kotonoha visual identity: design/ is the versioned source of truth.
@@ -729,10 +742,41 @@ design/generated/.kotonoha-*.complete
 design/generated/pwa/
 
 # Debug Includes
+# School Days HQ local retail assets / user-provided art are not source code.
+# Supply these separately to authorized testers rather than accidentally
+# publishing commercial packs, localization scripts or modified artwork.
+/games/school-days/Packs/
+/games/school-days/translations/
+/games/school-days/launcher-art/*.png
+/games/school-days/windows/*.ico
+/games/school-days/display-options/System/Option/*.png
+/games/school-days/display-options/System/Option/*.cmap
+# Temporary visual QA captures at repository root.
+/display-*.png
+/fresh-*.png
+/Android/.gradle/
+/Android/.deps/
+/Android/.cxx/
+/Android/build/
+/Android/app/build/
+/Android/app/.cxx/
+/Android/local.properties
+Xcode/Python.xcframework
 !lib/src/debug/
 !lib/src/debug/**
 !lib/include/Kotonoha/debug
 !lib/include/Kotonoha/debug/**
+/CMakeSettings.json
+.opencode
+forced_subtitles/
+
+# School Days HQ: never accidentally stage commercial archives or personal
+# progress saved outside the standard local Packs/Save directories.
+*.[Gg][Pp][Kk]
+**/[Ss]ave[Ff]ile*.DAT
+**/[Gg]lobal[Ff]lag.DAT
+**/[Cc]onfig.DAT
+
 
 # Local credentials and signing materials; never commit these.
 *.pem

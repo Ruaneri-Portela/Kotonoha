@@ -1,8 +1,8 @@
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
-#include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/routing/SchoolDaysConfigMenuRenderPlan.hpp>
 #include <Kotonoha/routing/SchoolDaysSaveLoadRenderPlan.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
+#include <Kotonoha/core/Engine.hpp>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -15,25 +15,23 @@ void check(bool value, const std::string &message) {
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
-  static Kotonoha::EngineOptions options(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+  static Kotonoha::EngineOptions
+  options(const std::shared_ptr<SchoolDays::Assets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
     result.rendererOverride = "software";
     return result;
   }
-  Application(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-      const char *route, const std::filesystem::path &documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const std::filesystem::path &documents)
       : runtime(assets, route, documents), engine(runtime, options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
 } // namespace
 int main(int argc, char **argv) {
   try {
-    check(argc == 4,
-          "Expected retail data, route and remaster display overlay");
+    check(argc == 4, "Expected retail data, route and remaster display overlay");
     struct Directory {
       std::filesystem::path path =
           std::filesystem::temp_directory_path() /
@@ -46,8 +44,7 @@ int main(int argc, char **argv) {
     // The original System.GPK has SOMCON, not Display Options. Mount the
     // user's separate authored overlay just as the bundled Windows game does,
     // never mutate or replace the commercial GPK.
-    auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
-        argv[1], argv[3]);
+    auto assets = std::make_shared<SchoolDays::Assets>(argv[1], argv[3]);
     Application app(assets, argv[2], documents.path);
     app.runtime.SetState(Kotonoha::GameState::Gameplay);
     app.runtime.debugJumpToNode("0");
@@ -99,12 +96,9 @@ int main(int argc, char **argv) {
     openPanel(10);
     const auto saveSprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
         app.runtime.panels().SaveLoad());
-    check(std::none_of(
-              saveSprites.begin(), saveSprites.end(),
-              [](const auto &sprite) {
-                return sprite.role ==
-                       Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
-              }),
+    check(std::none_of(saveSprites.begin(), saveSprites.end(), [](const auto& sprite) {
+            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+          }),
           "Retail SAVE must not render Open Route Map");
     row();
     check(app.runtime.panels().IsSaveLoadCommentEditorOpen(),
@@ -153,17 +147,18 @@ int main(int argc, char **argv) {
                        Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
               }),
           "LOAD blue Route Map CHIP must be absent without pointer hover");
-    const auto hasRouteMapHover = [&] {
+    const auto hasBlueRouteMapHover = [&] {
       const auto sprites = Kotonoha::SchoolDaysSaveLoadRenderPlan::Build(
           app.runtime.panels().SaveLoad());
-      return std::any_of(
-          sprites.begin(), sprites.end(), [](const auto &sprite) {
-            return sprite.role ==
-                   Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
+      return std::any_of(sprites.begin(), sprites.end(), [](const auto& sprite) {
+            return sprite.role == Kotonoha::SchoolDaysSaveLoadRenderPlan::Role::RouteMap;
           });
     };
-    // Exercise the real SDL event path over LOAD's retail CMAP button 21.
+    check(!hasBlueRouteMapHover(),
+          "LOAD should display the neutral Open Route Map base without hover");
     {
+      // Unlike the neutral label baked into LOAD.PNG, the cyan CHIP sprite
+      // must be visible only under a genuine pointer hit in region 21.
       const auto &model = app.runtime.panels().SaveLoad();
       const int width = int(model.Cmap().Width());
       const int height = int(model.Cmap().Height());
@@ -175,26 +170,35 @@ int main(int argc, char **argv) {
             hitY = y;
             break;
           }
-      check(hitX >= 0, "LOAD CMAP lacks Open Route Map hitbox");
+      check(hitX >= 0, "Retail LOAD CMAP lacks its Route Map hitbox");
       SDL_Event hover{};
       hover.type = SDL_EVENT_MOUSE_MOTION;
       hover.motion.x = float(hitX) * 1280.0f / float(width);
       hover.motion.y = float(hitY) * 720.0f / float(height);
       app.runtime.onEvent(hover);
-      check(hasRouteMapHover(), "Open Route Map CHIP did not follow hover");
+      check(hasBlueRouteMapHover(),
+            "LOAD Open Route Map did not highlight on actual pointer hover");
       SDL_Event leave{};
       leave.type = SDL_EVENT_WINDOW_MOUSE_LEAVE;
       app.runtime.onEvent(leave);
-      check(!hasRouteMapHover(), "Open Route Map CHIP survived pointer leave");
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan when pointer left the window");
       app.runtime.onEvent(hover);
-      check(hasRouteMapHover(), "Open Route Map CHIP did not recover");
+      check(hasBlueRouteMapHover(),
+            "LOAD hover did not recover after pointer returned to the window");
       SDL_Event focusLost{};
       focusLost.type = SDL_EVENT_WINDOW_FOCUS_LOST;
       app.runtime.onEvent(focusLost);
-      check(!hasRouteMapHover(), "Open Route Map CHIP survived focus loss");
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan after SDL focus loss");
+      app.runtime.onEvent(hover);
+      check(hasBlueRouteMapHover(),
+            "LOAD hover did not recover after SDL focus loss");
       hover.motion.x = -12.0f;
       hover.motion.y = -12.0f;
       app.runtime.onEvent(hover);
+      check(!hasBlueRouteMapHover(),
+            "LOAD Open Route Map stayed cyan after pointer left");
     }
     row();
     // Retail LOAD now dims SaveLoad, presents POPUP_LOAD, fades the card to

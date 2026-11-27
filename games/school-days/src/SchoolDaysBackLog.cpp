@@ -149,8 +149,8 @@ size_t Utf16UnitsAt(const std::u16string &text, size_t index) {
 }
 
 int Utf16SpanAdvance(const std::u16string &text, size_t index) {
-  int width =
-      Plan::RetailEnglishGlyphAdvance(static_cast<uint16_t>(text[index]));
+  int width = Plan::RetailEnglishGlyphAdvance(
+      static_cast<uint16_t>(text[index]));
   if (Utf16UnitsAt(text, index) == 2u)
     width += Plan::RetailEnglishGlyphAdvance(
         static_cast<uint16_t>(text[index + 1u]));
@@ -187,7 +187,7 @@ std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
     }
     // The English retail FONTDATA path treats U+300A/U+FF5C as auxiliary
     // markup; the original English scripts contain neither. Translations may
-    // legitimately contain book brackets and fullwidth bars (Chinese mail).
+    // legitimately contain 《 and ｜ (e.g. Chinese mail headings). They are
     // actual text in the localized BackLog and must be rendered by SDL_ttf,
     // never reject the whole player-facing panel in a DIST build.
     if (i > 0u && text[i - 1u] == u' ') {
@@ -237,10 +237,10 @@ std::vector<std::u16string> WrapFittedBackLog(const std::u16string &text,
         break;
       }
       // A long word must be split even if it contains no spaces.
-      const size_t split =
-          lastSpace != std::u16string::npos && lastSpace > start
-              ? lastSpace
-              : std::max(start + 1u, end);
+      const size_t split = lastSpace != std::u16string::npos &&
+                                   lastSpace > start
+                               ? lastSpace
+                               : std::max(start + 1u, end);
       fitted.push_back(row.substr(start, split - start));
       start = split;
     }
@@ -444,6 +444,14 @@ bool SchoolDaysBackLogModel::ActivatePointer(int x, int y, Action *out) {
   out->rawIndex = currentRawIndex_;
   return true;
 }
+#if defined(__ANDROID__) || defined(ANDROID)
+bool SchoolDaysBackLogModel::MobileScroll(int delta) {
+  if (!StepCursor(delta)) return false;
+  selection_ = -1;
+  return true;
+}
+#endif
+
 std::vector<SchoolDaysBackLogRenderPlan::TextEntry>
 SchoolDaysBackLogRenderPlan::BuildTextEntries(
     const SchoolDaysBackLogModel &model) {
@@ -659,26 +667,25 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
       // them wider than the retail column. Only their logical placement span
       // is fitted; the presenter then fits the *entire shaped TTF row* with
       // uniform scaling, never with a horizontally flattened glyph raster.
-      const double positionScale =
-          fitFullRun && nativeWidth > available && nativeWidth > lastAdvance
-              ? static_cast<double>(available - lastAdvance) /
-                    static_cast<double>(nativeWidth - lastAdvance)
-              : 1.0;
+      const double positionScale = fitFullRun && nativeWidth > available &&
+                                           nativeWidth > lastAdvance
+          ? static_cast<double>(available - lastAdvance) /
+                static_cast<double>(nativeWidth - lastAdvance)
+          : 1.0;
       int64_t nativeX = 0;
       for (size_t i = 0u; i < text.size();) {
         const size_t units = Utf16UnitsAt(text, i);
         const int advance = Utf16SpanAdvance(text, i);
-        const int x =
-            startX + static_cast<int>(std::lround(static_cast<double>(nativeX) *
-                                                  positionScale));
+        const int x = startX + static_cast<int>(
+            std::lround(static_cast<double>(nativeX) * positionScale));
         if (x + advance > kTextRightEdge)
           break;
         int unitX = x;
         for (size_t unit = 0u; unit < units; ++unit) {
           block.glyphs.push_back(
               {static_cast<uint16_t>(text[i + unit]), unitX, y});
-          unitX +=
-              RetailEnglishGlyphAdvance(static_cast<uint16_t>(text[i + unit]));
+          unitX += RetailEnglishGlyphAdvance(
+              static_cast<uint16_t>(text[i + unit]));
         }
         nativeX += advance;
         i += units;
@@ -712,7 +719,8 @@ SchoolDaysBackLogRenderPlan::BuildRetailHorizonEnglish(
   plan.unsupportedMarkup = unsupported;
   int top = kRetailCenter - currentExtent / 2;
   if (model.MaxCurrentLineOffset() > 0)
-    top = kTextTopEdge + 8 - model.CurrentLineOffset() * kTextLineStep;
+    top = kTextTopEdge + 8 -
+          model.CurrentLineOffset() * kTextLineStep;
   int bottom = top + currentExtent;
   plan.blocks.push_back(buildBlock(current, Phase::Current, top));
 
@@ -751,7 +759,7 @@ SchoolDaysBackLogRenderPlan::TextSurfaceClip() {
 
 SchoolDaysBackLogRenderPlan::TextRasterSize
 SchoolDaysBackLogRenderPlan::FitTextRaster(int maxWidth, int rasterWidth,
-                                           int rasterHeight) {
+                                          int rasterHeight) {
   if (maxWidth <= 0 || rasterWidth <= 0 || rasterHeight <= 0)
     return {};
   const double factor =

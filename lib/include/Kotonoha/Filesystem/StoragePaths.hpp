@@ -65,7 +65,7 @@ findAssetOverlayDirectory(const std::filesystem::path &root = {});
 // is never used as the save identity. Creates the directory or throws.
 std::filesystem::path saveDirectory();
 // Writable per-game Documents root. Configuration, overlays and authoring
-// tools belong here; only game save data belongs in its `save` child.
+// tools belong here. Existing ports also store saves in this directory.
 std::filesystem::path documentsDirectory();
 std::filesystem::path documentsDirectory(const std::string &game);
 // Compatibility save API used by existing ports. A nonempty argument is an

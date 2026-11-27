@@ -79,7 +79,12 @@ class CheckWasmDiscTest(unittest.TestCase):
     def test_cyclic_symlink_is_reported(self):
         with tempfile.TemporaryDirectory() as directory:
             link = Path(directory) / "Amagami.bin"
-            link.symlink_to("Amagami.bin")
+            try:
+                link.symlink_to("Amagami.bin")
+            except OSError as error:
+                if getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
             with self.assertRaisesRegex(probe.DiscCheckError, "symlink"):
                 probe.check_local(str(link))
 
@@ -88,7 +93,12 @@ class CheckWasmDiscTest(unittest.TestCase):
             real = Path(directory) / "real.bin"
             real.write_bytes(b"example")
             link = Path(directory) / "Amagami.bin"
-            link.symlink_to(real.name)
+            try:
+                link.symlink_to(real.name)
+            except OSError as error:
+                if getattr(error, "winerror", None) == 1314:
+                    self.skipTest("Windows symlink privilege is unavailable")
+                raise
             self.assertEqual(probe.check_local(str(link)), real.resolve())
 
     def test_rejects_non_http_url(self):

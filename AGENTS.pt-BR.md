@@ -229,3 +229,32 @@ python3 tools/check_sdl_cpack.py <diretorio_build>
 - **NÃO** carregue arquivos de múltiplos gigabytes/megabytes inteiros na MEMFS do WebAssembly; utilize requisições Fetch com HTTP Range.
 - **NÃO** procure ou tente executar ferramentas inexistentes como `UpdateGameTargets.rb` ou `Kotonoha.xcworkspace`.
 - **NÃO** use caminhos absolutos do sistema operacional gravados diretamente no código para saves ou configurações.
+
+---
+
+## 7. Políticas e Escopo do Fork (`tsubaki-0x/Kotonoha`)
+
+Todas as regras upstream acima permanecem obrigatórias neste fork. As diretrizes abaixo documentam o escopo autorizado, o papel das branches permanentes e o fluxo de trabalho do School Days HQ (consulte [docs/FORK_WORKFLOW.pt-BR.md](docs/FORK_WORKFLOW.pt-BR.md) para procedimentos detalhados).
+
+### Alvos Autorizados e Arquitetura Compartilhada
+- Tanto **Windows x64** quanto **Android (`arm64-v8a`)** são alvos ativos e autorizados do **School Days HQ v1.02** (superando a restrição histórica de 2026-11 restrita a Windows L4).
+- Preserve uma única implementação compartilhada da lógica de jogo em `games/school-days/`, código genérico do motor em `lib/`, VMs/provedores em `modules/` e adaptadores de plataforma Android (JNI/Gradle/SAF) em `buildsystems/android/`.
+- Não duplique a lógica do jogo entre Windows e Android nem reintroduza servidores MCP/DevBridge específicos de jogo (use o MCP genérico em `lib/`).
+
+### Branches Permanentes do Fork
+- `dev`: linha principal de desenvolvimento e colaboração upstream (branch padrão de `tsubaki-0x/Kotonoha`).
+- `hybrid`: linha híbrida que preserva a infraestrutura DEV/DIST do School Days HQ e os fluxos de distribuição Windows/Android específicos do fork.
+- Nunca faça push diretamente para `upstream` (`Ruaneri-Portela/Kotonoha`), nunca use force-push em branches publicadas e mantenha os PRs upstream pequenos, limpos e baseados diretamente em `upstream/dev`.
+
+### Política DEV vs DIST (Windows e Android)
+- **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` no Windows; `debug`/`release` com `BuildConfig.IS_DISTRIBUTION_BUILD=false` no Android): build de desenvolvimento otimizada em Release com `DebugOverlay`, MCP e ferramentas de QA.
+- **DIST** (`-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`; buildType `dist` com `BuildConfig.IS_DISTRIBUTION_BUILD=true` no Android): build limpa para o jogador sem `DebugOverlay`, MCP ou flags CLI de DEV, com subsistema `WINDOWS_GUI` no Windows (sem janela de console extra).
+- No Windows, compile saídas virgens com `--config Release --parallel 1` em diretórios CMake novos e monte distribuições completas de QA privado (1 EXE + 4 DLLs + `translations/` + `overlay/` + `game-assets/` + `assets/` + `third-party-licenses/`) separadamente da saída bruta do CMake; não execute às cegas os scripts legados de duas DLLs L4 (`stage_clean_local_l4.ps1`, `publish_two_dll_l4.ps1`, `stage_windows_clean_local.py`).
+
+### Segurança Inegociável de Dados, Assets e Testes
+- Nunca execute o EXE/instalador retail original, não altere os 29 GPKs comerciais nem sobrescreva `LxH.GPK`.
+- Nunca altere saves pessoais (`Save/`, `GlobalFlag.DAT`) ou `Config.DAT`/`settings.json` pessoais: isole todos os testes com `--documents` e `--config` em diretórios descartáveis, preferindo fixtures sintéticas.
+- Não inicie outra instância GUI se já houver `SchoolDays.exe` em execução.
+- Nunca comite GPKs comerciais, traduções privadas ou pacotes sem autorização de redistribuição em Git público, nem publique ZIPs privados de QA como releases públicas.
+- Preserve as decisões autorizadas do proprietário para assets do fork (`assets/SPLASH.PNG` e `assets/SchoolDays.ico`, sem restaurar o legado `assets/icon.ico`); mantenha a identidade visual do fork separada de PRs upstream não solicitados.
+- Separe explicitamente verificações estáticas, unitárias/CTest, GPU real e QA físico no POCO X7 Pro. Nunca afirme validação em hardware apenas com base em Gradle ou testes estáticos.

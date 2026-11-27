@@ -47,9 +47,11 @@ struct Temp {
 void writeFile(const fs::path &file, const std::vector<std::uint8_t> &bytes) {
   fs::create_directories(file.parent_path());
   auto *output = SDL_IOFromFile(file.string().c_str(), "wb");
-  require(output != nullptr, "Cannot create test fixture");
-  const bool ok = bytes.empty() || SDL_WriteIO(output, bytes.data(),
-                                               bytes.size()) == bytes.size();
+  if (!output)
+    throw std::runtime_error("Cannot create test fixture: " + file.string() +
+                             ": " + SDL_GetError());
+  const bool ok = bytes.empty() ||
+                  SDL_WriteIO(output, bytes.data(), bytes.size()) == bytes.size();
   const bool closed = SDL_CloseIO(output);
   require(ok && closed, "Cannot write test fixture");
 }
@@ -142,6 +144,10 @@ void testLocalAndOverlays() {
           "Seek relative to end failed");
   require(independent->seek(-100, VFS::SeekOrigin::Begin) < 0,
           "Invalid seek accepted");
+  require(independent->seek(-100, VFS::SeekOrigin::Current) < 0 &&
+              independent->seek(-100, VFS::SeekOrigin::End) < 0 &&
+              independent->tell() == 15,
+          "Invalid relative seek changed the file cursor");
   require(readText(files->open("empty.dat")).empty(),
           "Empty asset read failed");
 
@@ -255,6 +261,11 @@ void testTAR() {
   require(first->read(suffix, 7) == 7 && std::string(suffix, 7) == "content",
           "TAR slice cursor failed");
 
+  // Windows keeps a TAR opened by first->base_ locked against rewriting.
+  // Close the cursor and its mount before replacing the fixture with corrupt
+  // bytes. This still checks that a fresh mount rejects its checksum.
+  first.reset();
+  tar.reset();
   bytes[148] ^= 1; // corrupt checksum
   writeFile(file, bytes);
   expectCode(VFS::ErrorCode::CorruptImage,

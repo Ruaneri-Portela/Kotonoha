@@ -17,6 +17,8 @@ namespace {
 
 struct FormatDeleter {
   void operator()(AVFormatContext *context) const {
+    if (context->pb)
+      avio_closep(&context->pb);
     avformat_free_context(context);
   }
 };
@@ -236,6 +238,13 @@ bool SaveImage(SDL_Surface *surface, const char *path, ImageFormat format) {
   result = av_write_trailer(output.get());
   if (result < 0) {
     logFFmpegError(result, "container trailer", path);
+    return false;
+  }
+  // A successful write must also report a failed flush or file close.
+  // FormatDeleter remains responsible for close on every earlier error path.
+  result = avio_closep(&output->pb);
+  if (result < 0) {
+    logFFmpegError(result, "output file close", path);
     return false;
   }
   return true;

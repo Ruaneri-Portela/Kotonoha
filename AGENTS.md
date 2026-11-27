@@ -229,3 +229,32 @@ python3 tools/check_sdl_cpack.py <build_dir>
 - **DO NOT** load large multi-hundred-megabyte archives into WebAssembly MEMFS; use HTTP Range with Fetch instead.
 - **DO NOT** search for or execute nonexistent tools like `UpdateGameTargets.rb` or `Kotonoha.xcworkspace`.
 - **DO NOT** hardcode absolute filesystem paths for saves or configuration files.
+
+---
+
+## 7. Fork Policies & Scope (`tsubaki-0x/Kotonoha`)
+
+All upstream rules above remain mandatory in this fork. The policies below document the fork's authorized scope, branch roles, and School Days HQ workflows (see [docs/FORK_WORKFLOW.md](docs/FORK_WORKFLOW.md) for detailed procedures).
+
+### Authorized Targets & Shared Architecture
+- Both **Windows x64** and **Android (`arm64-v8a`)** are active, authorized targets for **School Days HQ v1.02** (superseding the historical 2026-11 Windows-L4-only restriction).
+- Preserve a single shared School Days game-logic implementation in `games/school-days/`, generic engine code in `lib/`, VMs/providers in `modules/`, and Android JNI/Gradle/SAF platform adapters in `buildsystems/android/`.
+- Do not duplicate game logic across Windows and Android or introduce game-specific MCP/DevBridge servers (use generic MCP in `lib/`).
+
+### Permanent Fork Branches
+- `dev`: primary development and upstream-collaboration line (`tsubaki-0x/Kotonoha` default branch).
+- `hybrid`: hybrid line preserving the School Days HQ DEV/DIST packaging infrastructure and fork-specific Windows/Android distribution flows.
+- Never push directly to `upstream` (`Ruaneri-Portela/Kotonoha`), never force-push published branches, and keep upstream PRs small, clean, and based directly on `upstream/dev`.
+
+### DEV vs DIST Policy (Windows & Android)
+- **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` on Windows; `debug`/`release` with `BuildConfig.IS_DISTRIBUTION_BUILD=false` on Android): Release-optimized development build with `DebugOverlay`, MCP, and QA tooling.
+- **DIST** (`-DKOTONOHA_DISTRIBUTION_BUILD=ON -DKOTONOHA_ENABLE_MCP=OFF -DKOTONOHA_DEV_CONTROL=OFF -DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF`; `dist` buildType with `BuildConfig.IS_DISTRIBUTION_BUILD=true` on Android): clean player build with `DebugOverlay`, MCP, and DEV CLI options compiled out, and `WINDOWS_GUI` subsystem on Windows (no extra console window).
+- On Windows, build virgin outputs with `--config Release --parallel 1` in fresh CMake directories and assemble complete private QA distributions (1 EXE + 4 DLLs + `translations/` + `overlay/` + `game-assets/` + `assets/` + `third-party-licenses/`) strictly separately from raw CMake output directories; do not blindly run legacy L4 two-DLL staging scripts (`stage_clean_local_l4.ps1`, `publish_two_dll_l4.ps1`, `stage_windows_clean_local.py`).
+
+### Non-Negotiable Data, Asset & Testing Safety
+- Never execute the retail Windows EXE/installer, alter the 29 original retail GPKs, or overwrite `LxH.GPK`.
+- Never alter personal saves (`Save/`, `GlobalFlag.DAT`) or personal `Config.DAT`/`settings.json`: isolate all tests with `--documents` and `--config` in disposable directories, preferring synthetic fixtures.
+- Never start a second GUI instance while `SchoolDays.exe` is already running.
+- Never commit commercial GPKs, private translations, or unlicensed redistribution packs to public Git, and never publish private QA ZIPs as public releases.
+- Preserve owner-authorized fork asset decisions (`assets/SPLASH.PNG` and `assets/SchoolDays.ico`, without restoring legacy `assets/icon.ico`); keep fork visual identity separate from unsolicited upstream PRs.
+- Always distinguish static validation, unit/CTest execution, real-GPU visual checks, and physical POCO X7 Pro hardware QA. Do not claim hardware validation from static or Gradle checks alone.

@@ -838,6 +838,10 @@ bool MCPServer::State::tryReadClient() {
     int err = WSAGetLastError();
     if (err == WSAEWOULDBLOCK)
       return false;
+    if (err == WSAECONNRESET || err == WSAECONNABORTED) {
+      eof = true;
+      return false;
+    }
     throw std::runtime_error("Cannot read MCP socket");
   }
   if (received == 0) {
@@ -849,6 +853,10 @@ bool MCPServer::State::tryReadClient() {
   if (n < 0) {
     if (errno == EAGAIN || errno == EWOULDBLOCK)
       return false;
+    if (errno == ECONNRESET) {
+      eof = true;
+      return false;
+    }
     throw std::runtime_error("Cannot read MCP socket");
   }
   if (n == 0) {
@@ -901,6 +909,17 @@ bool MCPServer::pump() {
     state->buffer.erase(0, end + 1);
     if (!line.empty() && line != "\r")
       state->dispatch(line);
+  }
+  // EOF of a TCP connection ends only that client's session, not the MCP
+  // listener or engine. A new client must complete a fresh initialization.
+  // Stdio EOF, by contrast, still requests the normal engine shutdown.
+  if (state->eof && state->transport == State::Transport::Socket) {
+    state->closeSocket(state->clientSocket);
+    state->buffer.clear();
+    state->initialized = false;
+    state->ready = false;
+    state->eof = false;
+    return true;
   }
   if (state->eof && state->buffer.find('\n') == std::string::npos) {
     if (!state->buffer.empty())

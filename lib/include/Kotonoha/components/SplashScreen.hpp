@@ -36,8 +36,6 @@ private:
   std::vector<std::filesystem::path> media;
   size_t current = 0;
   TexturePtr texture;
-  TexturePtr filteredTexture;
-  UpscaleSettings imageUpscaling;
   std::unique_ptr<MediaPlayer> video;
   VideoSkipGesture videoSkip;
   Uint64 startedNs = 0;

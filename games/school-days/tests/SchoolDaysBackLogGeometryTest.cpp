@@ -26,8 +26,8 @@ void Check(bool condition, const char *message) {
 
 void WriteSyntheticCmap(const fs::path &root, Model::Variant variant) {
   const auto layout = Model::LayoutFor(Model::Orientation::Horizon, variant);
-  const auto file =
-      root / Model::CmapRelativePath(Model::Orientation::Horizon, variant);
+  const auto file = root / Model::CmapRelativePath(Model::Orientation::Horizon,
+                                                   variant);
   fs::create_directories(file.parent_path());
   std::vector<uint8_t> bytes(
       8u + static_cast<size_t>(layout.logicalWidth) * layout.logicalHeight, 0);
@@ -130,9 +130,10 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
     const auto plan = Plan::BuildRetailHorizonEnglish(model);
     CheckGlyphPlan(plan);
     if (i == 0) {
-      const auto found =
-          std::find_if(plan.blocks.begin(), plan.blocks.end(),
-                       [](const auto &block) { return block.rawIndex == 1u; });
+      const auto found = std::find_if(
+          plan.blocks.begin(), plan.blocks.end(), [](const auto &block) {
+            return block.rawIndex == 1u;
+          });
       Check(found != plan.blocks.end(), "Long unbroken word is missing");
       std::vector<int> ys;
       for (const auto &glyph : found->glyphs)
@@ -154,7 +155,8 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
         "Failed to open oversized synthetic BackLog model");
   const auto oversized = Plan::BuildRetailHorizonEnglish(oversizedModel);
   CheckGlyphPlan(oversized);
-  Check(oversized.blocks.size() == 1u && oversized.blocks[0].extent > 8 * 57,
+  Check(oversized.blocks.size() == 1u &&
+            oversized.blocks[0].extent > 8 * 57,
         "Translated messages over eight lines must retain their full extent");
   Check(oversizedModel.CurrentRawIndex() == 0 &&
             oversizedModel.MaxCurrentLineOffset() > 0 &&
@@ -189,15 +191,14 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
     Check(forwardSteps <= oversizedModel.MaxCurrentLineOffset(),
           "BackLog forward scrolling failed to terminate");
   }
-  Check(forwardSteps == backSteps && oversizedModel.CurrentLineOffset() ==
-                                         oversizedModel.MaxCurrentLineOffset(),
+  Check(forwardSteps == backSteps &&
+            oversizedModel.CurrentLineOffset() ==
+                oversizedModel.MaxCurrentLineOffset(),
         "Down navigation cannot reveal the last lines of oversized text");
 
   Kotonoha::SchoolDaysBackLogStore chineseStore;
   chineseStore.AppendLogMessage(
-      0, u"Kotonoha",
-      u"\u53D1\u4EF6\u4EBA\uFF1A\u6842\u8A00\u53F6\uFF5C\u6807\u9898\uFF1A"
-      u"\u300A\u5199\u771F\u300B");
+      0, u"Kotonoha", u"\u53D1\u4EF6\u4EBA\uFF1A\u6842\u8A00\u53F6\uFF5C\u6807\u9898\uFF1A\u300A\u5199\u771F\u300B");
   Model chineseModel;
   Check(chineseModel.Open(root.string(), chineseStore,
                           Model::Orientation::Horizon, variant, &error),
@@ -219,10 +220,9 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
   // throw away ordinary accented/Cyrillic text from the history projection.
   Kotonoha::SchoolDaysBackLogStore multilingualStore;
   multilingualStore.AppendLogMessage(0, u"Kotonoha",
-                                     u"N\u00E3o, hoje volto de trem.");
-  multilingualStore.AppendLogMessage(1, u"Sekai",
-                                     u"\u041F\u0440\u0438\u0432\u0435\u0442, "
-                                     u"\u041C\u0430\u043A\u043E\u0442\u043E.");
+                                   u"N\u00E3o, hoje volto de trem.");
+  multilingualStore.AppendLogMessage(
+      1, u"Sekai", u"\u041F\u0440\u0438\u0432\u0435\u0442, \u041C\u0430\u043A\u043E\u0442\u043E.");
   Model multilingualModel;
   Check(multilingualModel.Open(root.string(), multilingualStore,
                                Model::Orientation::Horizon, variant, &error),
@@ -245,27 +245,23 @@ void CheckLongText(const fs::path &root, Model::Variant variant) {
 
   // Leaving a window must clear a highlighted navigation/Close CHIP. The
   // runtime forwards SDL window-leave/focus-lost to this same model state.
-  const auto &close =
-      Model::LayoutFor(Model::Orientation::Horizon, variant).controls[4].bounds;
+  const auto &close = Model::LayoutFor(Model::Orientation::Horizon,
+                                      variant).controls[4].bounds;
   Check(multilingualModel.SetSelectionFromPointer(close.x, close.y) &&
             multilingualModel.Selection() == 4,
         "BackLog close hover did not select the synthetic CMAP control");
   const auto hovered = Plan::BuildSkin(multilingualModel);
-  Check(std::any_of(hovered.begin(), hovered.end(),
-                    [](const auto &sprite) {
-                      return sprite.role == Plan::Role::SelectedControl &&
-                             sprite.control == 4;
-                    }),
-        "BackLog close did not draw the hover CHIP");
+  Check(std::any_of(hovered.begin(), hovered.end(), [](const auto &sprite) {
+          return sprite.role == Plan::Role::SelectedControl &&
+                 sprite.control == 4;
+        }), "BackLog close did not draw the hover CHIP");
   Check(multilingualModel.SetSelectionFromPointer(-1, -1) &&
             multilingualModel.Selection() == -1,
         "BackLog failed to clear hover when pointer left its window");
   const auto cleared = Plan::BuildSkin(multilingualModel);
-  Check(std::none_of(cleared.begin(), cleared.end(),
-                     [](const auto &sprite) {
-                       return sprite.role == Plan::Role::SelectedControl;
-                     }),
-        "BackLog blue hover remained after window leave");
+  Check(std::none_of(cleared.begin(), cleared.end(), [](const auto &sprite) {
+          return sprite.role == Plan::Role::SelectedControl;
+        }), "BackLog blue hover remained after window leave");
 }
 
 void CheckSupplementaryUnicodeAndLongSpeaker(const fs::path &root,
@@ -283,8 +279,7 @@ void CheckSupplementaryUnicodeAndLongSpeaker(const fs::path &root,
   Model model;
   std::string error;
   Check(model.Open(root.string(), store, Model::Orientation::Horizon, variant,
-                   &error),
-        "Failed to open supplementary Unicode BackLog");
+                   &error), "Failed to open supplementary Unicode BackLog");
   const auto plan = Plan::BuildRetailHorizonEnglish(model);
   CheckGlyphPlan(plan);
   Check(plan.blocks.size() == 1u,
@@ -308,7 +303,8 @@ void CheckSupplementaryUnicodeAndLongSpeaker(const fs::path &root,
                   line[i + 1u] <= 0xdfffu,
               "BackLog wrap split high surrogate from low surrogate");
       if (low)
-        Check(i > 0u && line[i - 1u] >= 0xd800u && line[i - 1u] <= 0xdbffu,
+        Check(i > 0u && line[i - 1u] >= 0xd800u &&
+                  line[i - 1u] <= 0xdbffu,
               "BackLog wrap left orphaned low surrogate");
     }
     reconstructed += line;
@@ -336,9 +332,9 @@ int main(int argc, char **argv) {
     Check(argc == 2, "Expected an isolated synthetic fixture directory");
     const fs::path root(argv[1]);
     CheckAspectFit();
-    for (const auto variant :
-         {Model::Variant::Standard, Model::Variant::Wide,
-          Model::Variant::WideFull, Model::Variant::WideNote}) {
+    for (const auto variant : {Model::Variant::Standard, Model::Variant::Wide,
+                               Model::Variant::WideFull,
+                               Model::Variant::WideNote}) {
       CheckProjectedClip(variant);
       CheckLongText(root, variant);
       CheckSupplementaryUnicodeAndLongSpeaker(root, variant);

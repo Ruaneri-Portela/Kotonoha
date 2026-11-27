@@ -31,10 +31,7 @@ public:
   bool designSpace() const override { return true; }
   explicit GameMenu(Engine &engineRef);
 
-  virtual void open() {
-    touchActivation.reset();
-    isOpen = true;
-  }
+  virtual void open() { touchActivation.reset(); isOpen = true; }
   virtual void close() { isOpen = false; }
   void toggle() { isVisible() ? close() : open(); }
   virtual bool isVisible() const { return isOpen; }

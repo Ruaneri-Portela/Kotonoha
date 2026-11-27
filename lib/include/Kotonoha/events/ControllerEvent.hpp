@@ -1,14 +1,15 @@
 #pragma once
 
-#include <Kotonoha/core/SDL.hpp>
 #include <algorithm>
+#include <Kotonoha/core/SDL.hpp>
 #include <map>
 #include <vector>
 
 namespace Kotonoha {
 
 // C++17 compatible clamp function
-template <typename T> constexpr T Clamp(T value, T min, T max) {
+template <typename T>
+constexpr T Clamp(T value, T min, T max) {
   return value < min ? min : (value > max ? max : value);
 }
 
@@ -178,7 +179,9 @@ public:
   float pressure() const {
     float strongest = 0.0f;
     for (const auto &entry : pressures_)
-      strongest = std::max(strongest, entry.second);
+      // Win32 consumers may have included the max(a,b) macro before this
+      // header. Parenthesizing the function name prevents macro expansion.
+      strongest = (std::max)(strongest, entry.second);
     return strongest;
   }
   bool active() const { return !pressures_.empty(); }

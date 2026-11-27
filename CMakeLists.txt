@@ -87,10 +87,21 @@ endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaOptions.cmake")
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaTestGroups.cmake")
 
-# Player distributions exclude developer CLI controls in every game port.
-# Also disable the MCP backend without changing the cached DEV preference.
+# School Days Windows L4 compatibility: retain the fork's opt-in diagnostics,
+# shipped-player build gates and retail-only testing profile. These must be
+# declared before add_subdirectory(lib) so engine and game targets agree.
+option(KOTONOHA_DEV_CONTROL "Enable local School Days automation bridge" OFF)
 option(KOTONOHA_DISTRIBUTION_BUILD
-    "Build a player distribution without developer command-line controls" OFF)
+       "Produce a player-facing build without developer overlay, MCP or QA controls" OFF)
+option(KOTONOHA_ENABLE_PLAYER_DUBBING
+       "Include the standalone dubbing window in a distribution build" OFF)
+option(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY
+       "Build School Days HQ against the 29 original GPKs without LxH or translations" OFF)
+if(KOTONOHA_DISTRIBUTION_BUILD AND KOTONOHA_DEV_CONTROL)
+    message(FATAL_ERROR "Distribution builds must disable KOTONOHA_DEV_CONTROL")
+endif()
+
+# Upstream: distribution builds disable MCP without changing the cached DEV preference.
 if(KOTONOHA_DISTRIBUTION_BUILD)
     set(KOTONOHA_ENABLE_MCP OFF)
 endif()

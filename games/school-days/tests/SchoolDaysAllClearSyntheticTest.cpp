@@ -72,8 +72,8 @@ int64_t Global(const Session &session, const char *key) {
 void Set(Session &session, const std::string &key, int32_t type,
          int32_t value) {
   Kotonoha_KtrfError error{};
-  Check(session.Persistence().WriteGlobalInteger(key, type, value,
-                                                 &session.State(), &error),
+  Check(session.Persistence().WriteGlobalInteger(
+            key, type, value, &session.State(), &error),
         std::string("WriteGlobalInteger ") + key + ": " + error.message);
 }
 
@@ -107,8 +107,8 @@ void OpenFresh(Session &session, const char *route, const char *assets) {
   Kotonoha::SchoolDaysFlgH empty;
   std::vector<uint8_t> bytes;
   std::string codecError;
-  Check(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(empty, &bytes,
-                                                            &codecError),
+  Check(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
+            empty, &bytes, &codecError),
         "Cannot serialize empty synthetic FlgH: " + codecError);
   Check(session.LoadGlobalFlag(bytes, &error),
         std::string("Load empty synthetic FlgH: ") + error.message);
@@ -121,13 +121,13 @@ void TestConfiguredCount(const char *route, const char *assets) {
   Kotonoha::SchoolDaysKtrfScene scene;
   Check(session.CurrentScene(&scene, &error), error.message);
   auto profile = Profile(2);
-  Check(session.Persistence().RegisterEnding(0, scene.sceneKey,
-                                             &session.State(), &error),
+  Check(session.Persistence().RegisterEnding(
+            0, scene.sceneKey, &session.State(), &error),
         error.message);
   Check(Resolve(profile, session).kind == Resolver::Kind::Ending,
         "N-1 of a configured EndingMax=2 selected AllClear");
-  Check(session.Persistence().RegisterEnding(1, scene.sceneKey,
-                                             &session.State(), &error),
+  Check(session.Persistence().RegisterEnding(
+            1, scene.sceneKey, &session.State(), &error),
         error.message);
   const auto full = Resolve(profile, session);
   Check(full.kind == Resolver::Kind::AllClear && full.promotedAllClear,
@@ -154,15 +154,15 @@ void TestAllClear(const char *route, const char *assets) {
         "EndBGView=0 did not bypass EndingMax validation");
 
   for (int ending = 0; ending < 21; ++ending) {
-    Check(session.Persistence().RegisterEnding(ending, scene.sceneKey,
-                                               &session.State(), &error),
+    Check(session.Persistence().RegisterEnding(
+              ending, scene.sceneKey, &session.State(), &error),
           std::string("Register ending: ") + error.message);
   }
-  Check(session.Persistence().RegisterEnding(0, scene.sceneKey,
-                                             &session.State(), &error),
+  Check(session.Persistence().RegisterEnding(
+            0, scene.sceneKey, &session.State(), &error),
         error.message);
-  Check(session.Persistence().RegisterEnding(20, scene.sceneKey,
-                                             &session.State(), &error),
+  Check(session.Persistence().RegisterEnding(
+            20, scene.sceneKey, &session.State(), &error),
         error.message);
   auto result = Resolve(profile, session);
   Check(result.kind == Resolver::Kind::Ending && result.endingIndex == 20 &&
@@ -179,8 +179,8 @@ void TestAllClear(const char *route, const char *assets) {
             error.code == KOTONOHA_KTRF_ERROR_RANGE,
         "Negative EndingMax was accepted");
   const auto beforeInvalidEnding = Serialize(session);
-  Check(!session.Persistence().RegisterEnding(22, scene.sceneKey,
-                                              &session.State(), &error) &&
+  Check(!session.Persistence().RegisterEnding(
+            22, scene.sceneKey, &session.State(), &error) &&
             error.code == KOTONOHA_KTRF_ERROR_RANGE &&
             Serialize(session) == beforeInvalidEnding,
         "Out-of-range ending 22 changed persisted progress");
@@ -196,8 +196,8 @@ void TestAllClear(const char *route, const char *assets) {
         "Negative EndNo was accepted");
   Set(session, "EndNo", 3, 20);
 
-  Check(session.Persistence().RegisterEnding(21, scene.sceneKey,
-                                             &session.State(), &error),
+  Check(session.Persistence().RegisterEnding(
+            21, scene.sceneKey, &session.State(), &error),
         error.message);
   disabled = profile;
   disabled.endBgView = false;
@@ -215,8 +215,8 @@ void TestAllClear(const char *route, const char *assets) {
   const char *replayKey = Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(0);
   Check(replayKey != nullptr, "H-scene unlock key unavailable");
   bool unlocked = true;
-  Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(session.State(),
-                                                           &unlocked, &error) &&
+  Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+            session.State(), &unlocked, &error) &&
             !unlocked,
         "Fresh synthetic profile had Replay unlocked");
   Set(session, replayKey, 11, -1);
@@ -232,10 +232,11 @@ void TestAllClear(const char *route, const char *assets) {
   Set(session, "AllClear", 11, -1);
   const auto promoted = Serialize(session);
   result = Resolve(profile, session);
-  Check(result.kind == Resolver::Kind::AllClear && !result.promotedAllClear &&
-            Serialize(session) == promoted,
+  Check(result.kind == Resolver::Kind::AllClear &&
+            !result.promotedAllClear && Serialize(session) == promoted,
         "Second title resolution modified persisted AllClear bytes");
-  Check(Global(session, "EndClear") != 0 && Global(session, "EndNo") == 21 &&
+  Check(Global(session, "EndClear") != 0 &&
+            Global(session, "EndNo") == 21 &&
             session.Persistence().GlobalIntegerIsSet("SP100"),
         "AllClear promotion altered the ending or route-map unlock");
 
@@ -264,8 +265,8 @@ void TestAllClear(const char *route, const char *assets) {
 
   std::vector<uint8_t> reloaded;
   bool present = false;
-  Check(storage.LoadGlobalFlag(&reloaded, &present, &storageError) && present &&
-            reloaded == promoted,
+  Check(storage.LoadGlobalFlag(&reloaded, &present, &storageError) &&
+            present && reloaded == promoted,
         "GlobalFlag could not be reloaded from the isolated disk");
   Session restarted;
   OpenFresh(restarted, route, assets);
@@ -278,12 +279,13 @@ void TestAllClear(const char *route, const char *assets) {
             restarted.Persistence().GlobalIntegerIsSet("SP100") &&
             restarted.Persistence().GlobalIntegerIsSet(replayKey),
         "Disk reload lost AllClear, ending, checkpoint or replay flags");
-  Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(restarted.State(),
-                                                           &unlocked, &error) &&
+  Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
+            restarted.State(), &unlocked, &error) &&
             unlocked,
         "Replay remained locked after disk GlobalFlag reload");
   result = Resolve(profile, restarted);
-  Check(result.kind == Resolver::Kind::AllClear && !result.promotedAllClear &&
+  Check(result.kind == Resolver::Kind::AllClear &&
+            !result.promotedAllClear &&
             Serialize(restarted) == promoted,
         "Disk reload changed AllClear background or persistence bytes");
 

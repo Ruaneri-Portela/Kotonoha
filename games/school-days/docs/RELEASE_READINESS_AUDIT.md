@@ -1,13 +1,5 @@
 # Auditoria de divulgação — School Days HQ (04/11/2026)
 
-> **Historical snapshot:** This audit documents the 2026-11-04 state before
-> the consolidated 2026-11-05 parity work and its upstream merge. Statements
-> about no shared-engine edits refer to this specific audit patch, not the new
-> follow-up PR. See
-> [PR_PARITY_CONSOLIDATION_2026-11-05.md](PR_PARITY_CONSOLIDATION_2026-11-05.md)
-> for the later code and validation scope. The staging build recorded below is
-> not the current release candidate.
-
 ## Veredito
 
 **Apta para demonstração pública como versão alfa, com limitações declaradas. Não
@@ -23,12 +15,13 @@ referência de comportamento em uma instalação local.
 
 **A pasta de QA `build/school-days-dev-control2/games/school-days/Release`
 não pode ser publicada:** contém `Packs/` com os 29 GPK, `Save/` com saves e
-`GlobalFlag.DAT` originais, além da ponte outros
+`GlobalFlag.DAT` originais, além da ponte `KOTONOHA_DEV_CONTROL=ON` e outros
 artefatos de teste. A avaliação de alfa acima se refere ao código do jogo e
 exige uma compilação pública limpa em diretório novo.
 
 Foi preparada `build/school-days-public-candidate/public-staging/` como candidata
-local de alfa, sem divulgação automática, contém executável, DLLs e recursos do próprio
+local de alfa, sem divulgação automática. Ela foi compilada com
+`KOTONOHA_DEV_CONTROL=OFF`, contém executável, DLLs e recursos do próprio
 projeto, e não contém os arquivos originais mencionados acima.
 
 ## Fontes e perfis
@@ -102,7 +95,8 @@ Release e a execução com os dois perfis confirmaram o resultado.
   1/1 passou lendo os 29 GPK originais, 1.857 ORS e 86.536 eventos; as 1.855
   referências de roteiro do KTRF encontraram ORS. Esse censo verifica leitura
   e correspondência de nomes, não a execução visual de cada evento.
-- Compilação pública em diretório novo: `BUILD_TESTING=OFF`, `KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS=OFF`;
+- Compilação pública em diretório novo: `BUILD_TESTING=OFF`,
+  `KOTONOHA_DEV_CONTROL=OFF`, `KOTONOHA_BUNDLE_LOCAL_GAME_ASSETS=OFF`;
   `SchoolDays` Release compilou sem erro. O staging por lista positiva tem
   82 arquivos, 47.775.769 bytes, sem `Packs/` ou `Save/` e zero arquivos
   `.GPK`, `.ORS`, `.WMV`, `.OGG`, `.DAT`, `.PDB` ou `.LIB`.

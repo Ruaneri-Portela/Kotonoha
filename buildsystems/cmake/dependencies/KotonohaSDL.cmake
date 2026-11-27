@@ -45,7 +45,9 @@ if (ANDROID AND NOT PKG_CONFIG_EXECUTABLE AND VCPKG_INSTALLED_DIR)
             "${VCPKG_INSTALLED_DIR}/*/tools/pkgconf/${kotonoha_pkgconf_name}")
 
     foreach (kotonoha_pkgconf_candidate IN LISTS kotonoha_pkgconf_candidates)
-        if (NOT kotonoha_pkgconf_candidate MATCHES "[/\\]android[/\\]")
+        file(RELATIVE_PATH kotonoha_pkgconf_relative
+                "${VCPKG_INSTALLED_DIR}" "${kotonoha_pkgconf_candidate}")
+        if (NOT kotonoha_pkgconf_relative MATCHES "^[^/]*-android/")
             set(PKG_CONFIG_EXECUTABLE "${kotonoha_pkgconf_candidate}" CACHE FILEPATH
                     "pkg-config compatible executable" FORCE)
             break ()
@@ -229,4 +231,3 @@ set(KOTONOHA_SDL_PROVIDER_RESOLVED "${_kotonoha_sdl_resolved}" CACHE INTERNAL
 set(KOTONOHA_SDL_CONFIG_SDL3 "${_kotonoha_sdl_config_sdl3}" CACHE INTERNAL "" FORCE)
 set(KOTONOHA_SDL_CONFIG_TTF "${_kotonoha_sdl_config_ttf}" CACHE INTERNAL "" FORCE)
 message(STATUS "[Kotonoha] SDL3/SDL3_ttf provider: ${_kotonoha_sdl_resolved}")
-

@@ -74,7 +74,9 @@ bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
     }
   } else
 #endif
-    next->io.reset(SDL_IOFromFile(file.string().c_str(), "rb"));
+    // SDL3 expects UTF-8 regardless of the Windows ANSI codepage.
+    const auto filename = file.u8string();
+    next->io.reset(SDL_IOFromFile(filename.c_str(), "rb"));
   if (!next->io) {
     if (error)
       *error = SDL_GetError();

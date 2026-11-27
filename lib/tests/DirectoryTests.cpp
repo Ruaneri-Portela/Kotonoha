@@ -68,6 +68,17 @@ void layouts(const fs::path &root) {
             "Source-tree game assets");
   }
 
+  locations.userData = root / "AppData/Roaming";
+  locations.packageIdentifier.clear();
+  const auto noIdentity = directoryLayout(locations, "amagami");
+  require(noIdentity.documents.empty() && noIdentity.saves.empty(),
+          "Missing package ID cannot share the desktop Documents root");
+  locations.packageIdentifier = "com.example.game";
+  locations.userData.clear();
+  const auto noUserRoot = directoryLayout(locations, "amagami");
+  require(noUserRoot.documents.empty() && noUserRoot.saves.empty(),
+          "Missing user root cannot create relative desktop save paths");
+
   locations.platform = StoragePlatform::Android;
   locations.resources = root / "data/data/com.example.game/files";
   locations.privateGameAssets = root / "data/data/com.example.game/game_assets";

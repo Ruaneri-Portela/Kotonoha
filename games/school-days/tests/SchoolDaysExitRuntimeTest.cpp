@@ -1,36 +1,34 @@
+#include "SchoolDaysAssets.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/core/Engine.hpp>
-#include <SchoolDays/SchoolDaysAssets.hpp>
 #include <iostream>
 #include <stdexcept>
 
 namespace {
 void check(bool condition, const char *message) {
-  if (!condition)
-    throw std::runtime_error(message);
+  if (!condition) throw std::runtime_error(message);
 }
 
 struct Application {
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
   static Kotonoha::EngineOptions options(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets) {
+      const std::shared_ptr<SchoolDays::Assets> &assets) {
     Kotonoha::EngineOptions result;
     result.assets = assets;
     result.persistSettings = false;
     result.rendererOverride = "software";
     return result;
   }
-  Application(
-      const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-      const char *route, const std::filesystem::path &documents)
+  Application(const std::shared_ptr<SchoolDays::Assets> &assets,
+              const char *route, const std::filesystem::path &documents)
       : runtime(assets, route, documents), engine(runtime, options(assets)) {}
   ~Application() { runtime.shutdown(); }
 };
 
 void checkFontLifetimeAcrossEngineConstructorException(
-    const std::shared_ptr<Kotonoha::Providers::SchoolDaysAssets> &assets,
-    const char *route, const std::filesystem::path &documents) {
+    const std::shared_ptr<SchoolDays::Assets> &assets, const char *route,
+    const std::filesystem::path &documents) {
   // Engine creates two UI-owned TTF sessions, then invokes Runtime::init,
   // which creates GameScene's choice font. A constructor exception *after*
   // Runtime::init destroys those UI sessions before Runtime's destructor.
@@ -58,8 +56,7 @@ void clickChoice(SchoolDays::Runtime &runtime, int choice) {
   const int height = static_cast<int>(view.Cmap().Height());
   for (int y = 0; y < height; y += 2) {
     for (int x = 0; x < width; x += 2) {
-      if (view.HitChoice(x, y) != choice)
-        continue;
+      if (view.HitChoice(x, y) != choice) continue;
       const float displayX = static_cast<float>(x) * 1280.0f / width;
       const float displayY = static_cast<float>(y) * 720.0f / height;
       SDL_Event event{};
@@ -83,14 +80,11 @@ void clickChoice(SchoolDays::Runtime &runtime, int choice) {
 int main(int argc, char **argv) {
   try {
     check(argc == 3, "Expected retail assets and route");
-    const auto documents =
-        std::filesystem::temp_directory_path() /
+    const auto documents = std::filesystem::temp_directory_path() /
         ("school-days-exit-" + std::to_string(SDL_GetPerformanceCounter()));
-    auto assets =
-        std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(argv[1]);
+    auto assets = std::make_shared<SchoolDays::Assets>(argv[1]);
     std::cerr << "ExitRuntime: verify constructor exception font lifecycle\n";
-    checkFontLifetimeAcrossEngineConstructorException(assets, argv[2],
-                                                      documents);
+    checkFontLifetimeAcrossEngineConstructorException(assets, argv[2], documents);
     std::cerr << "ExitRuntime: initialize retail data\n";
     Application app(assets, argv[2], documents);
     std::cerr << "ExitRuntime: enter gameplay\n";
@@ -150,7 +144,8 @@ int main(int argc, char **argv) {
     app.runtime.openPanel(16);
     SDL_Delay(520);
     app.runtime.update();
-    check(app.runtime.panels().IsExitOpen(), "Menu quit popup did not reopen");
+    check(app.runtime.panels().IsExitOpen(),
+          "Menu quit popup did not reopen");
     clickChoice(app.runtime, 0);
     SDL_Delay(770);
     app.runtime.update();

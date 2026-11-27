@@ -198,6 +198,16 @@ def self_test() -> None:
         fixture_path: ("add_library(DdlcFormats STATIC Archive.cpp)\n"
                        "target_link_libraries(DdlcFormats PUBLIC KotonohaEngine)\n"),
     })
+    # The SDL provider moved out of lib/CMakeLists.txt. The audit must find
+    # the helper through its POSIX-style dictionary key, including on Windows.
+    sdl_key = "buildsystems/cmake/dependencies/KotonohaSDL.cmake"
+    provider = ("set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY VERSION)\n"
+                "set_property(TARGET ${_kotonoha_sdl_shared} PROPERTY SOVERSION)\n")
+    assert not audit({"lib/CMakeLists.txt": "", sdl_key: provider})
+    assert any("vendored SDL must clear version properties" in issue for issue in audit({
+        "lib/CMakeLists.txt": fixture_core,
+        sdl_key: "set_property(TARGET sdl PROPERTY VERSION)\n",
+    }))
     print("[CMake targets] self-tests passed")
 
 
@@ -205,7 +215,7 @@ def main() -> int:
     if "--self-test" in sys.argv:
         self_test()
     files = {
-        str(file.relative_to(ROOT)): file.read_text(encoding="utf-8")
+        file.relative_to(ROOT).as_posix(): file.read_text(encoding="utf-8")
         for file in ROOT.rglob("CMakeLists.txt")
         if "submodules" not in file.parts
         and "out" not in file.parts
@@ -216,7 +226,7 @@ def main() -> int:
         if not helper_path.is_file():
             print(f"[CMake targets] missing dependency helper: {helper}", file=sys.stderr)
             return 1
-        files[str(helper_path.relative_to(ROOT))] = helper_path.read_text(encoding="utf-8")
+        files[helper_path.relative_to(ROOT).as_posix()] = helper_path.read_text(encoding="utf-8")
     core_path = ROOT / "lib/CMakeLists.txt"
     if not core_path.exists():
         print("[CMake targets] expected lib/CMakeLists.txt is missing", file=sys.stderr)

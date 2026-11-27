@@ -59,3 +59,7 @@ Antes de distribuir binários, consulte a [licença](LICENSE), os [avisos de ter
 **Dados comerciais não são distribuídos.** Use somente assets obtidos legalmente e não os envie ao Git. O local padrão para dados de jogos é `games/<jogo>/game-assets/`. Consulte o [README do port](games/README.pt-BR.md) para arquivos exigidos. Os direitos dos jogos originais pertencem aos respectivos titulares.
 
 Ao contribuir, mantenha o motor independente de plataforma, documente novas opções nos dois idiomas e preserve relatórios históricos ao reorganizar guias ativos.
+
+## Integra??o do fork e QA Windows L4 de School Days
+
+O fork preserva testes de paridade retail Windows L4, relat?rios locais de QA e hist?ricos distintos das branches `dev` e h?brida. Consulte [`docs/KNOWN_STATE.pt-BR.md`](docs/KNOWN_STATE.pt-BR.md) e [`games/school-days/docs/`](games/school-days/docs/) para limites espec?ficos. Nos testes de Replay, retail ou migra??o de saves, use perfis `--documents` isolados; nunca altere GPKs comerciais privados nem saves pessoais durante a integra??o. A vers?o hist?rica detalhada deste README foi preservada no backup pr?-sincroniza??o independente.

@@ -34,4 +34,8 @@ Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de
 
 ## Filesystem virtual experimental
 
-O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação de arquitetura](filesystem/SPECIFICATION.pt-BR.md) é a referência (versão em inglês: [SPECIFICATION.md](filesystem/SPECIFICATION.md)); nenhum port deve ser considerado inteiramente migrado sem testes.
+O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port deve ser considerado inteiramente migrado sem testes.
+
+## Preserva??o do fork ? Windows L4
+
+Ao integrar o upstream, preserve os testes de paridade visual e funcional do School Days HQ Windows L4 e utilize apenas assets sint?ticos e perfis de teste `--documents` isolados. Nunca siga junctions NTFS em scripts de limpeza nem remova bin?rios retail originais, arquivos GPK, tradu??es privadas, distribui??es QA instaladas ou saves reais. Capturas hist?ricas de QA documentam as condi??es da ?poca, n?o necessariamente o estado atual. O ?ndice anterior do fork est? preservado no arquivo independente pr?-sincroniza??o.

@@ -77,8 +77,7 @@ public:
   }
   const std::vector<DialogueEntry> &getEntries() const { return entries; }
 
-  virtual void open() {
-    touchActivation.reset();
+  virtual void open() { touchActivation.reset();
     isOpen = true;
     scrollToBottom = true;
     isDragging = false;

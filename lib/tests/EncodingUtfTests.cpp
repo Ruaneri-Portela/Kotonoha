@@ -25,8 +25,8 @@ int main() {
   Require(Kotonoha::Utf8ToUtf16("").empty(), "empty UTF-8 -> UTF-16");
   Require(Kotonoha::Utf16ToUtf8(u"").empty(), "empty UTF-16 -> UTF-8");
 
-  // Short ASCII punctuation sequence that previously triggered iconv E2BIG
-  // loops on Android/POSIX backends.
+  // Exact Episode 1 first subtitle that previously triggered Android Bionic
+  // iconv E2BIG infinite loop inside SDL_iconv_string.
   const std::u16string dots = Kotonoha::Utf8ToUtf16("......");
   Require(dots == u"......", "ASCII six dots");
   Require(Kotonoha::Utf16ToUtf8(dots) == "......", "ASCII round-trip");

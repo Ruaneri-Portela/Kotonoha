@@ -11,7 +11,7 @@ cd buildsystems/android
 ./gradlew :app:assembleRealLiveDebug -Pabis=armeabi-v7a
 ```
 
-On Windows, use `gradlew.bat` and set `VCPKG_ROOT` in the environment. Gradle reads the SDK location from Android Studio/`local.properties`. The default ABIs are `arm64-v8a,armeabi-v7a,x86_64`; select ARMv7 NEON with `-Pabis=armeabi-v7a` or both ARM ABIs with `-Pabis=arm64-v8a,armeabi-v7a`. The NDK enables `ANDROID_ARM_NEON=ON` and vcpkg selects `arm-neon-android` for ARMv7. Only NEON-capable 32-bit devices are supported.
+On Windows, use `gradlew.bat` and set `VCPKG_ROOT` in the environment. Gradle reads the SDK location from Android Studio/`local.properties`. The default ABIs are `arm64-v8a,armeabi-v7a,x86_64`. Select ARMv7 NEON with `-Pabis=armeabi-v7a`, ARM64 with `-Pabis=arm64-v8a`, or both ARM ABIs with `-Pabis=arm64-v8a,armeabi-v7a`. The NDK uses `ANDROID_ARM_NEON=ON` and vcpkg uses `arm-neon-android` for ARMv7; the 32-bit device must support NEON.
 
 Flavor examples: `Launcher` (Unified Hub), `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, `Pmail`, `Ponscripter`, and `N2System`. Install a variant using `:app:install<Flavor>Debug`.
 

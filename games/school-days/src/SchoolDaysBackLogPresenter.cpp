@@ -1,5 +1,7 @@
 #include <Kotonoha/routing/SchoolDaysBackLogPresenter.hpp>
 
+#include "SchoolDaysChineseFont.hpp"
+
 #include <algorithm>
 #include <filesystem>
 #include <map>
@@ -121,6 +123,7 @@ bool SchoolDaysBackLogPresenter::Open(
       return Fail(error, "School Days BackLog fallback chain setup failed");
     }
   }
+  chineseFallbackFont_ = AttachSchoolDaysChineseFallback(font_).release();
   // Preserve the requested CJK fallback first. Emoji is the last resort,
   // added only when no earlier font in the chain can draw the smiley.
   if (!TTF_FontHasGlyph(font_, 0x1F642u)) {
@@ -163,10 +166,13 @@ void SchoolDaysBackLogPresenter::Close() {
   }
   if (fallbackFont_ != nullptr)
     TTF_CloseFont(fallbackFont_);
+  if (chineseFallbackFont_ != nullptr)
+    TTF_CloseFont(chineseFallbackFont_);
   if (emojiFallbackFont_ != nullptr)
     TTF_CloseFont(emojiFallbackFont_);
   font_ = nullptr;
   fallbackFont_ = nullptr;
+  chineseFallbackFont_ = nullptr;
   emojiFallbackFont_ = nullptr;
   useEnglish_ = false;
   opened_ = false;
@@ -262,8 +268,9 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
   }
   for (const auto &block : textPlan.blocks) {
     // Build one shaped TTF run per authenticated FONTDATA row. The run is
-    // then fitted proportionally within its allowed width and line height,
-    // preserving the aspect ratio of accented and supplementary glyphs.
+    // then proportionally fitted within the native advance span and line
+    // height. Forcing a shaped TTF row into an arbitrary 48-pixel height
+    // flattened accented and translated text relative to its true glyphs.
     std::map<int, std::vector<SchoolDaysBackLogRenderPlan::NativeGlyph>> rows;
     for (const auto &placement : block.glyphs)
       rows[placement.y].push_back(placement);
@@ -279,7 +286,7 @@ bool SchoolDaysBackLogPresenter::Render(SDL_Renderer *renderer,
         continue;
 
       SDL_Surface *rendered = SchoolDaysSubtitleTypography::Render(
-          font_, utf8.c_str(), utf8.size());
+          font_, utf8.c_str(), utf8.size(), chineseFallbackFont_);
       if (rendered == nullptr) {
         SDL_DestroySurface(scratch);
         return Fail(error, "School Days BackLog TTF rasterization failed");

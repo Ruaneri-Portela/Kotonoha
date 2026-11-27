@@ -33,6 +33,28 @@ protected:
   void save() override { ++saved; }
 };
 
+class CustomLauncher final : public Launcher {
+public:
+  using Launcher::Launcher;
+  int customFrames = 0;
+  int genericFrames = 0;
+
+  std::pair<int, int> actualWindowSize() const {
+    int width = 0, height = 0;
+    require(SDL_GetWindowSize(launcherWindow(), &width, &height),
+            "Cannot query custom launcher window size");
+    return {width, height};
+  }
+
+protected:
+  std::pair<int, int> preferredWindowSize() const override { return {950, 600}; }
+  bool drawCustomContents() override {
+    ++customFrames;
+    return true;
+  }
+  void drawGameOptions() override { ++genericFrames; }
+};
+
 class TestRuntime final : public Runtime {
 public:
   TestRuntime() : Runtime("LauncherTests", "1", "launcher-tests") {}
@@ -50,7 +72,7 @@ public:
 protected:
   bool checkPath(const std::string &path, std::string &info) override {
     const bool valid = std::filesystem::is_directory(path);
-    info = valid ? "Directory found" : "Directory not found";
+    info = valid ? "Directory found" : "Directory not found: " + path;
     return valid;
   }
 };
@@ -86,6 +108,20 @@ void gameLauncher(const std::filesystem::path &directory) {
   const auto root = directory / "game-launcher";
   std::filesystem::create_directory(root);
   const auto settings = (root / "settings.json").string();
+  // Absolute selections must be validated *as entered*, never against
+  // additional AppData/working-directory candidates that hide the actual
+  // missing folder. Rechecking after a successful choice updates the message.
+  {
+    const auto selected = root / "missing-actual-packs";
+    TestGameLauncher precise(settings, selected.string());
+    precise.setPath(selected.string());
+    require(!precise.pathValid() &&
+                precise.pathInfo() == "Directory not found: " + selected.string(),
+            "Explicit missing Packs path must be reported verbatim");
+    precise.setPath(root.string());
+    require(precise.pathValid() && precise.pathInfo() == "Directory found",
+            "Selecting a valid path must clear the prior missing-directory message");
+  }
   {
     TestGameLauncher launcher(settings, (root / "missing").string());
     require(!launcher.pathValid() && !launcher.launch(),
@@ -137,6 +173,17 @@ void launcher(const std::filesystem::path &directory) {
   const auto path = (directory / "settings.json").string();
   const auto transPath = (directory / "translation.json").string();
   std::ofstream(transPath) << "{}\n";
+  {
+    CustomLauncher custom("Custom", (directory / "custom.json").string());
+    custom.open();
+    require(custom.actualWindowSize() == std::make_pair(950, 600),
+            "Custom launcher window must use its preferred size");
+    for (int i = 0; i < 3; ++i)
+      custom.iterate();
+    require(custom.customFrames == 3 && custom.genericFrames == 0,
+            "Custom launcher must render without generic tabs");
+    custom.close();
+  }
   {
     TestLauncher launcher("Test", path);
     require(launcher.state() == Launcher::State::Running &&

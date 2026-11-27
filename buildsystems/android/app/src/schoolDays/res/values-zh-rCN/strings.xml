@@ -1,0 +1,124 @@
+<resources>
+    <string name="sd_play">开始游戏</string>
+    <string name="sd_options">选项</string>
+    <string name="sd_quit">退出</string>
+    <string name="sd_files">游戏文件</string>
+    <string name="sd_language">语言</string>
+    <string name="sd_tab_display">显示</string>
+    <string name="sd_tab_graphics">图形</string>
+    <string name="sd_tab_audio">音频</string>
+    <string name="sd_tab_general">常规</string>
+    <string name="sd_tab_language">语言</string>
+    <string name="sd_tab_files">文件</string>
+    <string name="sd_ok">应用</string>
+    <string name="sd_cancel">取消</string>
+    <string name="sd_reset">恢复默认设置</string>
+    <string name="sd_pick">选择 SchoolDaysHQ 文件夹</string>
+    <string name="sd_retry">重新检查</string>
+    <string name="sd_back">返回</string>
+    <string name="sd_missing">无法启动 School Days HQ。请选择包含 Packs、game-assets、overlay 和 translations 的 SchoolDaysHQ 文件夹。</string>
+    <string name="sd_selected_packs_directly">您直接选择了 Packs 文件夹。请选择上级 SchoolDaysHQ 文件夹，以便启动器访问 game-assets、overlay 和 translations。</string>
+    <string name="sd_checking">正在检查文件夹…</string>
+    <string name="sd_preparing">正在准备游戏会话…</string>
+    <string name="sd_denied">无法访问所选文件夹，请重新授权选择。</string>
+    <string name="sd_unreadable">无法检查文件夹。请重试或选择其他文件夹。</string>
+    <string name="sd_ready">就绪 · %1$s (%2$s) · %3$s</string>
+    <string name="sd_choose">请选择一种可用语言</string>
+    <string name="sd_absent">文件夹已授权。缺失、为空或存在冲突：%1$s</string>
+    <string name="sd_no_translations">未找到可用的 GPK 或 JSON 翻译。</string>
+    <string name="sd_incomplete_json">缺少 L×H 扩展文件的基础 JSON（可玩原版 HQ）：%1$s</string>
+    <string name="sd_missing_gpk_files">不可用 — translations/scripts/ 中缺少：%1$s</string>
+    <string name="sd_missing_gpk_json_hint">不可用 — translations/scripts/ 中缺少：%1$s（下方提供 JSON 版本）</string>
+    <string name="sd_chinese_legacy_gpk">检测到不兼容的旧版 Script - chinese.GPK；需要经认证的 Script - chinese-compatible.GPK</string>
+    <string name="sd_detected_gpk">已检测到的 GPK 包：%1$s</string>
+    <string name="sd_detected_json">已检测到的 JSON 对：%1$s</string>
+    <string name="sd_none">无</string>
+    <string name="sd_info">Kotonoha · %1$s</string>
+    <string name="sd_picker_error">Android 系统文件夹选择器不可用。</string>
+    <string name="sd_private_ready">已在应用私有目录中找到现有安装。</string>
+    <string name="sd_forget">断开文件夹连接</string>
+    <string name="sd_game_failed">School Days HQ 无法完成启动或运行。请检查游戏文件后重试。</string>
+    <string name="sd_failed_packs">无法打开或校验游戏数据包。请检查 Packs 文件及 SAF 文件夹权限。</string>
+    <string name="sd_failed_route">引擎无法加载 game-assets/school-days-hq.ktnroute。请检查路线文件后重试。</string>
+    <string name="sd_failed_language">引擎无法校验所选语言。请检查该语言的 HQ 与 L×H 文件。</string>
+    <string name="sd_save_error">无法保存设置。请检查存储权限。</string>
+    <string name="sd_saved_ok">设置已保存。</string>
+    <string name="sd_reset_done">默认设置已就绪，点击“应用”即可保存。</string>
+
+    <!-- 显示 -->
+    <string name="sd_display_note">游戏将在设备 Surface 上以横屏全屏模式运行。剧情画面比例与帧率上限通过 Kotonoha.ini 共享；剧本与视频时钟保持 24 fps。</string>
+    <string name="sd_display_mode">原生分辨率 / 刷新率</string>
+    <string name="sd_device_default">设备默认</string>
+    <string name="sd_vsync">VSync</string>
+    <string name="sd_narrative_aspect">剧情画面比例</string>
+    <string name="sd_aspect_auto">自动</string>
+    <string name="sd_aspect_43">4:3（标准）</string>
+    <string name="sd_aspect_169">16:9（宽屏）</string>
+    <string name="sd_frame_limit">帧率上限（Android）</string>
+    <string name="sd_fps_unlimited">无限制（屏幕刷新率）</string>
+    <string name="sd_fps_30">30 FPS</string>
+    <string name="sd_fps_60">60 FPS</string>
+
+    <!-- 图形 -->
+    <string name="sd_renderer_gles">渲染器：OpenGL ES（设备原生）</string>
+    <string name="sd_render_scale">渲染比例：%1$s</string>
+    <string name="sd_upscaler">超分后端 (Upscaler)</string>
+    <string name="sd_upscale_factor">超分倍率：%1$s</string>
+    <string name="sd_upscale_off_note">倍率为 1.00x 时，无论预设为何都将关闭超分。选择着色器预设会自动启用 MPV 且倍率 >= 2.00x。</string>
+    <string name="sd_shader_preset">着色器预设（Anime4K / ArtCNN）</string>
+
+    <!-- 音频 -->
+    <string name="sd_audio_retail_heading">游戏音频（Config.DAT）</string>
+    <string name="sd_bgm_vol">背景音乐音量 (BGM)：%1$d / 10</string>
+    <string name="sd_se_vol">音效音量 (SE)：%1$d / 10</string>
+    <string name="sd_voice_vol">语音音量：%1$d / 10</string>
+    <string name="sd_men_voice">男性语音</string>
+    <string name="sd_mute_game">静音游戏音频</string>
+    <string name="sd_audio_engine_heading">引擎与启动器音频</string>
+    <string name="sd_master_vol">主音量：%1$d%%</string>
+    <string name="sd_movie_vol">影片音量：%1$d%%</string>
+    <string name="sd_launcher_music">启动器背景音乐（仅启动器）</string>
+    <string name="sd_launcher_music_btn_on">启动器音乐：开</string>
+    <string name="sd_launcher_music_btn_off">启动器音乐：关</string>
+    <string name="sd_launcher_language">启动器语言</string>
+    <string name="sd_launcher_language_btn">启动器语言：%1$s</string>
+    <string name="sd_title_launcher">启动器</string>
+    <string name="sd_title_options">设置 / 选项</string>
+    <string name="sd_upscaler_auto">自动</string>
+    <string name="sd_upscaler_none">无</string>
+    <string name="sd_upscaler_linear">Linear</string>
+    <string name="sd_upscaler_mpv">MPV</string>
+
+    <!-- 常规 -->
+    <string name="sd_general_retail_heading">游戏选项（Config.DAT）</string>
+    <string name="sd_text_view">显示文本 / 字幕</string>
+    <string name="sd_skip_unread">跳过未读场景</string>
+    <string name="sd_super_skip">SuperSkip / 跳至下一选项</string>
+    <string name="sd_auto_draw">自动绘制 (Auto draw)</string>
+    <string name="sd_auto_mode">自动模式 (Auto mode)</string>
+    <string name="sd_general_engine_heading">引擎选项（settings.json）</string>
+    <string name="sd_swap_ab">交换手柄 A/B 键</string>
+    <string name="sd_forced_subtitles">启用强制字幕 (.ass)</string>
+    <string name="sd_lxh_heading">可选扩展（Kotonoha.ini）</string>
+    <string name="sd_enable_lxh">启用 L×H 结局</string>
+    <string name="sd_enable_lxh_desc">当所需文件可用时，启用七个额外的后日谈结局。</string>
+    <string name="sd_lxh_state_active">L×H 已启用（7 个结局）</string>
+    <string name="sd_lxh_state_off">原版 HQ（L×H 已关闭）</string>
+    <string name="sd_lxh_state_missing_pack">原版 HQ（缺少 Packs/LxH.GPK）</string>
+    <string name="sd_lxh_state_missing_lang">原版 HQ（此语言无可用 L×H 翻译）</string>
+
+    <!-- 语言 -->
+    <string name="sd_lang_active">当前选择：%1$s</string>
+    <string name="sd_lang_gpk_heading">原生 GPK 包（translations/scripts/）</string>
+    <string name="sd_lang_json_heading">JSON 词典（translations/jsons/）</string>
+    <string name="sd_lang_note">基础 HQ 翻译可独立于 L×H 运行。启用 L×H 时，必须具备所选语言的 L×H 文件，不会静默回退语言。</string>
+
+    <!-- 文件 -->
+    <string name="sd_files_summary">原版数据包：%1$d / 29（可选 LxH.GPK：%2$s）\n路线 (ktnroute)：%3$s\nstyles.ass：%4$s\nforced_subtitles/：%5$s\noverlay/：%6$s</string>
+    <string name="sd_status_ok">正常</string>
+    <string name="sd_status_missing">缺失</string>
+    <string name="sd_status_optional">未安装（可选）</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">启用 Rich Presence</string>
+    <string name="sd_discord_description">在 Discord 应用中显示游戏动态，无需重新登录。</string>
+</resources>

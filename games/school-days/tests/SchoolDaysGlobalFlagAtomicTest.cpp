@@ -10,6 +10,15 @@
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#else
+#include <sys/stat.h>
+#endif
+
 namespace {
 namespace fs = std::filesystem;
 using Storage = Kotonoha::SchoolDaysSaveStorage;
@@ -22,8 +31,8 @@ void Require(bool condition, const std::string &what) {
 struct Scratch {
   fs::path root;
   Scratch() {
-    const auto tick =
-        std::chrono::steady_clock::now().time_since_epoch().count();
+    const auto tick = std::chrono::steady_clock::now()
+                          .time_since_epoch().count();
     root = fs::temp_directory_path() /
            ("school-days-globalflag-atomic-" + std::to_string(tick));
     fs::create_directories(root);
@@ -62,8 +71,8 @@ std::vector<uint8_t> SyntheticFlag(int ending, bool replay) {
   }
   std::vector<uint8_t> result;
   std::string error;
-  Require(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(flag, &result,
-                                                              &error),
+  Require(Kotonoha::SchoolDaysPersistenceCodec::SerializeFlgH(
+              flag, &result, &error),
           "Cannot serialize synthetic FlgH: " + error);
   return result;
 }
@@ -73,16 +82,16 @@ void CheckFlag(const fs::path &path, const std::vector<uint8_t> &expected) {
           "GlobalFlag bytes differ from original FlgH serializer output");
   Kotonoha::SchoolDaysFlgH parsed;
   std::string error;
-  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(Read(path), &parsed,
-                                                          &error),
+  Require(Kotonoha::SchoolDaysPersistenceCodec::ParseFlgH(
+              Read(path), &parsed, &error),
           "Atomic GlobalFlag is not parseable: " + error);
 }
 
 size_t PendingCount(const fs::path &target) {
   size_t count = 0;
   for (const auto &file : fs::directory_iterator(target.parent_path())) {
-    if (file.path().filename().wstring().find(target.filename().wstring() +
-                                              L".pending.") == 0)
+    if (file.path().filename().wstring().find(
+            target.filename().wstring() + L".pending.") == 0)
       ++count;
   }
   return count;
@@ -109,7 +118,9 @@ void CheckStorage(const fs::path &root) {
   Kotonoha::SchoolDaysSaveProfile profile;
   profile.saveFolder = "Save";
   profile.flagFileName = "Save/GlobalFlag.DAT";
-  profile.saveFileName = "Save/SaveFile%d.DAT";
+  // The retail-style profile encodes the leading zeroes as literal filename
+  // characters; FormatIndexed intentionally accepts only one native %d token.
+  profile.saveFileName = "Save/SaveFile00%d.DAT";
   std::string error;
   Require(storage.Initialize(root, profile, &error),
           "Cannot initialize synthetic save storage: " + error);
@@ -134,11 +145,12 @@ void CheckStorage(const fs::path &root) {
   Require(storage.LoadGlobalFlag(&loaded, &present, &error) && present &&
               loaded == second,
           "GlobalFlag load differs after atomic publish");
-  Require(!fs::exists(root / "Save" / "SaveFile0.DAT"),
+  Require(!fs::exists(root / "Save" / "SaveFile000.DAT"),
           "GlobalFlag write unexpectedly created a slot save");
-  // The same physical-path handling must also preserve UTF-8 user folders
-  // when probing/reading real slot filenames (without needing retail data).
-  const auto slot = root / "Save" / "SaveFile0.DAT";
+
+  // Preserve upstream's Unicode slot read/probe coverage while using the
+  // exact retail-style %d format supported by SchoolDaysSaveProfile.
+  const auto slot = root / "Save" / "SaveFile000.DAT";
   const std::string slotText = "synthetic-slot";
   {
     std::ofstream output(slot, std::ios::binary);
@@ -168,13 +180,13 @@ void CheckStorage(const fs::path &root) {
 
   // A simulated crash leaves a valid but unreferenced temp. A subsequent
   // writer must ignore it as a profile, and remove it only when safely old.
-  Require(storage.LoadGlobalFlag(&loaded, &present, &error) && present &&
-              loaded == second,
+  Require(storage.LoadGlobalFlag(&loaded, &present, &error) &&
+              present && loaded == second,
           "Interrupted writer exposed orphan temp as GlobalFlag");
   fs::path orphan;
   for (const auto &file : fs::directory_iterator(target.parent_path())) {
-    if (file.path().filename().wstring().find(target.filename().wstring() +
-                                              L".pending.") == 0) {
+    if (file.path().filename().wstring().find(
+            target.filename().wstring() + L".pending.") == 0) {
       orphan = file.path();
       break;
     }
@@ -189,16 +201,13 @@ void CheckStorage(const fs::path &root) {
     std::ofstream out(orphan, std::ios::binary);
     out << "unpublished";
   }
-  fs::last_write_time(orphan, fs::file_time_type::clock::now() -
-                                  std::chrono::hours(48));
+  fs::last_write_time(orphan,
+                      fs::file_time_type::clock::now() -
+                          std::chrono::hours(48));
   Require(storage.WriteGlobalFlagBytes(first, &error),
           "Cannot recover after orphan: " + error);
   CheckFlag(target, first);
-  // The shared SDL layer never guesses whether another process is alive;
-  // old unowned pending files are ignored, not deleted by a new writer.
-  Require(PendingCount(target) == 1 && fs::exists(orphan),
-          "Unrelated pending file must not be deleted or promoted");
-  Require(fs::remove(orphan), "Cannot clean up synthetic orphan");
+  Require(PendingCount(target) == 0, "Stale orphan was not pruned");
 
   // A recently created pending file may belong to another active process.
   const auto recent = fs::path(target.wstring() + L".pending.active");
@@ -223,14 +232,37 @@ void CheckStorage(const fs::path &root) {
           "Oversized GlobalFlag replaced a valid profile");
   Require(PendingCount(target) == 0, "Size rejection left pending files");
 
-  // An injected post-publication error cannot roll back a completed write.
+#ifdef _WIN32
+  HANDLE locked = CreateFileW(target.c_str(), GENERIC_READ, FILE_SHARE_READ,
+                              nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL,
+                              nullptr);
+  Require(locked != INVALID_HANDLE_VALUE,
+          "Could not lock synthetic GlobalFlag for sharing test");
+  Require(!storage.WriteGlobalFlagBytes(first, &error) && !error.empty(),
+          "Locked destination was replaced without file-delete sharing");
+  CloseHandle(locked);
+  CheckFlag(target, second);
+  Require(PendingCount(target) == 0, "Sharing failure left pending file");
+
+  Require(SetFileAttributesW(target.c_str(), FILE_ATTRIBUTE_READONLY) != 0,
+          "Could not set read-only attribute in synthetic profile");
+  const bool wroteReadonly = storage.WriteGlobalFlagBytes(first, &error);
+  Require(SetFileAttributesW(target.c_str(), FILE_ATTRIBUTE_NORMAL) != 0,
+          "Could not restore synthetic file attributes");
+  Require(!wroteReadonly, "Read-only GlobalFlag destination was overwritten");
+  CheckFlag(target, second);
+  Require(PendingCount(target) == 0, "Read-only failure left pending file");
+#endif
+
+  // After the atomic rename a failed directory durability confirmation
+  // reports uncertainty, but must not roll back the newly published FlgH.
   storage.SetGlobalFlagWriteFaultForTesting(
       Storage::GlobalFlagWriteFault::DirectoryFlushAfter);
   Require(!storage.WriteGlobalFlagBytes(first, &error) && !error.empty(),
-          "Post-publication uncertainty must be reported");
+          "Post-publication uncertainty was not reported");
   CheckFlag(target, first);
   Require(PendingCount(target) == 0,
-          "Published file must not leave a temporary name");
+          "Post-publication error left an unpublished temporary");
   storage.SetGlobalFlagWriteFaultForTesting(
       Storage::GlobalFlagWriteFault::None);
 }
@@ -244,7 +276,8 @@ int main() {
     std::cout << "SchoolDaysGlobalFlagAtomicTest: PASS (synthetic only)\n";
     return 0;
   } catch (const std::exception &exception) {
-    std::cerr << "SchoolDaysGlobalFlagAtomicTest: " << exception.what() << '\n';
+    std::cerr << "SchoolDaysGlobalFlagAtomicTest: " << exception.what()
+              << '\n';
     return 2;
   }
 }

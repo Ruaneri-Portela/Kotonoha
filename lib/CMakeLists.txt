@@ -53,12 +53,25 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/dependencies/Kotonoha
 # ==============================================================================
 # Target: imgui
 # ==============================================================================
+option(KOTONOHA_STATIC_IMGUI
+       "Link the ImGui backend statically into Kotonoha" OFF)
+option(KOTONOHA_STATIC_ENGINE
+       "Link Kotonoha engine statically into applications" OFF)
 set(KOTONOHA_LIB_TYPE SHARED)
-if (EMSCRIPTEN)
+if (EMSCRIPTEN OR KOTONOHA_STATIC_ENGINE)
     set(KOTONOHA_LIB_TYPE STATIC)
 endif ()
 
+# Keep the upstream pinned ImGui submodule and the fork's static package option.
+if(KOTONOHA_STATIC_IMGUI)
+    set(_kotonoha_saved_lib_type "${KOTONOHA_LIB_TYPE}")
+    set(KOTONOHA_LIB_TYPE STATIC)
+endif()
 include("${CMAKE_CURRENT_SOURCE_DIR}/../buildsystems/cmake/dependencies/KotonohaImGui.cmake")
+if(KOTONOHA_STATIC_IMGUI)
+    set(KOTONOHA_LIB_TYPE "${_kotonoha_saved_lib_type}")
+    unset(_kotonoha_saved_lib_type)
+endif()
 
 # ==============================================================================
 # Target principal: KotonohaEngine
@@ -67,6 +80,26 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         CONFIGURE_DEPENDS
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
+
+# Optional integrations have their own targets and select a single platform
+# backend. Do not also compile them into the shared engine.
+list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/src/integrations/")
+
+# Preserve the Windows L4 public/dev split without reverting the upstream
+# glob-based CMake and SDL/FFmpeg upgrades. No engine-specific School Days
+# names are introduced here.
+if(KOTONOHA_DISTRIBUTION_BUILD)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX
+        "/src/(debug/DebugOverlay|mcp/MCPServer|debug/VoiceDubbingApplet|debug/DubbingOverlay)\\.cpp$")
+    if(KOTONOHA_ENABLE_PLAYER_DUBBING)
+        list(APPEND KOTONOHA_ENGINE_SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/DubbingOverlay.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/VoiceDubbingApplet.cpp")
+    endif()
+else()
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX
+        "/src/debug/DubbingOverlay\\.cpp$")
+endif()
 
 if (APPLE)
     file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES_OBJC
@@ -88,6 +121,12 @@ add_library(KotonohaEngine ${KOTONOHA_LIB_TYPE} ${KOTONOHA_ENGINE_SOURCES})
 if(KOTONOHA_DISTRIBUTION_BUILD)
     # PUBLIC reaches CLI consumers, game ports and their tests as well.
     target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_DISTRIBUTION_BUILD=1)
+endif()
+if(KOTONOHA_DISTRIBUTION_BUILD AND KOTONOHA_ENABLE_PLAYER_DUBBING)
+    target_compile_definitions(KotonohaEngine PUBLIC KOTONOHA_PLAYER_DUBBING=1)
+endif()
+if(KOTONOHA_DEV_CONTROL AND WIN32 AND NOT ANDROID)
+    target_compile_definitions(KotonohaEngine PRIVATE KOTONOHA_DEV_CONTROL=1)
 endif()
 if(DEFINED KOTONOHA_ENABLE_UPSCALER)
     target_compile_definitions(KotonohaEngine PUBLIC

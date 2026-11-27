@@ -9,106 +9,103 @@ namespace Kotonoha {
 // before opening, then panel to white and white back to gameplay on close.
 class SchoolDaysSystemPanelTransition final {
 public:
-  enum class Target : uint8_t { Save, Load, BackLog, Config };
-  enum class Phase : uint8_t { Idle, Opening, Open, Closing, Revealing };
-  enum class Event : uint8_t { None, OpenPanel, ClosePanel };
+    enum class Target : uint8_t { Save, Load, BackLog, Config };
+    enum class Phase : uint8_t { Idle, Opening, Open, Closing, Revealing };
+    enum class Event : uint8_t { None, OpenPanel, ClosePanel };
 
-  struct ViewportRect {
-    float x = 0.0f;
-    float y = 0.0f;
-    float w = 0.0f;
-    float h = 0.0f;
+    struct ViewportRect {
+        float x = 0.0f;
+        float y = 0.0f;
+        float w = 0.0f;
+        float h = 0.0f;
 
-    bool Valid() const { return w > 0.0f && h > 0.0f; }
-  };
+        bool Valid() const { return w > 0.0f && h > 0.0f; }
+    };
 
-  // Fits a logical game/panel canvas inside physical screen dimensions while
-  // preserving aspect ratio so white fades stay strictly inside the active
-  // game/panel viewport and never bleed onto black letterbox/pillarbox bars.
-  static ViewportRect ComputeFittedViewport(float screenWidth,
-                                            float screenHeight,
-                                            int virtualWidth, int virtualHeight,
-                                            float heightScale = 1.0f,
-                                            bool stretchFullscreen = false) {
-    if (screenWidth <= 0.0f || screenHeight <= 0.0f || virtualWidth <= 0 ||
-        virtualHeight <= 0) {
-      return {};
+    // Fits a logical game/panel canvas inside physical screen dimensions while
+    // preserving aspect ratio so white fades stay strictly inside the active
+    // game/panel viewport and never bleed onto black letterbox/pillarbox bars.
+    static ViewportRect ComputeFittedViewport(float screenWidth, float screenHeight,
+                                              int virtualWidth, int virtualHeight,
+                                              float heightScale = 1.0f,
+                                              bool stretchFullscreen = false) {
+        if (screenWidth <= 0.0f || screenHeight <= 0.0f ||
+            virtualWidth <= 0 || virtualHeight <= 0) {
+            return {};
+        }
+        if (stretchFullscreen) {
+            return {0.0f, 0.0f, screenWidth, screenHeight};
+        }
+        const float clampedHeightScale = std::clamp(heightScale, 0.01f, 1.0f);
+        const float scale = std::min(
+            screenWidth / static_cast<float>(virtualWidth),
+            screenHeight / static_cast<float>(virtualHeight));
+        const float width = static_cast<float>(virtualWidth) * scale;
+        const float height =
+            static_cast<float>(virtualHeight) * scale * clampedHeightScale;
+        return {(screenWidth - width) * 0.5f,
+                (screenHeight - height) * 0.5f,
+                width,
+                height};
     }
-    if (stretchFullscreen) {
-      return {0.0f, 0.0f, screenWidth, screenHeight};
+
+    void Begin(Target target, uint64_t nowMs) {
+        target_ = target;
+        phase_ = Phase::Opening;
+        sinceMs_ = nowMs;
     }
-    const float clampedHeightScale = std::clamp(heightScale, 0.01f, 1.0f);
-    const float scale = std::min(
-        screenWidth / static_cast<float>(virtualWidth),
-        screenHeight / static_cast<float>(virtualHeight));
-    const float width = static_cast<float>(virtualWidth) * scale;
-    const float height =
-        static_cast<float>(virtualHeight) * scale * clampedHeightScale;
-    return {(screenWidth - width) * 0.5f, (screenHeight - height) * 0.5f, width,
-            height};
-  }
 
-  void Begin(Target target, uint64_t nowMs) {
-    target_ = target;
-    phase_ = Phase::Opening;
-    sinceMs_ = nowMs;
-  }
-
-  void BeginClose(uint64_t nowMs) {
-    if (phase_ != Phase::Open)
-      return;
-    phase_ = Phase::Closing;
-    sinceMs_ = nowMs;
-  }
-
-  Event Update(uint64_t nowMs) {
-    if (phase_ == Phase::Opening && Elapsed(nowMs) >= 750u) {
-      phase_ = Phase::Open;
-      return Event::OpenPanel;
+    void BeginClose(uint64_t nowMs) {
+        if (phase_ != Phase::Open) return;
+        phase_ = Phase::Closing;
+        sinceMs_ = nowMs;
     }
-    if (phase_ == Phase::Closing && Elapsed(nowMs) >= 500u) {
-      phase_ = Phase::Revealing;
-      sinceMs_ = nowMs;
-      return Event::ClosePanel;
+
+    Event Update(uint64_t nowMs) {
+        if (phase_ == Phase::Opening && Elapsed(nowMs) >= 750u) {
+            phase_ = Phase::Open;
+            return Event::OpenPanel;
+        }
+        if (phase_ == Phase::Closing && Elapsed(nowMs) >= 500u) {
+            phase_ = Phase::Revealing;
+            sinceMs_ = nowMs;
+            return Event::ClosePanel;
+        }
+        if (phase_ == Phase::Revealing && Elapsed(nowMs) >= 500u)
+            phase_ = Phase::Idle;
+        return Event::None;
     }
-    if (phase_ == Phase::Revealing && Elapsed(nowMs) >= 500u)
-      phase_ = Phase::Idle;
-    return Event::None;
-  }
 
-  Phase CurrentPhase() const { return phase_; }
-  Target CurrentTarget() const { return target_; }
-  bool Active() const { return phase_ != Phase::Idle; }
-  bool InputLocked() const {
-    return phase_ == Phase::Opening || phase_ == Phase::Closing ||
-           phase_ == Phase::Revealing;
-  }
-  bool OpeningFromBlack() const { return phase_ == Phase::Opening; }
+    Phase CurrentPhase() const { return phase_; }
+    Target CurrentTarget() const { return target_; }
+    bool Active() const { return phase_ != Phase::Idle; }
+    bool InputLocked() const {
+        return phase_ == Phase::Opening || phase_ == Phase::Closing ||
+               phase_ == Phase::Revealing;
+    }
+    bool OpeningFromBlack() const { return phase_ == Phase::Opening; }
 
-  uint8_t WhiteAlpha(uint64_t nowMs) const {
-    const uint64_t elapsed = Elapsed(nowMs);
-    if (phase_ == Phase::Opening)
-      return static_cast<uint8_t>(
-          std::min<uint64_t>(255u, elapsed * 255u / 750u));
-    if (phase_ == Phase::Closing)
-      return static_cast<uint8_t>(
-          std::min<uint64_t>(255u, elapsed * 255u / 500u));
-    if (phase_ == Phase::Revealing)
-      return static_cast<uint8_t>(
-          255u - std::min<uint64_t>(255u, elapsed * 255u / 500u));
-    return 0u;
-  }
+    uint8_t WhiteAlpha(uint64_t nowMs) const {
+        const uint64_t elapsed = Elapsed(nowMs);
+        if (phase_ == Phase::Opening)
+            return static_cast<uint8_t>(std::min<uint64_t>(255u, elapsed * 255u / 750u));
+        if (phase_ == Phase::Closing)
+            return static_cast<uint8_t>(std::min<uint64_t>(255u, elapsed * 255u / 500u));
+        if (phase_ == Phase::Revealing)
+            return static_cast<uint8_t>(255u - std::min<uint64_t>(255u, elapsed * 255u / 500u));
+        return 0u;
+    }
 
-  void Reset() { phase_ = Phase::Idle; }
+    void Reset() { phase_ = Phase::Idle; }
 
 private:
-  uint64_t Elapsed(uint64_t nowMs) const {
-    return nowMs >= sinceMs_ ? nowMs - sinceMs_ : 0u;
-  }
+    uint64_t Elapsed(uint64_t nowMs) const {
+        return nowMs >= sinceMs_ ? nowMs - sinceMs_ : 0u;
+    }
 
-  Phase phase_ = Phase::Idle;
-  Target target_ = Target::Save;
-  uint64_t sinceMs_ = 0u;
+    Phase phase_ = Phase::Idle;
+    Target target_ = Target::Save;
+    uint64_t sinceMs_ = 0u;
 };
 
 } // namespace Kotonoha

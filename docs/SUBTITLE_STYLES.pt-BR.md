@@ -24,9 +24,9 @@ As linhas individuais de `game-assets/styles.ass` usam **o nome exato do falante
 | Kazuha | `Kazuha` | `&H00F6F3E8` | `&H00987605` | `#057698` |
 | Futaba | `Futaba` | `&H00EDF1E8` | `&H00336801` | `#016833` |
 | ExtraGirl | `Girl A`, `Girl B`, `Girl C`, `Girl D`, `Woman A`, `Woman B`, `Little Girl` | `&H00EEF0EE` | `&H00455540` | `#405545` |
-| ExtraMan | `Man A`, `Man B`, `Man C`, `Boy A`, `Niño` | `&H00F6F4F4` | `&H00653571` | `#713565` |
-| Fairy | `Fairy A`, `Fairy B` | `&H00F4F4F2` | `&H0063542E` | `#2E5463` |
-| System | `Cellphone`, `Screen`, `School PA`, `Creditos` | `&H00F3F3F6` | `&H0053556E` | `#6E5553` |
+| ExtraMan | `Man A`, `Man B`, `Man C`, `Boy A`, `Niño` | `&H00F6F4F4` | `&H00998186` | `#868199` |
+| Fairy | `Fairy A`, `Fairy B`, `Ameria`, `Chris` | `&H00F4F4F2` | `&H0083896E` | `#6E8983` |
+| System | `Cellphone`, `Screen`, `School PA`, `Creditos` | `&H00F3F3F6` | `&H00757D9C` | `#9C7D75` |
 | Role | `Class Rep`, `Committee Rep`, `Periodista` | `&H00F0EFEF` | `&H005B4E51` | `#514E5B` |
 | Pair | `Sekai&Makoto`, `Makoto&Sekai`, `Makoto Makoto・Sekai Sekai` | `&H00F2F1E9` | `&H00696406` | `#066469` |
 
@@ -36,7 +36,7 @@ Somente `PrimaryColour=&H00EEEEF9` e `OutlineColour=&H003F43BE` foram modificado
 
 ### Contraste dos grupos mais claros
 
-Os contornos de ExtraMan (#713565), Fairy (#2E5463) e System (#6E5553) foram escurecidos, conservando os preenchimentos originais. O contraste calculado entre preenchimento e contorno é de pelo menos 6:1. Isso não garante leitura em todos os fundos do vídeo e ainda requer teste visual específico.
+O upstream sugeriu contornos mais escuros para ExtraMan, Fairy e System, mas o fork preserva as cores originais aprovadas pelo usu?rio na tabela acima. A variante de contraste do upstream n?o foi aplicada silenciosamente; mudan?as futuras exigem QA visual espec?fico.
 
 ## ALIASES ADICIONADOS - REVISAR
 
@@ -49,7 +49,7 @@ Os contornos de ExtraMan (#713565), Fairy (#2E5463) e System (#6E5553) foram esc
 
 A atribuição de alguns nomes a personagens ou funções é **inferida**, e uma correspondência entre rótulos em idiomas diferentes deve ser revista. Se houver dúvida sobre uma nova variante, não crie um alias automaticamente.
 
-Ameria e Chris ficam intencionalmente em Default: aparecer no mesmo script de fadas não demonstra identidade.
+O fork preserva os aliases Ameria e Chris previamente autorizados dentro de Fairy; diferentemente da proposta upstream, seus estilos exatos permanecem at? revis?o visual expressa.
 
 ## Como adicionar um personagem
 

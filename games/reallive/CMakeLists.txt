@@ -228,16 +228,15 @@ if(BUILD_TESTING)
     # the shipped art, not a runtime sprite; lock its byte-exact decode.
     add_executable(RealLiveG00RetailArtTests tests/G00RetailArtTest.cpp)
     target_link_libraries(RealLiveG00RetailArtTests PRIVATE RealLiveFormats kotonoha_vm_reallive)
+    set(_reallive_g00_art_args)
+    set(_reallive_g00_art_label synthetic)
     if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/g00/BG008.g00")
-        add_test(NAME RealLive.G00RetailArt
-            COMMAND RealLiveG00RetailArtTests "${REALLIVE_TEST_DATA}")
-        set_tests_properties(RealLive.G00RetailArt PROPERTIES
-            LABELS real SKIP_RETURN_CODE 77)
-    else()
-        add_test(NAME RealLive.G00RetailArt COMMAND RealLiveG00RetailArtTests)
-        set_tests_properties(RealLive.G00RetailArt PROPERTIES
-            LABELS synthetic SKIP_RETURN_CODE 77)
+        list(APPEND _reallive_g00_art_args "${REALLIVE_TEST_DATA}")
+        set(_reallive_g00_art_label real)
     endif()
+    add_test(NAME RealLive.G00RetailArt
+        COMMAND RealLiveG00RetailArtTests ${_reallive_g00_art_args})
+    set_tests_properties(RealLive.G00RetailArt PROPERTIES LABELS "${_reallive_g00_art_label}")
 
     # One generic gate per edition: mount the ISO or installed directory,
     # read Seen.txt, decode a real G00, list scenarios and boot the runtime.
@@ -320,15 +319,14 @@ if(BUILD_TESTING)
     # REALLIVE_TEST_DATA (or the configure-time REALLIVE_TEST_DATA option).
     add_executable(RealLiveMovieTests tests/MovieTest.cpp)
     target_link_libraries(RealLiveMovieTests PRIVATE reallive_port)
+    set(_reallive_movie_args)
+    set(_reallive_movie_label synthetic)
     if(REALLIVE_TEST_DATA AND EXISTS "${REALLIVE_TEST_DATA}/MOV/op_air.mpg")
-        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests "${REALLIVE_TEST_DATA}")
-        set_tests_properties(RealLive.Movie PROPERTIES
-            LABELS real SKIP_RETURN_CODE 77)
-    else()
-        add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests)
-        set_tests_properties(RealLive.Movie PROPERTIES
-            LABELS synthetic SKIP_RETURN_CODE 77)
+        list(APPEND _reallive_movie_args "${REALLIVE_TEST_DATA}")
+        set(_reallive_movie_label real)
     endif()
+    add_test(NAME RealLive.Movie COMMAND RealLiveMovieTests ${_reallive_movie_args})
+    set_tests_properties(RealLive.Movie PROPERTIES LABELS "${_reallive_movie_label}")
     # Retail sprite-atlas layout guards for the Key logo clip, AIR textbox
     # toggle frames and CLANNAD animated indicator strip.
     add_executable(RealLiveSpriteAtlasTests tests/SpriteAtlasTest.cpp)

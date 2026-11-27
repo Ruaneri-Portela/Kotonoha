@@ -2,8 +2,10 @@
 #include <Kotonoha/routing/SchoolDaysEndBackgroundResolver.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 #include <Kotonoha/routing/SchoolDaysReplayModel.hpp>
+#include <Kotonoha/routing/SchoolDaysRouteMapOracle.hpp>
 
 #include <algorithm>
+#include <cstring>
 #include <cstdlib>
 #include <iostream>
 #include <string>
@@ -60,42 +62,34 @@ int main(int argc, char **argv) {
     Check(unlockSource.Open(argv[1], argv[2], &error), error.message);
     bool unlocked = true;
     Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
-              unlockSource.State(), &unlocked, &error) &&
-              !unlocked,
+              unlockSource.State(), &unlocked, &error) && !unlocked,
           "fresh routing globals exposed Replay");
     const char *first = Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(0);
     const char *second = Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(40);
     Check(unlockSource.Persistence().WriteGlobalInteger(
-              first, 11, -1, &unlockSource.State(), &error),
-          error.message);
+              first, 11, -1, &unlockSource.State(), &error), error.message);
     Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
-              unlockSource.State(), &unlocked, &error) &&
-              unlocked,
+              unlockSource.State(), &unlocked, &error) && unlocked,
           "first persisted REP flag did not enable Replay");
     Check(unlockSource.Persistence().WriteGlobalInteger(
-              second, 11, -1, &unlockSource.State(), &error),
-          error.message);
+              second, 11, -1, &unlockSource.State(), &error), error.message);
     std::vector<uint8_t> globalBytes;
-    Check(unlockSource.SerializeGlobalFlag(&globalBytes, &error),
-          error.message);
+    Check(unlockSource.SerializeGlobalFlag(&globalBytes, &error), error.message);
     unlockSource.Close();
 
     Kotonoha::SchoolDaysKtrfSession restarted;
     Check(restarted.Open(argv[1], argv[2], &error), error.message);
     Check(restarted.LoadGlobalFlag(globalBytes, &error), error.message);
     Check(Kotonoha::SchoolDaysReplayModel::AnyHSceneUnlocked(
-              restarted.State(), &unlocked, &error) &&
-              unlocked,
+              restarted.State(), &unlocked, &error) && unlocked,
           "REP flags did not survive GlobalFlag reload");
     int64_t value = 0;
-    Check(restarted.State().ReadGlobalInt(first, &value, &error) &&
-              value != 0 &&
+    Check(restarted.State().ReadGlobalInt(first, &value, &error) && value != 0 &&
               restarted.State().ReadGlobalInt(second, &value, &error) &&
               value != 0 &&
               restarted.State().ReadGlobalInt(
-                  Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(1), &value,
-                  &error) &&
-              value == 0 &&
+                  Kotonoha::SchoolDaysReplayModel::HSceneUnlockKey(1),
+                  &value, &error) && value == 0 &&
               restarted.State().ReadGlobalInt("EndClear", &value, &error) &&
               value == 0,
           "GlobalFlag reload changed unrelated Replay or EndClear flags");
@@ -114,14 +108,12 @@ int main(int argc, char **argv) {
               state.ReadGlobalInt("[End00]=\"", &value, &error) && value == 0,
           "fresh profile contained ending or AllClear progress");
     Check(persistence.WriteGlobalInteger("AUDIT_UNRELATED", 3, 17, &state,
-                                         &error),
-          error.message);
-    Check(
-        persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
-            persistence.RegisterEnding(1, firstScene.sceneKey, &state,
-                                       &error) &&
-            persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error),
-        error.message);
+                                         &error), error.message);
+    Check(persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
+              persistence.RegisterEnding(1, firstScene.sceneKey, &state,
+                                         &error) &&
+              persistence.RegisterEnding(0, firstScene.sceneKey, &state,
+                                         &error), error.message);
     Resolver::Profile profile;
     profile.endBgView = true;
     profile.endingMax = 22;
@@ -147,7 +139,8 @@ int main(int argc, char **argv) {
           error.message);
     profile.endBgView = false;
     Check(Resolver::Resolve(profile, &state, &result, &error) &&
-              result.kind == Resolver::Kind::Base && !result.promotedAllClear &&
+              result.kind == Resolver::Kind::Base &&
+              !result.promotedAllClear &&
               state.ReadGlobalInt("AllClear", &value, &error) && value == 0,
           "EndBGView=0 promoted AllClear");
     profile.endBgView = true;
@@ -170,20 +163,106 @@ int main(int argc, char **argv) {
     audit.Close();
     Kotonoha::SchoolDaysKtrfSession restarted;
     Check(restarted.Open(argv[1], argv[2], &error) &&
-              restarted.LoadGlobalFlag(bytes, &error),
-          error.message);
+              restarted.LoadGlobalFlag(bytes, &error), error.message);
     Check(restarted.State().ReadGlobalInt("AllClear", &value, &error) &&
               value != 0 &&
               restarted.State().ReadGlobalInt("EndNo", &value, &error) &&
               value == 21 &&
               restarted.State().ReadGlobalInt("AUDIT_UNRELATED", &value,
-                                              &error) &&
-              value == 17,
+                                               &error) && value == 17,
           "AllClear, EndNo or unrelated flag did not survive restart");
     Check(restarted.ResetNewGame(&firstScene, &error) &&
               restarted.State().ReadGlobalInt("AllClear", &value, &error) &&
               value != 0,
           "new game erased global AllClear");
+  }
+  {
+    // The original RouteProc GetReadScriptCount enumerates exactly the 1825
+    // KTRF SceneKey IDs excluding -OP1, including two routing dispatchers.
+    // The two original ORS outside the KTRF graph are not in that native
+    // string table. Count global read flags by the authenticated native
+    // SceneKey set, not by presence of a physical ORS resource.
+    using Oracle = Kotonoha::SchoolDaysRouteMapOracle;
+    Kotonoha::SchoolDaysKtrfSession completionAudit;
+    Check(completionAudit.Open(argv[1], argv[2], &error), error.message);
+    Kotonoha::SchoolDaysKtrfScene firstScene;
+    Check(completionAudit.ResetNewGame(&firstScene, &error), error.message);
+    auto &flags = completionAudit.State();
+    Oracle::Completion initial;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &initial, &error) &&
+              initial.scriptCount == Oracle::kCompletionScriptCount,
+          "Route Map did not enumerate the 1825 native SceneKey flags");
+    Check(flags.WriteGlobalInt("03/03-B2-A00", 1, &error) &&
+              flags.WriteGlobalInt("03/03-KB-E00", 1, &error),
+          error.message);
+    Oracle::Completion afterDispatcher;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &afterDispatcher, &error) &&
+              afterDispatcher.readCount == initial.readCount + 2,
+          "Retail completion no longer counts native dispatcher SceneKeys");
+    Check(flags.WriteGlobalInt("01/01-00-OP2", 1, &error) &&
+              flags.WriteGlobalInt("05/05-9O-B00", 1, &error),
+          error.message);
+    Oracle::Completion withRetailOnly;
+    Check(Oracle::ComputeCompletion(flags,
+                                   completionAudit.Adapter()->document,
+                                   &withRetailOnly, &error) &&
+              withRetailOnly.readCount == initial.readCount + 2,
+          "Retail completion incorrectly counted two unlisted ORS flags");
+    Check(Oracle::CompletionPercentForReadCount(200) == 10 &&
+              Oracle::CompletionPercentForReadCount(201) == 11 &&
+              Oracle::CompletionPercentForReadCount(218) == 11 &&
+              Oracle::CompletionPercentForReadCount(219) == 12 &&
+              Oracle::CompletionPercentForReadCount(1825) == 100,
+          "Native Route Map completion percentage boundaries drifted");
+  }
+  {
+    // SP428 is present at ROUTE15/SCENE85 and ROUTE15/SCENE108 in the native
+    // BackRules inventory. The local SLog remains a first-visit collection
+    // keyed by SP; revisiting the second coordinate must not manufacture an
+    // ambiguous second tag-3 checkpoint for the same selector.
+    const char *firstKey =
+        Kotonoha::SchoolDaysBackRules::SceneKeyFor(15, 85);
+    const char *secondKey =
+        Kotonoha::SchoolDaysBackRules::SceneKeyFor(15, 108);
+    Check(firstKey != nullptr && secondKey != nullptr &&
+              Kotonoha::SchoolDaysBackRules::SpForScene(15, 85) == 428 &&
+              Kotonoha::SchoolDaysBackRules::SpForScene(15, 108) == 428,
+          "SP428 native two-coordinate source mapping changed");
+    for (const bool reverse : {false, true}) {
+      Kotonoha::SchoolDaysKtrfSession duplicateSp;
+      Check(duplicateSp.Open(argv[1], argv[2], &error), error.message);
+      Kotonoha::SchoolDaysKtrfScene firstScene;
+      Check(duplicateSp.ResetNewGame(&firstScene, &error), error.message);
+      auto &state = duplicateSp.State();
+      auto &persistence = duplicateSp.Persistence();
+      const int firstCoordinate = reverse ? 108 : 85;
+      const int secondCoordinate = reverse ? 85 : 108;
+      const char *savedFirstKey = reverse ? secondKey : firstKey;
+      const char *savedSecondKey = reverse ? firstKey : secondKey;
+      Check(state.WriteCoordinate(15, firstCoordinate, &error) &&
+                persistence.RecordCheckpoint(15, firstCoordinate,
+                                             savedFirstKey, &state, &error) &&
+                state.WriteCoordinate(15, secondCoordinate, &error) &&
+                persistence.RecordCheckpoint(15, secondCoordinate,
+                                             savedSecondKey, &state, &error),
+            error.message);
+      size_t sp428Count = 0u;
+      for (const auto &entry : persistence.SaveLogDocument().records) {
+        if (entry.tag != 3 || entry.secondary != u"SP428")
+          continue;
+        ++sp428Count;
+        Check(entry.name == std::u16string(
+                                savedFirstKey,
+                                savedFirstKey + std::strlen(savedFirstKey)),
+              "SP428 reverse visit changed the first checkpoint SceneKey");
+      }
+      Check(sp428Count == 1u,
+            "SP428 duplicate coordinate generated two tag3 checkpoints");
+    }
   }
   {
     Kotonoha::SchoolDaysKtrfSession routeAudit;
@@ -192,18 +271,16 @@ int main(int argc, char **argv) {
     Check(routeAudit.ResetNewGame(&firstScene, &error), error.message);
     auto &state = routeAudit.State();
     auto &persistence = routeAudit.Persistence();
-    Check(
-        persistence.RecordCheckpoint(0, 0, firstScene.sceneKey, &state, &error),
-        error.message);
+    Check(persistence.RecordCheckpoint(0, 0, firstScene.sceneKey, &state,
+                                       &error), error.message);
     Kotonoha::SchoolDaysKtrfSession::RouteMapCheckpointPlan plan;
     if (!routeAudit.PlanRouteMapCheckpoint(100, &plan, &error))
       Fail(std::string("saved checkpoint could not be selected: ") +
            error.message);
     Check(persistence.GlobalIntegerIsSet("SP100"),
           "checkpoint did not set global SP100");
-    Check(persistence.ReplaceCurrentScriptSnapshot(firstScene.sceneKey,
-                                                   0x3f800000u, state, &error),
-          error.message);
+    Check(persistence.ReplaceCurrentScriptSnapshot(
+              firstScene.sceneKey, 0x3f800000u, state, &error), error.message);
     std::vector<uint8_t> savedLog;
     Check(persistence.SerializeSaveLog(&savedLog, &error), error.message);
     persistence.ResetScriptManagerForFrontendReturn();
@@ -238,10 +315,9 @@ int main(int argc, char **argv) {
     Check(smallerProfile.ResetNewGame(&firstScene, &error), error.message);
     auto &state = smallerProfile.State();
     auto &persistence = smallerProfile.Persistence();
-    Check(
-        persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
-            persistence.RegisterEnding(1, firstScene.sceneKey, &state, &error),
-        error.message);
+    Check(persistence.RegisterEnding(0, firstScene.sceneKey, &state, &error) &&
+              persistence.RegisterEnding(1, firstScene.sceneKey, &state,
+                                         &error), error.message);
     Kotonoha::SchoolDaysEndBackgroundResolver::Profile profile;
     profile.endBgView = true;
     profile.endingMax = 2;
@@ -249,9 +325,8 @@ int main(int argc, char **argv) {
     profile.allClearAsset = "all.png";
     profile.endingAssets = {"end0.png", "end1.png"};
     Kotonoha::SchoolDaysEndBackgroundResolver::Result result;
-    Check(Kotonoha::SchoolDaysEndBackgroundResolver::Resolve(profile, &state,
-                                                             &result, &error) &&
-              result.promotedAllClear,
+    Check(Kotonoha::SchoolDaysEndBackgroundResolver::Resolve(
+              profile, &state, &result, &error) && result.promotedAllClear,
           "configured EndingMax=2 did not promote after two endings");
   }
   Kotonoha::SchoolDaysKtrfSession session;
@@ -764,13 +839,13 @@ int main(int argc, char **argv) {
     return false;
   };
   auto HasA03Sp101 = [&]() {
-    return std::any_of(session.Persistence().SaveLogDocument().records.begin(),
-                       session.Persistence().SaveLogDocument().records.end(),
-                       [](const auto &record) {
-                         return record.tag == 3 &&
-                                record.name == u"00/00-00-A03" &&
-                                record.secondary == u"SP101";
-                       });
+    return std::any_of(
+        session.Persistence().SaveLogDocument().records.begin(),
+        session.Persistence().SaveLogDocument().records.end(),
+        [](const auto &record) {
+          return record.tag == 3 && record.name == u"00/00-00-A03" &&
+                 record.secondary == u"SP101";
+        });
   };
   Check(HasA03Tag4(), "A03 choice commit did not create historical tag4");
 
@@ -891,8 +966,7 @@ int main(int argc, char **argv) {
     Kotonoha::SchoolDaysKtrfSession::StepResult repeatedForward;
     if (!session.Advance("ktrf:next", &repeatedForward, &error))
       Fail(std::string("A03 repeat advance failed: ") + error.message);
-    Check(repeatedForward.kind ==
-                  Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+    Check(repeatedForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
               repeatedForward.scene.sceneKey == "00/00-00-A04" &&
               ReadState("001") == beforeA03Choice001 &&
               ReadState("002") == beforeA03Choice002 + 5,
@@ -901,8 +975,7 @@ int main(int argc, char **argv) {
     if (!session.PlanBack(&repeatedBack, &error) ||
         !session.CommitBack(&repeatedBack, &error))
       Fail(std::string("A04 repeat Back failed: ") + error.message);
-    Check(repeatedBack.kind ==
-                  Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+    Check(repeatedBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
               repeatedBack.scene.sceneKey == "00/00-00-A03" &&
               ReadState("001") == beforeA03Choice001 &&
               ReadState("002") == beforeA03Choice002,
@@ -915,13 +988,13 @@ int main(int argc, char **argv) {
   // the abandoned +5 for 002. The native Route0 second branch A05 grants
   // +5 to 001, and its own reverse handler removes exactly that value.
   uint32_t alternateChoiceIndex = KOTONOHA_KTRF_NULL_INDEX;
-  if (!Kotonoha_KtrfRouterCurrentChoiceAt(&session.Adapter()->router, 0u,
-                                          &alternateChoiceIndex, &error))
+  if (!Kotonoha_KtrfRouterCurrentChoiceAt(
+          &session.Adapter()->router, 0u, &alternateChoiceIndex, &error))
     Fail(std::string("A03 alternative choice lookup failed: ") + error.message);
   Kotonoha_KtrfChoiceOption alternateOption{};
   if (!Kotonoha_KtrfGetChoiceOption(session.Adapter()->document,
-                                    alternateChoiceIndex, 1u, &alternateOption,
-                                    &error) ||
+                                    alternateChoiceIndex, 1u,
+                                    &alternateOption, &error) ||
       alternateOption.value.kind != KOTONOHA_KTRF_SCALAR_INT64)
     Fail(std::string("A03 second branch is not a valid integer choice: ") +
          error.message);
@@ -933,8 +1006,7 @@ int main(int argc, char **argv) {
   Kotonoha::SchoolDaysKtrfSession::StepResult alternateForward;
   if (!session.Advance("ktrf:next", &alternateForward, &error))
     Fail(std::string("A03 -> A05 advance failed: ") + error.message);
-  Check(alternateForward.kind ==
-                Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
+  Check(alternateForward.kind == Kotonoha::SchoolDaysKtrfSession::StepKind::Scene &&
             alternateForward.scene.sceneKey == "00/00-00-A05" &&
             ReadState("001") == beforeA03Choice001 + 5 &&
             ReadState("002") == beforeA03Choice002,
@@ -943,8 +1015,7 @@ int main(int argc, char **argv) {
   if (!session.PlanBack(&alternateBack, &error) ||
       !session.CommitBack(&alternateBack, &error))
     Fail(std::string("A05 -> Back A03 failed: ") + error.message);
-  Check(alternateBack.kind ==
-                Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
+  Check(alternateBack.kind == Kotonoha::SchoolDaysKtrfSession::BackKind::Scene &&
             alternateBack.scene.sceneKey == "00/00-00-A03" &&
             ReadState("001") == beforeA03Choice001 &&
             ReadState("002") == beforeA03Choice002 && HasA03Sp101(),

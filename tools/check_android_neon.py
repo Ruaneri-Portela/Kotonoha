@@ -37,6 +37,15 @@ def check() -> None:
     require('set(_VCPKG_ANDROID_TRIPLET "arm64-android")' in cmake,
             "ARM64 support must remain available")
 
+    # Fork safety: retain both Android ARM64 and x86_64 ABI mappings even
+    # while extending upstream ARMv7 NEON and CI contracts.
+    require("'arm64-v8a': 'arm64-android'" in gradle,
+            "ARM64 triplet mapping must remain available")
+    require("'x86_64'   : 'x64-android'" in gradle,
+            "x86_64 triplet mapping must remain available")
+    require('set(_VCPKG_ANDROID_TRIPLET "x64-android")' in cmake,
+            "CMake x86_64 triplet mapping must remain available")
+
     require("for triplet in arm64-android arm-neon-android; do" in ci,
             "CI must precompile both ARM ABIs")
     require("-Pabis=arm64-v8a,armeabi-v7a" in ci,
