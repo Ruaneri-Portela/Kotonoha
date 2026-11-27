@@ -17,9 +17,35 @@ import org.libsdl.app.SDLActivity;
 import org.libsdl.app.SDLSurface;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.Arrays;
 
 public final class GameActivity extends SDLActivity {
     static final String LAUNCH_ARGUMENTS = "org.kotonoha.android.LAUNCH_ARGUMENTS";
+
+    private static native void setKotonohaDiscordReady(boolean ready);
+
+    @Override
+    public void loadLibraries() {
+        super.loadLibraries();
+        if (!BuildConfig.HAS_DISCORD_RPC) return;
+        try {
+            setKotonohaDiscordReady(false);
+            File root = getExternalFilesDir(null);
+            if (root == null) root = getFilesDir();
+            File preference = new File(root, "discord-presence.txt");
+            if (!preference.isFile() || preference.length() != 3 ||
+                    !Arrays.equals(Files.readAllBytes(preference.toPath()),
+                            "on\n".getBytes(StandardCharsets.UTF_8))) return;
+            Class<?> sdk = Class.forName("com.discord.socialsdk.DiscordSocialSdkInit");
+            sdk.getMethod("setEngineActivity", android.app.Activity.class)
+                    .invoke(null, this);
+            setKotonohaDiscordReady(true);
+        } catch (Exception | LinkageError failure) {
+            android.util.Log.w("KotonohaPresence", "Optional Discord SDK initialization failed");
+        }
+    }
 
     @Override
     protected String[] getArguments() {

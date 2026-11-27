@@ -2,4 +2,5 @@
 -keep class org.kotonoha.android.GameActivity {
     public *** getKotonoha*(...);
     public *** setKotonoha*(...);
+    private static native void setKotonohaDiscordReady(boolean);
 }

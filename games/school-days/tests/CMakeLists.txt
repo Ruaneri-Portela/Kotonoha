@@ -1,5 +1,13 @@
 set(SCHOOL_DAYS_ROUTE "${CMAKE_CURRENT_SOURCE_DIR}/../game-assets/school-days-hq.ktnroute")
 
+add_executable(SchoolDaysPresencePreferenceTest SchoolDaysPresencePreferenceTest.cpp)
+target_link_libraries(SchoolDaysPresencePreferenceTest PRIVATE school_days)
+add_test(NAME SchoolDays.PresencePreference COMMAND SchoolDaysPresencePreferenceTest)
+
+add_executable(SchoolDaysPresencePolicyTest SchoolDaysPresencePolicyTest.cpp)
+target_link_libraries(SchoolDaysPresencePolicyTest PRIVATE school_days)
+add_test(NAME SchoolDays.PresencePolicy COMMAND SchoolDaysPresencePolicyTest)
+
 if(WIN32)
     add_test(NAME SchoolDays.LauncherFontStage
         COMMAND "${CMAKE_COMMAND}"

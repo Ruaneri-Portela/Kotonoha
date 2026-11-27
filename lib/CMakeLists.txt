@@ -75,6 +75,10 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
+# Optional integrations have their own targets and select a single platform
+# backend. Do not also compile them into the shared engine.
+list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/src/integrations/")
+
 # Preserve the Windows L4 public/dev split without reverting the upstream
 # glob-based CMake and SDL/FFmpeg upgrades. No engine-specific School Days
 # names are introduced here.

@@ -118,4 +118,7 @@
     <string name="sd_status_ok">ОК</string>
     <string name="sd_status_missing">Отсутствует</string>
     <string name="sd_status_optional">Нет (необязательно)</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">Включить Rich Presence</string>
+    <string name="sd_discord_description">Показывает игровую активность в приложении Discord. Повторный вход не требуется.</string>
 </resources>

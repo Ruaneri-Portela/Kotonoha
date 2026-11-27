@@ -1735,6 +1735,8 @@ bool Runtime::pointerToBackLog(float x, float y, int *virtualX, int *virtualY) c
 }
 
 void Runtime::openTitle(bool startBgm) {
+  presenceScene = {};
+  presenceEnding = -1;
   transportFade.Reset();
   choiceMenuFrozen = false;
   choiceMenuNextSceneBound = false;
@@ -2088,6 +2090,8 @@ void Runtime::bindScene(const Kotonoha::SchoolDaysKtrfScene &next,
   if (!presentation) throw std::runtime_error("No School Days scene presentation");
   scene = next;
   script = presentation->data;
+  presenceScene = classifyPresenceScene(scene.sceneKey, script);
+  presenceEnding = -1;
   timeline.Bind(&script);
   lxhFirstTranslationEvent = Kotonoha::SchoolDaysTranslationGate::LxhFirstEvent(
       script, scene.sceneKey);
@@ -3297,6 +3301,9 @@ void Runtime::advance() {
     setStatus("Unresolved School Days routing transition: " + scene.sceneKey);
   }
   flushGlobal();
+  if (result.kind == Kind::Terminal && !result.endings.empty() &&
+      result.endings.back() >= 0 && result.endings.back() < 22)
+    presenceEnding = static_cast<int>(result.endings.back());
 }
 
 void Runtime::armHandoff() {
@@ -3565,6 +3572,9 @@ void Runtime::skipToNextChoice() {
     throw std::runtime_error("School Days next-choice returned a Back result");
   }
   flushGlobal();
+  if (result.kind == Kind::Terminal && !result.endings.empty() &&
+      result.endings.back() >= 0 && result.endings.back() < 22)
+    presenceEnding = static_cast<int>(result.endings.back());
 }
 
 void Runtime::update() {

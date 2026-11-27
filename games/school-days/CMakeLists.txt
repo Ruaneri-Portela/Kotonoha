@@ -14,7 +14,15 @@ if(NOT TARGET kotonoha_provider_gpk)
     add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../modules/providers/gpk"
         "${CMAKE_CURRENT_BINARY_DIR}/providers/gpk")
 endif()
+if(NOT TARGET kotonoha_rich_presence)
+    add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../../lib/src/integrations"
+        "${CMAKE_CURRENT_BINARY_DIR}/rich-presence")
+endif()
 add_library(school_days STATIC
+    src/SchoolDaysPresencePreference.cpp
+    src/SchoolDaysDiscordPresence.cpp
+    src/SchoolDaysPresencePolicy.cpp
+    src/SchoolDaysRuntimePresence.cpp
     src/KtrfAssetResolver.cpp
     src/KtrfStateStore.cpp
     src/SchoolDaysHistory.cpp
@@ -80,7 +88,7 @@ add_library(school_days STATIC
 )
 target_include_directories(school_days PUBLIC include src)
 target_link_libraries(school_days PUBLIC KotonohaEngine kotonoha_provider_gpk
-    PRIVATE ZLIB::ZLIB)
+    PRIVATE ZLIB::ZLIB kotonoha_rich_presence)
 target_compile_features(school_days PUBLIC cxx_std_17)
 if(KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY)
     target_compile_definitions(school_days PUBLIC KOTONOHA_SCHOOL_DAYS_RETAIL_ONLY=1)

@@ -98,6 +98,7 @@ final class SchoolDaysConfigStore {
         // Tri-state EnableLxh preference stored in save/Kotonoha.ini:
         // null = never explicitly chosen (default follows LxH.GPK availability).
         Boolean enableLxh = null;
+        boolean discordPresence = false;
 
         // Launcher-only (SharedPreferences, never written to Config.DAT/settings.json)
         boolean launcherMusic = true;
@@ -129,6 +130,7 @@ final class SchoolDaysConfigStore {
             c.swapControllerAB = swapControllerAB;
             c.enableForcedSubtitles = enableForcedSubtitles;
             c.enableLxh = enableLxh;
+            c.discordPresence = discordPresence;
             c.launcherMusic = launcherMusic;
             return c;
         }
@@ -172,6 +174,10 @@ final class SchoolDaysConfigStore {
         return new File(documentsRoot, "settings.json");
     }
 
+    private File presenceFile() {
+        return new File(documentsRoot, "discord-presence.txt");
+    }
+
     File configDatFile() {
         return new File(saveRoot, "Config.DAT");
     }
@@ -197,6 +203,16 @@ final class SchoolDaysConfigStore {
         loadSettingsJson(s);
         loadConfigDat(s);
         loadKotonohaIni(s);
+        if (BuildConfig.HAS_DISCORD_RPC) {
+            File presence = presenceFile();
+            try {
+                s.discordPresence = presence.isFile() && presence.length() == 3
+                        && Arrays.equals(Files.readAllBytes(presence.toPath()),
+                        "on\n".getBytes(StandardCharsets.UTF_8));
+            } catch (IOException ignored) {
+                s.discordPresence = false;
+            }
+        }
         return s;
     }
 
@@ -212,6 +228,10 @@ final class SchoolDaysConfigStore {
             saveConfigDat(next);
         }
         saveKotonohaIni(next);
+        if (BuildConfig.HAS_DISCORD_RPC) {
+            writeAtomic(presenceFile(), (next.discordPresence ? "on\n" : "off\n")
+                    .getBytes(StandardCharsets.UTF_8));
+        }
     }
 
     void clearStoredTranslationPath() {

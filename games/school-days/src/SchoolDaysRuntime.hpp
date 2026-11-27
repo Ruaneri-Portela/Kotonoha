@@ -2,6 +2,7 @@
 
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysScenes.hpp"
+#include "SchoolDaysPresencePolicy.hpp"
 #include <Kotonoha/SchoolDaysMovieEventState.hpp>
 #include <Kotonoha/SchoolDaysMoveSomState.hpp>
 #include <Kotonoha/SchoolDaysSceneTimeline.hpp>
@@ -38,6 +39,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -184,6 +186,8 @@ class Runtime final : public Kotonoha::Runtime {
   bool titleArtwork = true;
   int titleSelection = 0;
   Kotonoha::SchoolDaysKtrfScene scene;
+  PresenceScene presenceScene;
+  int presenceEnding = -1;
   Kotonoha_orsData script{};
   Kotonoha::SchoolDaysSceneTimeline timeline;
   std::vector<Playing> playing;
@@ -492,6 +496,7 @@ public:
   // BackLog through one context-sensitive translator.
   void setLxhTranslation(Kotonoha::Translation translation,
                           std::string locale = "en", bool nativeGpk = false);
+  std::string_view presenceDetails() const;
   void shutdown();
   // SDL close/quit requests are routed through the retail EXIT confirmation.
   // Returns true when the native request was consumed by School Days.

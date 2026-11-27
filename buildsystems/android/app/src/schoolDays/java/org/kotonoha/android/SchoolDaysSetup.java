@@ -195,6 +195,7 @@ public final class SchoolDaysSetup extends Activity {
     private Switch swSwapAb;
     private Switch swForcedSubs;
     private Switch swEnableLxh;
+    private Switch swDiscordPresence;
     private TextView lblLxhStatus;
 
     private Button homeMusicToggle;
@@ -302,6 +303,9 @@ public final class SchoolDaysSetup extends Activity {
         swSwapAb = findViewById(R.id.sw_swap_ab);
         swForcedSubs = findViewById(R.id.sw_forced_subs);
         swEnableLxh = findViewById(R.id.sw_enable_lxh);
+        swDiscordPresence = findViewById(R.id.sw_discord_presence);
+        findViewById(R.id.discord_presence_section).setVisibility(
+                BuildConfig.HAS_DISCORD_RPC ? View.VISIBLE : View.GONE);
         lblLxhStatus = findViewById(R.id.lbl_lxh_status);
 
         homeMusicToggle = findViewById(R.id.home_music_toggle);
@@ -517,6 +521,9 @@ public final class SchoolDaysSetup extends Activity {
         swForcedSubs.setOnCheckedChangeListener((b, c) -> {
             if (!bindingUi) draftConfig.enableForcedSubtitles = c;
         });
+        swDiscordPresence.setOnCheckedChangeListener((b, c) -> {
+            if (!bindingUi && BuildConfig.HAS_DISCORD_RPC) draftConfig.discordPresence = c;
+        });
         swEnableLxh.setOnCheckedChangeListener((b, c) -> {
             if (!bindingUi) {
                 draftConfig.enableLxh = c;
@@ -666,6 +673,7 @@ public final class SchoolDaysSetup extends Activity {
             swAutoMode.setChecked(draftConfig.autoMode);
             swSwapAb.setChecked(draftConfig.swapControllerAB);
             swForcedSubs.setChecked(draftConfig.enableForcedSubtitles);
+            swDiscordPresence.setChecked(draftConfig.discordPresence);
             swEnableLxh.setChecked(wantsLxh(draftConfig));
             updateLxhStatusLabel();
 

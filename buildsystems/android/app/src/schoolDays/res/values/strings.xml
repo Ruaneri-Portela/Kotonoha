@@ -118,4 +118,7 @@
     <string name="sd_status_ok">OK</string>
     <string name="sd_status_missing">Missing</string>
     <string name="sd_status_optional">Not present (optional)</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">Enable Rich Presence</string>
+    <string name="sd_discord_description">Share your game activity with the Discord app. No account login is required.</string>
 </resources>

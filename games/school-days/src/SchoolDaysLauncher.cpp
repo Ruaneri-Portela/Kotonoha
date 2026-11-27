@@ -1,4 +1,6 @@
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysPresencePreference.hpp"
+#include <Kotonoha/integrations/RichPresence.hpp>
 #include "SchoolDaysMobileProfile.hpp"
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysOverlaySelection.hpp"
@@ -350,6 +352,9 @@ Launcher::Launcher(std::string settingsPath, std::string directory,
            "directory with Script/English, or an ISO containing these files. "
            "ISO data uses a temporary internal mount."},
           defaultSchoolDaysLauncherSettings()) {
+  presenceSaved = Kotonoha::Integrations::desktopPresenceAvailable() &&
+                  readPresencePreference(getSettingsPath());
+  presenceDraft = presenceSaved;
   setAudioChannels({"BGM", "Voice", "SE", "Movie"});
   loadPath(std::move(directory));
   route =
@@ -1749,6 +1754,10 @@ void Launcher::drawRetailAudioOptions() {
 void Launcher::drawRetailGeneralOptions() {
   using Key = Kotonoha::SchoolDaysLauncherLocale::Key;
   ImGui::Spacing();
+  if (Kotonoha::Integrations::desktopPresenceAvailable()) {
+    ImGui::Checkbox(trId(Key::GeneralDiscordPresence, "##sd-rpc").c_str(),
+                    &presenceDraft);
+  }
   ImGui::SeparatorText(tr(Key::GeneralSeparator));
   if (!retailConfigReady) {
     ImGui::TextDisabled("%s", tr(Key::GeneralNoConfigDat));
@@ -2033,7 +2042,7 @@ void Launcher::openOptions() {
                                    selectedManualLxhJsonPath,
                                    manualLxhBaseJsonPath, aspectPreference,
                                    savedEnableLxh, enableLxhDraft,
-                                   enableLxhModified};
+                                   enableLxhModified, presenceDraft};
   screen = Screen::Options;
 #if !defined(__ANDROID__) && !defined(ANDROID)
   if (launcherWindow()) SDL_SetWindowSize(launcherWindow(), 950, 700);
@@ -2059,6 +2068,7 @@ void Launcher::cancelOptions() {
     savedEnableLxh = optionSnapshot->savedEnableLxh;
     enableLxhDraft = optionSnapshot->enableLxhDraft;
     enableLxhModified = optionSnapshot->enableLxhModified;
+    presenceDraft = optionSnapshot->presenceDraft;
   }
   optionSnapshot.reset();
   screen = Screen::Main;
@@ -2072,6 +2082,7 @@ void Launcher::resetOptions() {
   // Reset is a draft operation until OK is clicked, matching conventional
   // Windows setup dialogs. Cancel can still restore the original snapshot.
   resetEngineDefaults();
+  presenceDraft = false;
   retailDraft = Kotonoha::SchoolDaysRetailConfigPolicy::Defaults();
   syncMixerFromRetail();
   aspectPreference = 0;
@@ -2807,6 +2818,10 @@ void Launcher::save() {
 #endif
     Kotonoha::writeTextFileAtomically(languagePreferenceFile.string(),
                                       payload);
+  }
+  if (presenceDraft != presenceSaved) {
+    writePresencePreference(getSettingsPath(), presenceDraft);
+    presenceSaved = presenceDraft;
   }
 }
 

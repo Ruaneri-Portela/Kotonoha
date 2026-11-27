@@ -118,4 +118,7 @@
     <string name="sd_status_ok">正常</string>
     <string name="sd_status_missing">缺失</string>
     <string name="sd_status_optional">未安装（可选）</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">启用 Rich Presence</string>
+    <string name="sd_discord_description">在 Discord 应用中显示游戏动态，无需重新登录。</string>
 </resources>

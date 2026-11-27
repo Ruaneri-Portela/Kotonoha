@@ -3,6 +3,7 @@
 
 #include "SchoolDaysAssets.hpp"
 #include "SchoolDaysLauncher.hpp"
+#include "SchoolDaysDiscordPresence.hpp"
 #include "SchoolDaysMobileProfile.hpp"
 #include "SchoolDaysRuntime.hpp"
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
@@ -88,6 +89,7 @@ struct Application {
   std::string translationSettingsPath;
   SchoolDays::Runtime runtime;
   Kotonoha::Engine engine;
+  SchoolDays::DiscordPresence presence;
   Application(std::shared_ptr<SchoolDays::Assets> assets, const std::string &route,
               Kotonoha::EngineOptions options, const std::string &documents,
               const std::string &lxhJsonOverride = {},
@@ -407,6 +409,7 @@ struct App {
       application->engine.applySettings(live, false);
     }
     Kotonoha::Mobile::setStartupStage(Kotonoha::Mobile::StartupStage::Ready);
+    application->presence.start(options.settingsPath);
     DevStartupLog("engine-ready");
 #if !defined(KOTONOHA_DISTRIBUTION_BUILD)
     if (!startNode.empty()) {
@@ -739,6 +742,8 @@ SDL_AppResult KotonohaPortCallbacks::iterate(void *appstate) {
     const Uint64 renderStartNs = SDL_GetTicksNS();
 #endif
     const auto result = app->application->engine.Iterate();
+    if (result == SDL_APP_CONTINUE)
+      app->application->presence.update(app->application->runtime);
 #if defined(__ANDROID__) || defined(ANDROID)
     if (result == SDL_APP_CONTINUE && app->frameLimit > 0) {
       const Uint64 elapsed = SDL_GetTicksNS() - renderStartNs;

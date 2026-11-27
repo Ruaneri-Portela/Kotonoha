@@ -254,6 +254,16 @@
                         <Switch android:id="@+id/sw_swap_ab" style="@style/SdSwitch" android:text="@string/sd_swap_ab" />
                         <Switch android:id="@+id/sw_forced_subs" style="@style/SdSwitch" android:text="@string/sd_forced_subtitles" />
 
+                        <LinearLayout android:id="@+id/discord_presence_section"
+                            android:orientation="vertical"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone">
+                            <TextView style="@style/SdHeading" android:text="@string/sd_discord_heading" />
+                            <Switch android:id="@+id/sw_discord_presence" style="@style/SdSwitch" android:text="@string/sd_discord_toggle" />
+                            <TextView style="@style/SdCaption" android:text="@string/sd_discord_description" />
+                        </LinearLayout>
+
                         <TextView style="@style/SdHeading" android:text="@string/sd_lxh_heading" />
                         <Switch android:id="@+id/sw_enable_lxh" style="@style/SdSwitch" android:text="@string/sd_enable_lxh" />
                         <TextView android:id="@+id/lbl_enable_lxh_desc" style="@style/SdCaption" android:text="@string/sd_enable_lxh_desc" />

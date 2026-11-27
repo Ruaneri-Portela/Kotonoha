@@ -118,4 +118,7 @@
     <string name="sd_status_ok">OK</string>
     <string name="sd_status_missing">Falta</string>
     <string name="sd_status_optional">No presente (opcional)</string>
+    <string name="sd_discord_heading">Discord Rich Presence</string>
+    <string name="sd_discord_toggle">Activar Rich Presence</string>
+    <string name="sd_discord_description">Comparte tu actividad de juego con la aplicación Discord. No es necesario iniciar sesión de nuevo.</string>
 </resources>

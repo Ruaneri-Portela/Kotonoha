@@ -139,7 +139,10 @@ private:
     std::optional<bool> savedEnableLxh;
     bool enableLxhDraft = false;
     bool enableLxhModified = false;
+    bool presenceDraft = false;
   };
+  bool presenceSaved = false;
+  bool presenceDraft = false;
   Screen screen = Screen::Main;
 #if defined(KOTONOHA_DISTRIBUTION_BUILD)
   bool selectGameFilesTab = false;
