@@ -155,7 +155,7 @@ previous installation.
 | Windows MinGW cross (macOS/Linux host) | **forbidden (FATAL_ERROR)** | `*-mingw-dynamic` vcpkg only | not used | vcpkg |
 | Windows MSVC | allowed with an ABI-compatible native/pkg-config install (warning emitted) | native MSVC triplet (`x64-windows`, ...) | SDL from submodule, media from a native install | vcpkg if toolchain active, else system |
 | Android | SDL forced to submodule (media from vcpkg) | per-ABI vcpkg | SDL submodule (default) | vcpkg media + SDL submodule |
-| WebAssembly | system Emscripten packages | `wasm32-emscripten` vcpkg (`sdl-vcpkg;imgui-vcpkg`) | not used | vcpkg if toolchain active, else system |
+| WebAssembly | official emsdk (`emsdk_env.sh`; no MSYS2 package) | `wasm32-emscripten` vcpkg (`sdl-vcpkg;imgui-vcpkg`) | not used | vcpkg if toolchain active, else emsdk |
 
 In every row, Dear ImGui follows its own rule: `SUBMODULES` for native/`SYSTEM`
 builds; `VCPKG` for a vcpkg master build (or when

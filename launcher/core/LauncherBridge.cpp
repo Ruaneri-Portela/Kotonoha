@@ -771,6 +771,20 @@ void KotonohaLauncherFreeString(char *ptr) { std::free(ptr); }
 
 } // extern "C"
 
+// Shared by every platform (including Emscripten/Android), where detached
+// launches are unavailable but a JSON error response is still required.
+static char *detachedResponse(bool ok, int pid, const char *host,
+                              const char *message) {
+  std::ostringstream out;
+  out << "{\"ok\":" << (ok ? "true" : "false") << ",\"pid\":" << pid
+      << ",\"host\":";
+  appendJsonString(out, host);
+  out << ",\"message\":";
+  appendJsonString(out, message);
+  out << '}';
+  return dupCString(out.str());
+}
+
 #if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
 namespace {
 
@@ -831,18 +845,6 @@ void serializeLaunchRequest(const KotonohaGameLaunchRequest *request,
                          json_object_new_boolean(request && request->dryRun));
   jsonText = json_object_to_json_string_ext(root, JSON_C_TO_STRING_PLAIN);
   json_object_put(root);
-}
-
-char *detachedResponse(bool ok, int pid, const char *host,
-                       const char *message) {
-  std::ostringstream out;
-  out << "{\"ok\":" << (ok ? "true" : "false") << ",\"pid\":" << pid
-      << ",\"host\":";
-  appendJsonString(out, host);
-  out << ",\"message\":";
-  appendJsonString(out, message);
-  out << '}';
-  return dupCString(out.str());
 }
 
 // The grandchild inherits this pointer from the parent before fork(), so it

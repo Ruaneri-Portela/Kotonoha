@@ -18,21 +18,31 @@ cmake --build build-web --target RealLive
 
 Toolchain locations vary by installation. `KOTONOHA_BUILD_ALL=ON` enables supported web ports but excludes DDLC. Serve the generated output through **HTTP**, not `file://`.
 
-## MSYS2 UCRT64 (`mingw-w64-ucrt-x86_64-emscripten`)
+## Official emsdk (Windows, macOS, Linux)
 
-On Windows the MSYS2 package provides Emscripten without emsdk. From the
-repository root in the MSYS2 UCRT64 shell:
+Install emsdk **outside MSYS2**. On Windows the scripts use `E:\emsdk` by
+default; override it with the `EMSDK` environment variable.
 
-```sh
-pacman -S mingw-w64-ucrt-x86_64-emscripten
-./tools/build-wasm.sh
+```powershell
+git clone https://github.com/emscripten-core/emsdk.git E:\emsdk
+E:\emsdk\emsdk.bat install latest
+E:\emsdk\emsdk.bat activate latest
 ```
 
-`tools/build-wasm.sh` configures into `build-wasm/` with `emcmake cmake`, the
-`wasm32-emscripten` triplet and the overlay ports, then builds target
-`Kotonoha`. Override `KOTONOHA_WASM_TARGET`, `KOTONOHA_WASM_BUILD_DIR` and
-`KOTONOHA_WASM_JOBS`, or pass extra CMake flags as arguments. In PowerShell use
-`& .\tools\build-wasm.ps1`. Outputs are under `build-wasm/outputs/<target>/`.
+On macOS/Linux source `emsdk_env.sh` instead. The MSYS2 Emscripten package is
+not supported: its Binaryen hangs on `-O3` and drops the Asyncify exports.
+
+Use the `wasm-vcpkg` CMake preset through the PowerShell wrapper, which exports
+`EMSCRIPTEN_ROOT`/`EMSDK` for the chainload toolchain:
+
+```powershell
+& .\tools\build-wasm.ps1                  # configure + build
+& .\tools\build-wasm.ps1 -ConfigureOnly   # configure only
+& .\tools\build-wasm.ps1 -Target Kotonoha # single target
+```
+
+Outputs are under `out/build/wasm-vcpkg/packages/`. On macOS/Linux use
+`tools/build-wasm.sh` or `tools/configure_wasm.sh` with the same preset.
 
 ## Configure helper (`tools/configure_wasm.sh`)
 

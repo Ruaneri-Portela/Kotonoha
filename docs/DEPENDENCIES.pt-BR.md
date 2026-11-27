@@ -146,7 +146,7 @@ Use um diretório de build **novo** ao trocar de provedor: entradas em cache
 | Windows MinGW cross (host macOS/Linux) | **proibido (FATAL_ERROR)** | somente vcpkg `*-mingw-dynamic` | não usado | vcpkg |
 | Windows MSVC | permitido com instalação nativa/pkg-config ABI-compatível (emite aviso) | triplet MSVC nativo (`x64-windows`, ...) | SDL do submódulo, mídia de instalação nativa | vcpkg se o toolchain estiver ativo; senão sistema |
 | Android | SDL forçado para submódulo (mídia do vcpkg) | vcpkg por ABI | submódulo SDL (padrão) | mídia vcpkg + submódulo SDL |
-| WebAssembly | pacotes Emscripten do sistema | vcpkg `wasm32-emscripten` (`sdl-vcpkg;imgui-vcpkg`) | não usado | vcpkg se o toolchain estiver ativo; senão sistema |
+| WebAssembly | emsdk oficial (`emsdk_env.sh`; sem pacote MSYS2) | vcpkg `wasm32-emscripten` (`sdl-vcpkg;imgui-vcpkg`) | não usado | vcpkg se o toolchain estiver ativo; senão emsdk |
 
 Em todas as linhas, o Dear ImGui segue sua própria regra: `SUBMODULES` nos
 builds nativos/`SYSTEM`; `VCPKG` em builds com provedor principal vcpkg (ou
