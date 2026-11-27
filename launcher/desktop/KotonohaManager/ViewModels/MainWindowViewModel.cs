@@ -196,7 +196,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             void finish()
             {
                 var existing = Games.ToDictionary(entry => entry.Game.Path,
-                    OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase :
                     StringComparer.Ordinal);
                 var updated = new List<GameEntryViewModel>(catalog.Count);
                 foreach (var game in catalog)
@@ -249,7 +248,7 @@ public sealed class MainWindowViewModel : ViewModelBase
 
     private Task LaunchAsync(GameEntryViewModel? game)
     {
-        if (game is null) return Task.CompletedTask;
+        if (game is null || game.IsRunning) return Task.CompletedTask;
         if (NativeLibraryResolver.NativeDirectory is null)
         {
             Status = NativeStatus;
@@ -265,7 +264,6 @@ public sealed class MainWindowViewModel : ViewModelBase
             var dll = Path.Combine(NativeLibraryResolver.NativeDirectory,
                                    "KotonohaLauncherCore.dll");
             var process = KotonohaLauncher.LaunchGameDetached(request, dll);
-            process.EnableRaisingEvents = true;
             game.RunningProcess = process;
             game.IsRunning = true;
             IsBusy = true;
@@ -287,13 +285,22 @@ public sealed class MainWindowViewModel : ViewModelBase
             process.BeginErrorReadLine();
             process.Exited += (_, _) => Dispatcher.UIThread.Post(() =>
             {
-                game.RunningProcess = null;
-                game.IsRunning = false;
-                IsBusy = false;
-                Status = $"{game.Title} {Strings.Exited} ({process.ExitCode})";
-                ShowNotification(Status, delaySeconds: 0);
-                process.Dispose();
+                try
+                {
+                    // A stopped game may already have been relaunched.
+                    // Never clear the new process from an old exit event.
+                    if (!ReferenceEquals(game.RunningProcess, process))
+                        return;
+                    game.RunningProcess = null;
+                    game.IsRunning = false;
+                    IsBusy = false;
+                    Status = $"{game.Title} {Strings.Exited} ({process.ExitCode})";
+                    ShowNotification(Status, delaySeconds: 0);
+                }
+                finally { process.Dispose(); }
             });
+            // Subscribe before enabling events, including immediate exits.
+            process.EnableRaisingEvents = true;
         }
         catch (Exception ex)
         {
