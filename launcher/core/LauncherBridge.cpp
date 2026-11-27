@@ -723,7 +723,8 @@ char *KotonohaLauncherResolveSaveDirectory(const char *gamePath,
   try {
     KotonohaLauncher::DiscoveredGameEntry entry;
     entry.path = safeString(gamePath);
-    entry.title = KotonohaLauncher::detail::pathUtf8(fs::u8path(entry.path).filename());
+    const auto path = KotonohaLauncher::detail::pathFromUtf8(entry.path);
+    entry.title = KotonohaLauncher::detail::pathUtf8(path.filename());
     entry.saveProfileId =
         saveProfileId && saveProfileId[0] != '\0'
             ? std::string(saveProfileId)
