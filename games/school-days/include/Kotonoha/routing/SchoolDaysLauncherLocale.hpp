@@ -200,6 +200,7 @@ enum class Key : std::size_t {
   ErrNonEnglishMissingJson,
   ErrManualLxhMissing,
   ErrJsonNoTranslations,
+  GeneralDiscordPresence,
 
   Count
 };

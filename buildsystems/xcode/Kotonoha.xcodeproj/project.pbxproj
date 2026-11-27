@@ -262,6 +262,12 @@
 		42927E08744F81B375683AEA /* ChoiceQuestionScene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 95B0FC8ABDE10AAFBC564358 /* ChoiceQuestionScene.cpp */; };
 		429FA3F2A093C7175EFF438A /* KotonohaImGui.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 893D77D1754B0E042E17C299 /* KotonohaImGui.framework */; };
 		42FF0A353E7CAD48DE1BC9BA /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		6688CE99EFF3BEF2F3DE340D /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		ACA353B43313FF6C91A71B34 /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		0EA4772245595C64D3FFA85F /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		E295F4CE1CD91B5A5992441E /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		49CC482463BB1D404191461B /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		6426D32ADFC5EE674619A892 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		43B41D7390F1389516092E63 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2BCDD65DDEFCFD0B2650E483 /* main.cpp */; };
 		44317D469FC8A2AA4136038B /* ImoutoScript.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BF76092AA05281FD2588DF35 /* ImoutoScript.cpp */; };
 		44EF04F27593415B481033CF /* AmagamiRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 825899848BE41CBA62F28A87 /* AmagamiRuntime.cpp */; };
@@ -774,6 +780,12 @@
 		B6B600000000000000000078 /* SchoolDaysRouteMapOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */; };
 		B6B600000000000000000079 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
 		B6B60000000000000000007A /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		4B0BC76DA438F5A755FEDCC4 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		BA55D9CDA696199A90EBF13A /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		96C45F68857B9BAE513BC24D /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		4B50F3746E670DE76BC4CC01 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		79B021011846D42449A0333A /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		F38AEE674A37FFB68322099A /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		B6B60000000000000000007B /* SchoolDaysSaveFeelModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */; };
 		B6B60000000000000000007C /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */; };
 		B6B60000000000000000007D /* SchoolDaysSaveLoadModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */; };
@@ -851,6 +863,12 @@
 		BAD898863D72131944D05FA9 /* bytecode.cc in Sources */ = {isa = PBXBuildFile; fileRef = DAD6436D0624C8A1998CFF1D /* bytecode.cc */; };
 		BADFE096FD9BA106B17B7C31 /* PcmPlayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F3D97835A95238791202E8E9 /* PcmPlayer.cpp */; };
 		BB12AC3EC734485EDCE27417 /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		306BEF5A17245620E8D68E86 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		4800CD1A0F722DC20AE1ADDD /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		ABA81BE967C68859D6D7C21F /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		8DB01CBA3C007AA6FB489BF6 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		CFF75D8EC66F9A35084021F7 /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		D245BC0EA934BB6C5C80CAFD /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		BB57C77D69734A293012B9B5 /* KtrfRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = FE4D3B71392CBBCCC90D9235 /* KtrfRuntime.cpp */; };
 		BB898AD35D50D84BBBC99B29 /* Source.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 369BEFED27D0BB808D48CC69 /* Source.cpp */; };
 		BBDB4159D97146F17696E390 /* PmailAssets.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A22FC35904554B40EEB8BF84 /* PmailAssets.cpp */; };
@@ -1132,6 +1150,12 @@
 		D7D700000000000000000085 /* SchoolDaysRouteMapOracle.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */; };
 		D7D700000000000000000086 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */; };
 		D7D700000000000000000087 /* SchoolDaysRuntime.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */; };
+		C9AC662193EC4788E5ED0E18 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
+		22DA4F39042EF1D0A605707F /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
+		201CF55245A2F2059AF8955B /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
+		7C1C60669824D0D6D1659C03 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
+		CB0B5914D336F2CDC235190B /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		A1C714F2D16DA5183C979CB0 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		D7D700000000000000000088 /* SchoolDaysSaveFeelModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */; };
 		D7D700000000000000000089 /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */; };
 		D7D70000000000000000008A /* SchoolDaysSaveLoadModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */; };
@@ -2308,6 +2332,12 @@
 		3AA271E48E3E6DCF85B61089 /* DiscAssetProvider.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DiscAssetProvider.cpp; path = ../../modules/providers/zero/src/DiscAssetProvider.cpp; sourceTree = SOURCE_ROOT; };
 		3B00210150B5407CBD46C59A /* SchoolDaysSubtitleTypography.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysSubtitleTypography.cpp; path = "../../games/school-days/src/SchoolDaysSubtitleTypography.cpp"; sourceTree = SOURCE_ROOT; };
 		3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysRuntime.cpp; path = "../../games/school-days/src/SchoolDaysRuntime.cpp"; sourceTree = SOURCE_ROOT; };
+		0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysDiscordPresence.cpp; path = "../../games/school-days/src/SchoolDaysDiscordPresence.cpp"; sourceTree = SOURCE_ROOT; };
+		214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysPresencePreference.cpp; path = "../../games/school-days/src/SchoolDaysPresencePreference.cpp"; sourceTree = SOURCE_ROOT; };
+		2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysPresencePolicy.cpp; path = "../../games/school-days/src/SchoolDaysPresencePolicy.cpp"; sourceTree = SOURCE_ROOT; };
+		2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = SchoolDaysRuntimePresence.cpp; path = "../../games/school-days/src/SchoolDaysRuntimePresence.cpp"; sourceTree = SOURCE_ROOT; };
+		B55FEFD0E27935F752B91119 /* RichPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = RichPresence.cpp; path = "../../lib/src/integrations/RichPresence.cpp"; sourceTree = SOURCE_ROOT; };
+		279A29EC61457F4BDA33EE6C /* NullPresence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = NullPresence.cpp; path = "../../lib/src/integrations/NullPresence.cpp"; sourceTree = SOURCE_ROOT; };
 		3C5A9DABEDBC8EBC44761F06 /* game-assets */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = folder; name = "game-assets"; path = "../../games/n2system/game-assets"; sourceTree = SOURCE_ROOT; };
 		3D1D2B56AF4EAA3118FF3A1D /* PmailTitleMenu.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = PmailTitleMenu.cpp; path = ../../games/pmail/src/PmailTitleMenu.cpp; sourceTree = SOURCE_ROOT; };
 		3D216FD739A4CDADA245F32C /* main.cpp */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../games/meo/src/main.cpp; sourceTree = SOURCE_ROOT; };
@@ -3517,6 +3547,12 @@
 				57241482EA1CD3F8C73F4261 /* SchoolDaysRouteMapOracle.cpp */,
 				7130DA4E830697FB022B5F58 /* SchoolDaysRouteMapRenderPlan.cpp */,
 				3B99363D08A5E9E143411652 /* SchoolDaysRuntime.cpp */,
+				0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */,
+				214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */,
+				2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */,
+				2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */,
+				B55FEFD0E27935F752B91119 /* RichPresence.cpp */,
+				279A29EC61457F4BDA33EE6C /* NullPresence.cpp */,
 				C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */,
 				CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */,
 				71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */,
@@ -7152,6 +7188,12 @@
 				9A9D031071F2E036E5760413 /* SchoolDaysSystemUi.cpp in Sources */,
 				639C77629E0935CF4A092DC7 /* SchoolDaysMenuBarPresenter.cpp in Sources */,
 				42FF0A353E7CAD48DE1BC9BA /* SchoolDaysRuntime.cpp in Sources */,
+				6688CE99EFF3BEF2F3DE340D /* SchoolDaysDiscordPresence.cpp in Sources */,
+				ACA353B43313FF6C91A71B34 /* SchoolDaysPresencePreference.cpp in Sources */,
+				0EA4772245595C64D3FFA85F /* SchoolDaysPresencePolicy.cpp in Sources */,
+				E295F4CE1CD91B5A5992441E /* SchoolDaysRuntimePresence.cpp in Sources */,
+				49CC482463BB1D404191461B /* RichPresence.cpp in Sources */,
+				6426D32ADFC5EE674619A892 /* NullPresence.cpp in Sources */,
 				95DBF4505B3FFD3AF306AA53 /* SchoolDaysLauncher.cpp in Sources */,
 				FE00406C89EAF561350F9C6A /* SchoolDaysReplayRenderPlan.cpp in Sources */,
 				3D76F1A10B1A817AE9DADD0F /* KtrfAssetResolver.cpp in Sources */,
@@ -7811,6 +7853,12 @@
 				B6B600000000000000000078 /* SchoolDaysRouteMapOracle.cpp in Sources */,
 				B6B600000000000000000079 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */,
 				B6B60000000000000000007A /* SchoolDaysRuntime.cpp in Sources */,
+				4B0BC76DA438F5A755FEDCC4 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				BA55D9CDA696199A90EBF13A /* SchoolDaysPresencePreference.cpp in Sources */,
+				96C45F68857B9BAE513BC24D /* SchoolDaysPresencePolicy.cpp in Sources */,
+				4B50F3746E670DE76BC4CC01 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				79B021011846D42449A0333A /* RichPresence.cpp in Sources */,
+				F38AEE674A37FFB68322099A /* NullPresence.cpp in Sources */,
 				B6B60000000000000000007B /* SchoolDaysSaveFeelModel.cpp in Sources */,
 				B6B60000000000000000007C /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */,
 				B6B60000000000000000007D /* SchoolDaysSaveLoadModel.cpp in Sources */,
@@ -8102,6 +8150,12 @@
 				D7D700000000000000000085 /* SchoolDaysRouteMapOracle.cpp in Sources */,
 				D7D700000000000000000086 /* SchoolDaysRouteMapRenderPlan.cpp in Sources */,
 				D7D700000000000000000087 /* SchoolDaysRuntime.cpp in Sources */,
+				C9AC662193EC4788E5ED0E18 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				22DA4F39042EF1D0A605707F /* SchoolDaysPresencePreference.cpp in Sources */,
+				201CF55245A2F2059AF8955B /* SchoolDaysPresencePolicy.cpp in Sources */,
+				7C1C60669824D0D6D1659C03 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				CB0B5914D336F2CDC235190B /* RichPresence.cpp in Sources */,
+				A1C714F2D16DA5183C979CB0 /* NullPresence.cpp in Sources */,
 				D7D700000000000000000088 /* SchoolDaysSaveFeelModel.cpp in Sources */,
 				D7D700000000000000000089 /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */,
 				D7D70000000000000000008A /* SchoolDaysSaveLoadModel.cpp in Sources */,
@@ -8287,6 +8341,12 @@
 				6E2366722FEA86C24A9C6FE0 /* SchoolDaysSystemUi.cpp in Sources */,
 				296ACCA108D2AE6F8B9C64FC /* SchoolDaysMenuBarPresenter.cpp in Sources */,
 				BB12AC3EC734485EDCE27417 /* SchoolDaysRuntime.cpp in Sources */,
+				306BEF5A17245620E8D68E86 /* SchoolDaysDiscordPresence.cpp in Sources */,
+				4800CD1A0F722DC20AE1ADDD /* SchoolDaysPresencePreference.cpp in Sources */,
+				ABA81BE967C68859D6D7C21F /* SchoolDaysPresencePolicy.cpp in Sources */,
+				8DB01CBA3C007AA6FB489BF6 /* SchoolDaysRuntimePresence.cpp in Sources */,
+				CFF75D8EC66F9A35084021F7 /* RichPresence.cpp in Sources */,
+				D245BC0EA934BB6C5C80CAFD /* NullPresence.cpp in Sources */,
 				6C94BEA7E336684115EE10E7 /* SchoolDaysLauncher.cpp in Sources */,
 				AE978CA769A76FAA1AE5A8EC /* SchoolDaysReplayRenderPlan.cpp in Sources */,
 				35B6C77D0C68A57C2A90B7C3 /* KtrfAssetResolver.cpp in Sources */,

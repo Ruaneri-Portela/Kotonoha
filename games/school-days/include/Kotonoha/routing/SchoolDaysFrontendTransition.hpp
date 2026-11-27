@@ -90,6 +90,8 @@ public:
         return phase_ != Phase::Idle;
     }
 
+    bool IsActive() const { return phase_ != Phase::Idle; }
+
     Phase CurrentPhase(uint64_t nowMs) {
         Update(nowMs);
         return phase_;

@@ -57,6 +57,14 @@ if (includeGameAssets) {
   logger.warn('[Kotonoha] bundleGameAssets=true: do not redistribute APKs containing commercial game data without permission.')
 }
 
+// Optional local SDK; never commit the proprietary AAR or SDK path.
+def discordSdkRoot = providers.gradleProperty('discordSocialSdkDir').orNull
+def discordAar = discordSdkRoot ? new File(discordSdkRoot, 'lib/release/discord_partner_sdk.aar') : null
+if (discordAar != null && !discordAar.isFile()) {
+  throw new GradleException("Discord Social SDK AAR not found: ${discordAar}")
+}
+def discordNative = layout.buildDirectory.dir('generated/discordPresenceSdk')
+
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
 
@@ -147,6 +155,7 @@ android {
       create(flavor) {
         dimension 'game'
         if (flavor == 'schoolDays') minSdk 30
+        buildConfigField 'boolean', 'HAS_DISCORD_RPC', (flavor == 'schoolDays' && discordAar != null).toString()
         applicationId game[2]
         manifestPlaceholders.appName = game[3]
         buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
@@ -158,6 +167,12 @@ android {
               "-DKOTONOHA_BUILD_GAME=${game[0]}",
               "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo', 'launcher'] ? '-python' : ''}"
             targets game[1]
+            if (flavor == 'schoolDays' && discordAar != null) {
+              arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=ON',
+                "-DKOTONOHA_ANDROID_DISCORD_SDK_DIR=${discordNative.get().asFile.absolutePath}"
+            } else {
+              arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=OFF'
+            }
           }
         }
       }
@@ -231,6 +246,8 @@ android {
   packaging {
     jniLibs {
       useLegacyPackaging = true
+      // Both the AAR and the CMake imported target refer to the same SDK SO.
+      if (discordAar != null) pickFirsts += ['**/libdiscord_partner_sdk.so']
     }
   }
 }
@@ -246,6 +263,25 @@ dependencies {
 // ------------------------------------------------------------
 // Generate Android launcher icons from the Windows SchoolDays.ico
 // ------------------------------------------------------------
+
+if (discordAar != null) {
+  dependencies {
+    schoolDaysImplementation files(discordAar)
+  }
+  // The vendor AAR carries both the Java runtime and the ABI-specific native
+  // module. Extract only its Prefab module for CMake; no extra Prefab CLI.
+  def prepareDiscord = tasks.register('prepareDiscordPresenceSdk', Sync) {
+    from(zipTree(discordAar)) {
+      include 'prefab/modules/discord_partner_sdk/**'
+    }
+    into discordNative
+  }
+  tasks.configureEach {
+    if (name.startsWith('configureCMake') || name.startsWith('buildCMake')) {
+      dependsOn prepareDiscord
+    }
+  }
+}
 
 def schoolDaysIconSource = new File(engineRoot, 'assets/SchoolDays.ico')
 def schoolDaysIconsOut = layout.buildDirectory.dir('generated/res/schoolDaysIcons')
@@ -424,6 +460,12 @@ android.applicationVariants.all { variant ->
     if (stageSchoolDaysLauncherArt) {
       from(schoolDaysLauncherArt) {
         into 'assets'
+      }
+    }
+
+    if (variant.flavorName == 'schoolDays' && discordAar != null) {
+      from(new File(discordSdkRoot, 'License-Notices.txt')) {
+        into 'assets/licenses/discord'
       }
     }
 

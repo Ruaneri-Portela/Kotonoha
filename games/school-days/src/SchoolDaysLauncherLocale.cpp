@@ -207,6 +207,7 @@ constexpr Table kEnglish{{
     "Selected non-English locale has no valid base JSON. Choose a translation file in Game language before Play.",
     "Manually selected L×H JSON is missing. Choose a valid file or restore automatic matching.",
     "Selected language JSON contains no translated entries.",
+    "Discord Rich Presence",
 }};
 
 constexpr Table kPortugueseBr{{
@@ -391,6 +392,7 @@ constexpr Table kPortugueseBr{{
     "O idioma selecionado não possui um JSON base válido. Escolha um arquivo de tradução em Idioma antes de jogar.",
     "O JSON L×H selecionado manualmente está ausente. Escolha um arquivo válido ou restaure a associação automática.",
     "O JSON de idioma selecionado não contém entradas traduzidas.",
+    "Discord Rich Presence (atividade no perfil)",
 }};
 
 constexpr Table kSpanish{{
@@ -575,6 +577,7 @@ constexpr Table kSpanish{{
     "El idioma seleccionado no tiene un JSON base válido. Elige un archivo de traducción en Idioma antes de jugar.",
     "Falta el JSON L×H seleccionado manualmente. Elige un archivo válido o restaura el emparejamiento automático.",
     "El JSON de idioma seleccionado no contiene entradas traducidas.",
+    "Discord Rich Presence (actividad en el perfil)",
 }};
 
 constexpr Table kRussian{{
@@ -759,6 +762,7 @@ constexpr Table kRussian{{
     "Для выбранного языка отсутствует корректный базовый JSON. Выберите перевод во вкладке Язык перед запуском.",
     "Выбранный вручную L×H JSON отсутствует. Укажите корректный файл или верните автоподбор.",
     "Выбранный JSON-файл не содержит переведенных строк.",
+    "Discord Rich Presence (активность в профиле)",
 }};
 
 constexpr Table kChineseSimplified{{
@@ -943,6 +947,7 @@ constexpr Table kChineseSimplified{{
     "所选非英语语言缺少有效的基础 JSON。请在“语言”中选择翻译文件后再开始游戏。",
     "手动指定的 L×H JSON 不存在。请选择有效文件或恢复自动匹配。",
     "所选语言 JSON 不包含任何已翻译条目。",
+    "Discord Rich Presence（个人资料动态）",
 }};
 
 constexpr std::array<Table, kLanguageCount> kTables{{
