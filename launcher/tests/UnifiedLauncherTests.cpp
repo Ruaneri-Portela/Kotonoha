@@ -225,6 +225,28 @@ int main() {
             "Expected at least 8 discovered games in synthetic library, got " +
                 std::to_string(catalog.size()));
 
+    // Callback results must match the final merged catalog, including overlays,
+    // and overlapping roots must never deliver the same game twice.
+    std::vector<DiscoveredGameEntry> callbackEntries;
+    const auto merged = scanGameLibraryRoots(
+        {lib.root.string(), (lib.root / "DDLC").string()}, 0,
+        [&](const DiscoveredGameEntry &entry) { callbackEntries.push_back(entry); });
+    require(callbackEntries.size() == merged.size(),
+            "Callback must deliver each merged catalog entry once");
+    for (std::size_t i = 0; i < merged.size(); ++i) {
+      require(callbackEntries[i].path == merged[i].path &&
+                  callbackEntries[i].overlayPath == merged[i].overlayPath,
+              "Callback must deliver the final resolved catalog in order");
+    }
+
+    SyntheticLibrary nested;
+    nested.write("CollectionA/TitleA/data.xp3", "XP3 placeholder");
+    nested.write("CollectionB/TitleB/data.xp3", "XP3 placeholder");
+    require(scanGameLibrary(nested.root.string(), 0).empty(),
+            "Depth zero must not descend into collections");
+    require(scanGameLibrary(nested.root.string(), 1).size() == 2,
+            "Depth one must discover both nested titles");
+
     // The library may also contain non-game folders. Cache their negative
     // probes without masking a game installed into one of them later.
     SyntheticLibrary changing;
