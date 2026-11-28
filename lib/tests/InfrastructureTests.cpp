@@ -927,10 +927,17 @@ int main(int argc, char **argv) {
             "Packaged engine and game assets have separate stable directories");
     require(preferredDataDirectory("example") == resourceDirectory(),
             "Desktop data resolves to the package resource directory");
+    // Windows retains its legacy settings-in-save layout; other platforms
+    // store settings beside the save directory.
+#if defined(_WIN32) && !defined(__ANDROID__)
+    const auto expectedSettingsRoot = preferredDocumentsDirectory("example");
+#else
+    const auto expectedSettingsRoot = documentsDirectory("example");
+#endif
     require(
         std::filesystem::is_directory(preferredDocumentsDirectory("example")) &&
             std::filesystem::path(EngineSettings::defaultPath("example"))
-                    .parent_path() == preferredDocumentsDirectory("example") &&
+                    .parent_path() == expectedSettingsRoot &&
             preferredDocumentsDirectory("example").parent_path() ==
                 documentsDirectory("example"),
         "Settings use writable saves and the parent is the Documents root");

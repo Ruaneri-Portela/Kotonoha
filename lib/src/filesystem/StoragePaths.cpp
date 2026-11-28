@@ -243,8 +243,6 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
 
     // The package identifier is the save identity; the source-game slug is
     // only used above to locate source-tree game assets.
-    result.documents =
-        locations.userData / "Kotonoha" / locations.packageIdentifier;
     // Neither a missing application identity nor an unknown writable root
     // may fall back to a shared or relative Documents directory.
     if (!locations.packageIdentifier.empty() && !locations.userData.empty())

@@ -410,7 +410,23 @@ std::string ConvertEncoding(std::string_view text, const char *from,
   if (!converter.valid())
     throw std::runtime_error(std::string("Unsupported text encoding ") + from +
                              " -> " + to);
-  return converter.run(text, [](const unsigned char *, size_t) { return 1; });
+  const bool utf8Input = std::string_view(from) == "UTF-8";
+  return converter.run(text, [utf8Input](const unsigned char *bytes, size_t left) {
+    // An unsupported UTF-8 scalar maps to one replacement, not one per byte.
+    if (!utf8Input || !left) return size_t(1);
+    const unsigned char first = bytes[0];
+    const size_t n = first >= 0xC2 && first <= 0xDF ? 2 :
+                     first >= 0xE0 && first <= 0xEF ? 3 :
+                     first >= 0xF0 && first <= 0xF4 ? 4 : 1;
+    if (n > left) return size_t(1);
+    for (size_t i = 1; i < n; ++i)
+      if ((bytes[i] & 0xC0) != 0x80) return size_t(1);
+    if (n > 1 && ((first == 0xE0 && bytes[1] < 0xA0) ||
+                  (first == 0xED && bytes[1] >= 0xA0) ||
+                  (first == 0xF0 && bytes[1] < 0x90) ||
+                  (first == 0xF4 && bytes[1] >= 0x90))) return size_t(1);
+    return n;
+  });
 #endif
 }
 #if !defined(__APPLE__)

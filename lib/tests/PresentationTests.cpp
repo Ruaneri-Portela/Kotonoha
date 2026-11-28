@@ -938,7 +938,26 @@ void subtitleRasterization(Engine &engine) {
     SDL_SetRenderDrawColor(&renderer, 0, 0, 0, 255);
     SDL_RenderClear(&renderer);
     scene.render(renderer, 1);
+    SDL_Rect viewport{};
+    float scaleX = 1, scaleY = 1;
+    int logicalWidth = 0, logicalHeight = 0;
+    SDL_RendererLogicalPresentation logical;
+    require(SDL_GetRenderViewport(&renderer, &viewport) &&
+                SDL_GetRenderScale(&renderer, &scaleX, &scaleY) &&
+                SDL_GetRenderLogicalPresentation(&renderer, &logicalWidth,
+                                                 &logicalHeight, &logical),
+            "Save subtitle readback state");
+    require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
+                                             SDL_LOGICAL_PRESENTATION_DISABLED) &&
+                SDL_SetRenderScale(&renderer, 1, 1) &&
+                SDL_SetRenderViewport(&renderer, nullptr),
+            "Read complete physical target, not a clipped logical viewport");
     SurfacePtr pixels(SDL_RenderReadPixels(&renderer, nullptr));
+    require(SDL_SetRenderLogicalPresentation(&renderer, logicalWidth,
+                                             logicalHeight, logical) &&
+                SDL_SetRenderScale(&renderer, scaleX, scaleY) &&
+                SDL_SetRenderViewport(&renderer, &viewport),
+            "Restore subtitle readback state");
     require(bool(pixels), "Read Retina subtitle pixels");
     return pixels;
   };

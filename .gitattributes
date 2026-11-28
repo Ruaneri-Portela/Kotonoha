@@ -1,2 +1,4 @@
 vcpkg-overlays/libiconv/*.patch whitespace=-blank-at-eol,-blank-at-eof
 assets/Anime4K/*.glsl whitespace=-blank-at-eol,-blank-at-eof
+# ASS fixtures are distributed as UTF-8 CRLF on all platforms.
+games/school-days/game-assets/styles.ass text eol=crlf

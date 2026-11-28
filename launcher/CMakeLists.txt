@@ -104,6 +104,14 @@ if(NOT EMSCRIPTEN)
         MACOSX_RPATH ON
         INSTALL_NAME_DIR "@rpath"
         BUILD_WITH_INSTALL_RPATH ON)
+    if(UNIX AND NOT APPLE)
+        # The core itself must find the engine beside it. Executable RUNPATH
+        # is not inherited for indirect ELF dependencies.
+        set_target_properties(KotonohaLauncherCore PROPERTIES
+            BUILD_WITH_INSTALL_RPATH OFF
+            BUILD_RPATH_USE_ORIGIN ON
+            INSTALL_RPATH "$ORIGIN")
+    endif()
     if(WIN32)
         # Sem "lib" no Windows: KotonohaLauncherCore.dll + .lib. A core
         # exporta tambem as classes C++ consumidas pelo KotonohaLauncher.exe.

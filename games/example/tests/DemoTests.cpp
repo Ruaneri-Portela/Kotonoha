@@ -373,14 +373,14 @@ int main() {
     engine.Iterate();
     require(game.GetState() == Kotonoha::GameState::Menu,
             "The splash advances automatically after its timeout");
-    require(engine.GetDebug().getSettings().showFPS &&
-                engine.GetDebug().getSettings().showNodeClock,
-            "Diagnostics initialize in engine before gameplay");
+    require(!engine.GetDebug().getSettings().showFPS &&
+                !engine.GetDebug().getSettings().showNodeClock,
+            "Diagnostics are opt-in before gameplay");
     press(engine, SDLK_F9);
-    require(!engine.GetDebug().getSettings().showFPS,
+    require(engine.GetDebug().getSettings().showFPS,
             "F9 toggles FPS without loading a save");
     press(engine, SDLK_F8);
-    require(!engine.GetDebug().getSettings().showNodeClock,
+    require(engine.GetDebug().getSettings().showNodeClock,
             "F8 toggles node and clock");
     press(engine, SDLK_F9);
     press(engine, SDLK_F8);
