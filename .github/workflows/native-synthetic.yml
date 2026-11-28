@@ -66,6 +66,8 @@ jobs:
             -DKOTONOHA_DEPS_PROVIDER=SYSTEM -DKOTONOHA_SDL_PROVIDER=SYSTEM \
             -DKOTONOHA_IMGUI_PROVIDER=SUBMODULES \
             -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON
+      - name: Link the shared launcher core (PIC regression)
+        run: cmake --build build-synthetic --target KotonohaLauncherCore --parallel 2
       - name: Build every native target
         run: cmake --build build-synthetic --parallel 2
       - name: Stage the synthetic test font

@@ -129,6 +129,16 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Native shared libraries (notably KotonohaLauncherCore) embed static
+# game runtimes and their transitive VM, provider and format archives.
+# Set PIC before any of those targets are created, not just on the final
+# shared library: ELF linkers reject non-PIC archive members. CMake selects
+# the appropriate compiler flags; Windows and the static WASM build do not
+# need this native Unix policy.
+if(UNIX AND NOT EMSCRIPTEN)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # Web builds use JS-based Emscripten C++ EH with Asyncify. Enabling
 # exception catching only for the final executable leaves engine and
 # provider object files compiled without catch/unwind support, which
