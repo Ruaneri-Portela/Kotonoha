@@ -56,7 +56,12 @@ public final class BootstrapActivity extends Activity {
                         : "";
                 if (!fingerprint.equals(installed)) {
                     Files.deleteIfExists(complete.toPath());
-                    copyDirectory(getAssets(), "assets", directory, "assets");
+                    // School Days private builds carry their engine resources
+                    // in the native binary, not in the Android asset tree.
+                    // Other games retain the existing extraction behavior.
+                    if (!BuildConfig.SCHOOL_DAYS_EMBEDDED_ASSETS) {
+                        copyDirectory(getAssets(), "assets", directory, "assets");
+                    }
                     String[] gameFiles = getAssets().list("game-assets");
                     if (gameFiles == null) throw new IOException("Cannot list game-assets");
                     if (gameFiles.length > 0)

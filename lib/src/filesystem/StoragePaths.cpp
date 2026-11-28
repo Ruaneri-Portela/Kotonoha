@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #ifdef __APPLE__
@@ -25,6 +26,16 @@
 
 namespace Kotonoha {
 namespace {
+std::mutex embeddedRootsMutex;
+using FontMap = std::unordered_map<std::string, std::vector<uint8_t>>;
+struct EngineAssetRoot {
+  explicit EngineAssetRoot(std::filesystem::path root) : path(std::move(root)) {}
+  std::filesystem::path path;
+  FontMap fonts;
+  std::once_flag fontsInitialized;
+};
+std::shared_ptr<EngineAssetRoot> embeddedRoot;
+
 void validateGame(const std::string &game) {
   if (game.empty() || game == "." || game == ".." ||
       game.find_first_of("/\\:") != std::string::npos ||
@@ -416,7 +427,33 @@ static StorageLocations storageLocations() {
 StorageLocations applicationStorageLocations() { return storageLocations(); }
 
 DirectoryLayout applicationDirectories(const std::string &game) {
-  return directoryLayout(applicationStorageLocations(), game);
+  auto layout = directoryLayout(applicationStorageLocations(), game);
+  std::lock_guard<std::mutex> lock(embeddedRootsMutex);
+  if (embeddedRoot) {
+    const auto &root = embeddedRoot->path;
+    addDirectory(layout.engineAssets, root);
+    addDirectory(layout.references, root);
+    addDirectory(layout.references, root / "fonts");
+    addDirectory(layout.references, root / "Anime4K");
+    addDirectory(layout.references, root / "ArtCNN");
+  }
+  return layout;
+}
+
+ScopedEngineAssetRoot::ScopedEngineAssetRoot(std::filesystem::path root)
+    : root_(std::filesystem::canonical(root)) {
+  if (!std::filesystem::is_directory(root_))
+    throw std::invalid_argument("Engine asset fallback must be a directory");
+  std::lock_guard<std::mutex> lock(embeddedRootsMutex);
+  if (embeddedRoot)
+    throw std::logic_error("An engine asset fallback is already active");
+  embeddedRoot = std::make_shared<EngineAssetRoot>(root_);
+}
+
+ScopedEngineAssetRoot::~ScopedEngineAssetRoot() {
+  std::lock_guard<std::mutex> lock(embeddedRootsMutex);
+  if (embeddedRoot && embeddedRoot->path == root_)
+    embeddedRoot.reset();
 }
 
 // A corrected bundle ID must not strand existing save data. Move only a
@@ -622,7 +659,9 @@ FileResolver::findGameAsset(const std::string &game,
           findInDirectories(applicationDirectories(game).gameAssets, relative))
     return found;
   std::error_code error;
-  for (const auto &root : roots(game))
+  // Engine-only fallback roots must never become game-asset search paths.
+  for (const auto &root :
+       directoryLayout(applicationStorageLocations(), game).references)
     for (const auto &candidate :
          {root / "game-assets" / relative,
           root / "games" / game / "game-assets" / relative, root / relative})
@@ -718,9 +757,18 @@ std::filesystem::path FileResolver::font(const std::string &file) {
 
 const std::unordered_map<std::string, std::vector<uint8_t>> &
 FileResolver::getFontMap() {
-  static std::unordered_map<std::string, std::vector<uint8_t>> cache;
-  static std::once_flag flag;
-  std::call_once(flag, []() {
+  static FontMap defaultCache;
+  static std::once_flag defaultFlag;
+  std::shared_ptr<EngineAssetRoot> scope;
+  {
+    std::lock_guard<std::mutex> lock(embeddedRootsMutex);
+    scope = embeddedRoot;
+  }
+  // A linked port may be initialized again in a single process. Do not
+  // retain that port's private font catalog in the ordinary engine cache.
+  auto &cache = scope ? scope->fonts : defaultCache;
+  auto &flag = scope ? scope->fontsInitialized : defaultFlag;
+  std::call_once(flag, [&cache]() {
     std::vector<std::filesystem::path> searchDirs;
     for (const auto &directory : applicationDirectories().engineAssets)
       searchDirs.push_back(directory / "fonts");

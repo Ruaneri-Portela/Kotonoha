@@ -8,6 +8,16 @@ add_executable(SchoolDaysPresencePolicyTest SchoolDaysPresencePolicyTest.cpp)
 target_link_libraries(SchoolDaysPresencePolicyTest PRIVATE school_days)
 add_test(NAME SchoolDays.PresencePolicy COMMAND SchoolDaysPresencePolicyTest)
 
+add_executable(SchoolDaysEmbeddedAssetsTest SchoolDaysEmbeddedAssetsTest.cpp)
+target_link_libraries(SchoolDaysEmbeddedAssetsTest PRIVATE school_days)
+add_test(NAME SchoolDays.EmbeddedAssets COMMAND SchoolDaysEmbeddedAssetsTest
+    "${KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE}")
+if(WIN32)
+    set_tests_properties(SchoolDays.EmbeddedAssets PROPERTIES
+        ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:KotonohaEngine>")
+endif()
+
 if(WIN32)
     add_test(NAME SchoolDays.LauncherFontStage
         COMMAND "${CMAKE_COMMAND}"

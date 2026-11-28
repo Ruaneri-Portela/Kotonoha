@@ -2006,6 +2006,9 @@ bool Launcher::loadLauncherArtwork() {
                        filename);
   // Also recognize the older source layout for developer checkouts.
   choices.emplace_back(fs::path("games/school-days/launcher-art") / filename);
+  // The shared engine resolver also sees the executable's private fallback.
+  if (const auto found = Kotonoha::FileResolver::findEngineAsset(filename))
+    choices.push_back(*found);
   for (const auto &candidate : choices) {
     std::error_code ec;
     if (!fs::is_regular_file(candidate, ec) || ec) continue;

@@ -236,7 +236,21 @@ public final class SchoolDaysSetup extends Activity {
         ((TextView) findViewById(R.id.version)).setText(versionText);
         ((TextView) findViewById(R.id.home_version)).setText(versionText);
 
-        packagedBannerArtwork = loadPackagedBannerArtwork();
+        if (BuildConfig.SCHOOL_DAYS_EMBEDDED_ASSETS) {
+            // Loading native libraries and decoding the banner can be slow
+            // on a cold start. Keep the portrait UI responsive, and preserve
+            // the precedence of artwork from a selected folder.
+            worker.submit(() -> {
+                Bitmap bitmap = loadPackagedBannerArtwork();
+                runOnUiThread(() -> {
+                    if (isFinishing() || isDestroyed()) return;
+                    packagedBannerArtwork = bitmap;
+                    showArt(folder);
+                });
+            });
+        } else {
+            packagedBannerArtwork = loadPackagedBannerArtwork();
+        }
         showArt(null);
 
         bindControls();
@@ -1108,6 +1122,10 @@ public final class SchoolDaysSetup extends Activity {
     }
 
     private Bitmap loadPackagedBannerArtwork() {
+        if (BuildConfig.SCHOOL_DAYS_EMBEDDED_ASSETS) {
+            byte[] bytes = SchoolDaysEmbeddedAssetsBridge.read("SchoolDaysHQ-Launcher.png");
+            return bytes == null ? null : BitmapFactory.decodeByteArray(bytes, 0, bytes.length);
+        }
         try (InputStream stream = getAssets().open("assets/SchoolDaysHQ-Launcher.png")) {
             return BitmapFactory.decodeStream(stream);
         } catch (IOException | RuntimeException ignored) {

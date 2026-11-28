@@ -2,6 +2,9 @@
 #include <SDL3/SDL.h>
 
 #include "SchoolDaysAssets.hpp"
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_ASSETS)
+#include "SchoolDaysEmbeddedAssets.hpp"
+#endif
 #include "SchoolDaysLauncher.hpp"
 #include "SchoolDaysDiscordPresence.hpp"
 #include "SchoolDaysMobileProfile.hpp"
@@ -200,6 +203,10 @@ struct Application {
 };
 
 struct App {
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_ASSETS)
+  // Destroy after launcher, runtime, and engine (which may keep font paths).
+  std::unique_ptr<SchoolDays::EmbeddedAssets> embeddedAssets;
+#endif
   std::unique_ptr<SchoolDays::Launcher> launcher;
   std::unique_ptr<Application> application;
   Kotonoha::EngineOptions options;
@@ -533,6 +540,9 @@ SDL_AppResult KotonohaPortCallbacks::init(void **appstate, int argc,
       std::fputs(arguments.help().c_str(), stdout);
       return SDL_APP_SUCCESS;
     }
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_ASSETS)
+    app->embeddedAssets = std::make_unique<SchoolDays::EmbeddedAssets>();
+#endif
     DevStartupLog("arguments-parsed");
     app->frames = arguments.frames;
     if (app->options.subtitleStylePath.empty())

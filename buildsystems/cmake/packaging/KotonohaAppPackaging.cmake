@@ -42,7 +42,8 @@ function(kotonoha_copy_assets target)
     # --preload-file ${KOTONOHA_ENGINE_ASSETS}@/assets, so a physical copy in
     # every output directory is redundant (~6.6 MiB x number of game targets).
     set(include_engine ON)
-    if(EMSCRIPTEN)
+    get_target_property(_embedded_engine_assets ${target} KOTONOHA_EMBED_ENGINE_ASSETS)
+    if(EMSCRIPTEN OR _embedded_engine_assets)
         set(include_engine OFF)
     endif()
 

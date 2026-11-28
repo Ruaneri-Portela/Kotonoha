@@ -73,6 +73,11 @@ def schoolDaysRequireEmbeddedOverlay = providers.gradleProperty('schoolDaysRequi
   .orElse('false').get().toBoolean()
 def schoolDaysEmbedPrivateOptionArt = providers.gradleProperty('schoolDaysEmbedPrivateOptionArt')
   .orElse('false').get().toBoolean()
+def schoolDaysRuntimeAssetsSource = providers.gradleProperty('schoolDaysRuntimeAssetsSource')
+  .orElse('').get()
+def schoolDaysRequireEmbeddedAssets = providers.gradleProperty('schoolDaysRequireEmbeddedAssets')
+  .orElse('false').get().toBoolean()
+def schoolDaysEmbeddedAssets = !schoolDaysRuntimeAssetsSource.isEmpty()
 
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
@@ -171,6 +176,7 @@ android {
         dimension 'game'
         if (flavor == 'schoolDays') minSdk 30
         buildConfigField 'boolean', 'HAS_DISCORD_RPC', (flavor == 'schoolDays' && discordAar != null).toString()
+        buildConfigField 'boolean', 'SCHOOL_DAYS_EMBEDDED_ASSETS', (flavor == 'schoolDays' && schoolDaysEmbeddedAssets).toString()
         applicationId game[2]
         manifestPlaceholders.appName = game[3]
         buildConfigField 'String', 'NATIVE_TARGET', "\"${game[1]}\""
@@ -190,7 +196,9 @@ android {
             if (flavor == 'schoolDays') {
               arguments "-DKOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE=${schoolDaysDisplayOverlaySource}",
                 "-DKOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY=${schoolDaysRequireEmbeddedOverlay ? 'ON' : 'OFF'}",
-                "-DKOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=${schoolDaysEmbedPrivateOptionArt ? 'ON' : 'OFF'}"
+                "-DKOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=${schoolDaysEmbedPrivateOptionArt ? 'ON' : 'OFF'}",
+                "-DKOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE=${schoolDaysRuntimeAssetsSource}",
+                "-DKOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_ASSETS=${schoolDaysRequireEmbeddedAssets ? 'ON' : 'OFF'}"
             }
             if (flavor == 'schoolDays' && discordAar != null) {
               arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=ON',
@@ -433,6 +441,7 @@ android.applicationVariants.all { variant ->
   def taskSuffix = variant.name.capitalize()
   def staged = layout.buildDirectory.dir("generated/assets/${variant.name}")
   def isLauncher = variant.flavorName == 'launcher'
+  def nativeSchoolDaysAssets = variant.flavorName == 'schoolDays' && schoolDaysEmbeddedAssets
   def gameAssets = new File(engineRoot, "games/${game[0]}/game-assets")
   def schoolDaysRoute = new File(engineRoot,
     'games/school-days/game-assets/school-days-hq.ktnroute')
@@ -444,13 +453,13 @@ android.applicationVariants.all { variant ->
      (includeGameAssets && variant.buildType.name != 'dist'))
   def schoolDaysLauncherArt = new File(engineRoot,
     'games/school-days/game-assets/launcher-art/SchoolDaysHQ-Launcher.png')
-  def stageSchoolDaysLauncherArt = variant.flavorName == 'schoolDays' &&
+  def stageSchoolDaysLauncherArt = variant.flavorName == 'schoolDays' && !nativeSchoolDaysAssets &&
     project.findProperty('includeLauncherArt')?.toString() != 'false' &&
     schoolDaysLauncherArt.isFile()
 
   def assets = tasks.register("stage${taskSuffix}Assets", Sync) {
     dependsOn generateBranding
-    from(new File(engineRoot, 'assets')) {
+    if (!nativeSchoolDaysAssets) from(new File(engineRoot, 'assets')) {
       if (variant.flavorName == 'schoolDays') {
         // Preserve the fork's authorized School Days splash / art; keep
         // common fonts available for subtitles and presentation.
@@ -469,6 +478,12 @@ android.applicationVariants.all { variant ->
       }
     }
     // Keep license and attribution notices with every distributable APK.
+    if (nativeSchoolDaysAssets) {
+      from(new File(schoolDaysRuntimeAssetsSource)) {
+        include 'Anime4K/*.txt', 'ArtCNN/*.txt'
+        into 'licenses/runtime-assets'
+      }
+    }
     from(new File(engineRoot, 'LICENSE')) {
       into 'licenses'
     }
@@ -490,7 +505,7 @@ android.applicationVariants.all { variant ->
 
     if (variant.flavorName == 'schoolDays' && discordAar != null) {
       from(new File(discordSdkRoot, 'License-Notices.txt')) {
-        into 'assets/licenses/discord'
+        into(nativeSchoolDaysAssets ? 'licenses/discord' : 'assets/licenses/discord')
       }
     }
 

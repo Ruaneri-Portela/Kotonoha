@@ -69,8 +69,16 @@ possuem caminhos usados em CMake, runtime e testes. A arte privada fica em
 `game-assets/overlay/` (ou na fonte antiga `game-assets/display-options/`) e
 `game-assets/launcher-art/`. A UI de opções aprovada pode ser incorporada
 aos binários nativos de Windows e Android; overlays externos são opcionais.
-A arte do launcher Windows é instalada em `assets/SchoolDaysHQ-Launcher.png`
-ao lado do executável. Os metadados públicos
+Builds privadas de Windows e Android também podem incorporar o pacote aprovado
+de `assets/` (shaders, fonte, splash, ícone e arte do launcher) com
+`KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE` e
+`KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_ASSETS=ON`. As propriedades Android são
+`schoolDaysRuntimeAssetsSource` e `schoolDaysRequireEmbeddedAssets=true`.
+O runtime usa um diretório de compatibilidade privado, limitado à sessão,
+para APIs que exigem caminhos; não precisa de `assets/` na pasta do jogo.
+`game-assets/`, forced subtitles, traduções e Packs retail ficam externos.
+Arte privada e dados nativos gerados não devem ser versionados. Preserve os
+avisos de licença de terceiros no pacote. Os metadados públicos
 de Display Options ficam em `docs/configuration/display-options/`.
 Mover essas pastas exige atualizar consumidores, compilar e rodar CTest.
 

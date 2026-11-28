@@ -35,6 +35,7 @@ add_library(school_days STATIC
     src/SchoolDaysGpkArchive.cpp
     src/SchoolDaysGpkIndex.cpp
     src/SchoolDaysAssetMount.cpp
+    src/SchoolDaysEmbeddedAssets.cpp
     src/SchoolDaysCmap.cpp
     src/SchoolDaysTitleModel.cpp
     src/SchoolDaysTitleRenderPlan.cpp
@@ -104,6 +105,16 @@ set_target_properties(school_days PROPERTIES CXX_EXTENSIONS OFF)
 
 kotonoha_add_app(SchoolDays src/main.cpp)
 target_link_libraries(SchoolDays PRIVATE school_days)
+if(ANDROID)
+    target_sources(SchoolDays PRIVATE src/SchoolDaysEmbeddedAssetsAndroid.cpp)
+endif()
+set(KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE "" CACHE PATH
+    "Exact approved private School Days runtime assets directory")
+option(KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_ASSETS
+    "Require the approved native runtime assets pack" OFF)
+if(KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE)
+    set_property(TARGET SchoolDays PROPERTY KOTONOHA_EMBED_ENGINE_ASSETS TRUE)
+endif()
 kotonoha_configure_app(SchoolDays
     BUNDLE_ID me.hirameki.kotonoha.schooldays GAME school-days)
 
@@ -153,10 +164,31 @@ if(WIN32 AND NOT ANDROID)
 endif()
 
 # This font is a separately supplied local QA asset, not tracked game content.
+if(KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(_runtime_assets_source "${KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE}")
+    file(GLOB_RECURSE _runtime_assets_inputs CONFIGURE_DEPENDS
+        LIST_DIRECTORIES FALSE "${_runtime_assets_source}/*")
+    set(_runtime_assets_script "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_runtime_assets.py")
+    set(_runtime_assets_dir "${CMAKE_CURRENT_BINARY_DIR}/generated/runtime-assets")
+    set(_runtime_assets_header "${_runtime_assets_dir}/SchoolDaysEmbeddedAssets.generated.hpp")
+    add_custom_command(OUTPUT "${_runtime_assets_header}"
+        COMMAND "${Python3_EXECUTABLE}" "${_runtime_assets_script}"
+            "${_runtime_assets_source}" "${_runtime_assets_header}"
+        DEPENDS "${_runtime_assets_script}" ${_runtime_assets_inputs}
+        COMMENT "Embedding the approved private School Days runtime assets"
+        VERBATIM)
+    target_sources(school_days PRIVATE "${_runtime_assets_header}")
+    target_include_directories(school_days PRIVATE "${_runtime_assets_dir}")
+    target_compile_definitions(school_days PUBLIC KOTONOHA_SCHOOL_DAYS_EMBEDDED_ASSETS=1)
+elseif(KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_ASSETS)
+    message(FATAL_ERROR "Approved School Days runtime assets source is required")
+endif()
+
 # Stage it AFTER kotonoha_configure_app's generic asset POST_BUILD copy so a
 # placeholder in the engine asset directory cannot overwrite the real font.
 # A separate verify target is mandatory before assembling a private QA ZIP.
-if(WIN32 AND NOT ANDROID)
+if(WIN32 AND NOT ANDROID AND NOT KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE)
     set(KOTONOHA_SCHOOL_DAYS_LAUNCHER_FONT_SOURCE "" CACHE FILEPATH
         "Path to approved local NotoSansJP-Regular.ttf for School Days Windows QA")
     set(_school_days_font_script
@@ -186,7 +218,7 @@ endif()
 # Use only the player's authorized School Days HQ key visual. Always copy it
 # from the source tree to the binary folder, including asset-only rebuilds.
 # The single SchoolDays.exe loads this PNG; no separate launcher EXE is needed.
-if(WIN32 AND NOT ANDROID)
+if(WIN32 AND NOT ANDROID AND NOT KOTONOHA_SCHOOL_DAYS_RUNTIME_ASSETS_SOURCE)
     set(KOTONOHA_SCHOOL_DAYS_LAUNCHER_ART_SOURCE
         "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/launcher-art/SchoolDaysHQ-Launcher.png"
         CACHE FILEPATH "Private School Days HQ launcher artwork source")

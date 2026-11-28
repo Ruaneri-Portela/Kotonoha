@@ -39,6 +39,20 @@ DirectoryLayout directoryLayout(const StorageLocations &locations,
 // Does not create directories.
 StorageLocations applicationStorageLocations();
 DirectoryLayout applicationDirectories(const std::string &game = {});
+// A port may register a private, read-only-in-use fallback root containing
+// resources from its executable. External assets retain their precedence.
+// The owner must keep the directory alive until the scope ends, and destroy
+// all dependent renderers/font consumers before unregistering the root.
+// Only one active port may register a fallback in a process at a time.
+class ScopedEngineAssetRoot {
+  std::filesystem::path root_;
+
+public:
+  explicit ScopedEngineAssetRoot(std::filesystem::path root);
+  ~ScopedEngineAssetRoot();
+  ScopedEngineAssetRoot(const ScopedEngineAssetRoot &) = delete;
+  ScopedEngineAssetRoot &operator=(const ScopedEngineAssetRoot &) = delete;
+};
 // One-time, non-overwriting migration when a port corrects its app identifier.
 // Returns true only when an existing legacy Documents directory is moved.
 // Desktop data is per package; Android/iOS share an OS-managed app directory.
