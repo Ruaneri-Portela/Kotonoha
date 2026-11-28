@@ -23,7 +23,7 @@ BAD_IO = re.compile(
     r"|\b(?:std::)?f(?:open|read|write|seek|tell|close)\s*\("
     r"|\b(?:std::)?FILE\s*\*"
 )
-GAME = re.compile(r'"([A-Z_]+)\|([^|"\n]+)\|(games/[^"\n]+)"')
+GAME = re.compile(r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"')
 OLD_HEADER = re.compile(r'#\s*include\s*[<"]Kotonoha/core/FileSystem\.hpp[>"]')
 
 
@@ -47,10 +47,18 @@ def runtime_files():
 
 def file_issues(path: Path) -> list[tuple[int, str]]:
     content = path.read_text(encoding="utf-8", errors="replace")
+    relative = path.relative_to(ROOT).as_posix()
     return [
         (line_number, line.strip())
         for line_number, line in enumerate(content.splitlines(), 1)
         if (BAD_IO.search(line) or OLD_HEADER.search(line))
+        # Comments describe legacy I/O; they do not perform it.
+        and not line.lstrip().startswith(("//", "/*", "* "))
+        # The SDLFileSource backend itself needs an Android native-file
+        # probe so SDL does not enter Java's asset manager without an Activity.
+        # This is the lowest-level Filesystem V2 adapter, not a legacy caller.
+        and not (relative == "lib/src/filesystem/sources/SDLFileSource.cpp"
+                 and ("std::fopen(" in line or "std::fclose(" in line))
         # Writing diagnostics to stdout is console I/O, not file access.
         and not ("std::fwrite(" in line and "stdout" in line)
     ]
@@ -103,7 +111,7 @@ def main() -> int:
             rows.append((relative, issues))
             category = relative.split("/")[0]
             by_area[category] = by_area.get(category, 0) + len(issues)
-    games_file = ROOT / "buildsystems/cmake/KotonohaGames.cmake"
+    games_file = ROOT / "buildsystems/cmake/games/KotonohaGames.cmake"
     game_matrix = (
         GAME.findall(games_file.read_text(encoding="utf-8"))
         if games_file.exists() else []

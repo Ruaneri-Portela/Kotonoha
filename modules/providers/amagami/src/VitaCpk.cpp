@@ -3,7 +3,7 @@
 // See third_party/open-amagami-LICENSE.txt and original project documentation.
 #include <algorithm>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Sources/SDLFileSource.hpp>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -16,6 +16,10 @@
 namespace Amagami::Vita {
 
 namespace {
+
+using Kotonoha::Filesystem::FileHandle;
+using Kotonoha::Filesystem::SDLFileSource;
+using Kotonoha::Filesystem::SeekOrigin;
 
 std::string unmask(const std::string &data) {
   if (data.size() >= 4 && std::memcmp(data.data(), "@UTF", 4) == 0)
@@ -215,10 +219,8 @@ std::string get_str(const std::unordered_map<std::string, UtfValue> &row,
 
 // A length-prefixed @UTF packet: 4-byte magic (ignored), 4 bytes padding, u64
 // LE size, then the masked table (tools/cpk.py's read_packet).
-uint64_t stream_size(std::ifstream &f) {
-  f.clear();
-  f.seekg(0, std::ios::end);
-  const auto n = f.tellg();
+uint64_t stream_size(FileHandle &f) {
+  const auto n = f.size();
   if (n < 0)
     throw std::runtime_error("cpk: unable to determine file size");
   return uint64_t(n);
@@ -228,13 +230,28 @@ void check_entry(uint64_t offset, uint64_t length, uint64_t file_size) {
       length > 512ull * 1024 * 1024)
     throw std::runtime_error("cpk: entry outside archive payload");
 }
-UtfTable read_packet(std::ifstream &f, uint64_t offset) {
-  if (offset > uint64_t(std::numeric_limits<std::streamoff>::max()))
+bool read_exact(FileHandle &file, void *destination, size_t count) {
+  auto *bytes = static_cast<char *>(destination);
+  size_t done = 0;
+  while (done < count) {
+    const auto n = file.read(bytes + done, count - done);
+    if (n <= 0 || uint64_t(n) > count - done)
+      return false;
+    done += size_t(n);
+  }
+  return true;
+}
+
+bool seek_absolute(FileHandle &file, uint64_t offset) {
+  return offset <= uint64_t(std::numeric_limits<int64_t>::max()) &&
+         file.seek(int64_t(offset), SeekOrigin::Begin) == int64_t(offset);
+}
+
+UtfTable read_packet(FileHandle &f, uint64_t offset) {
+  if (!seek_absolute(f, offset))
     throw std::runtime_error("cpk: invalid packet offset");
-  f.clear();
-  f.seekg(std::streamoff(offset));
   char header[16];
-  if (!f.read(header, 16))
+  if (!read_exact(f, header, sizeof(header)))
     throw std::runtime_error("cpk: truncated packet header");
   uint64_t size = 0;
   for (unsigned i = 0; i < 8; ++i)
@@ -242,7 +259,7 @@ UtfTable read_packet(std::ifstream &f, uint64_t offset) {
   if (size > 64ull * 1024 * 1024)
     throw std::runtime_error("cpk: UTF packet exceeds size limit");
   std::string body(size_t(size), '\0');
-  if (!f.read(body.data(), std::streamsize(body.size())))
+  if (!read_exact(f, body.data(), body.size()))
     throw std::runtime_error("cpk: truncated UTF packet");
   return parse_utf(body);
 }
@@ -252,11 +269,9 @@ UtfTable read_packet(std::ifstream &f, uint64_t offset) {
 UtfTable cpk_parse_utf(const std::string &bytes) { return parse_utf(bytes); }
 
 CpkIndex cpk_read_index(const std::string &path) {
-  std::ifstream f(path, std::ios::binary);
-  if (!f)
-    throw std::runtime_error("cannot open " + path);
+  SDLFileSource f{std::filesystem::path(path)};
   char magic[4];
-  if (!f.read(magic, 4) || std::memcmp(magic, "CPK ", 4) != 0)
+  if (!read_exact(f, magic, sizeof(magic)) || std::memcmp(magic, "CPK ", 4) != 0)
     throw std::runtime_error(path + ": not a CPK archive");
   const uint64_t file_size = stream_size(f);
 
@@ -301,16 +316,12 @@ const int VLE_LENS[4] = {2, 3, 5, 8};
 
 std::vector<CpkEntry> cpk_read_entries(const std::string &path,
                                        uint64_t start) {
-  std::ifstream f(path, std::ios::binary);
-  if (!f)
-    throw std::runtime_error("cannot open " + path);
+  SDLFileSource f{std::filesystem::path(path)};
   char magic[4];
   const uint64_t file_size = stream_size(f);
-  if (start > file_size || file_size - start < 4 ||
-      start > uint64_t(std::numeric_limits<std::streamoff>::max()))
+  if (start > file_size || file_size - start < 4 || !seek_absolute(f, start))
     throw std::runtime_error("cpk: invalid nested archive offset");
-  f.seekg(std::streamoff(start));
-  if (!f.read(magic, 4) || std::memcmp(magic, "CPK ", 4) != 0)
+  if (!read_exact(f, magic, sizeof(magic)) || std::memcmp(magic, "CPK ", 4) != 0)
     throw std::runtime_error(path + ": not a CPK archive");
   UtfTable header_table = read_packet(f, start);
   const auto &header = header_table.rows.at(0);
@@ -474,7 +485,7 @@ bool cpk_read(const std::string &cpk_path, const CpkIndex &index,
   // network or WSL path, once per picture otherwise. Reads come from the
   // preload threads too, hence the lock (decompression runs outside it).
   static std::mutex lock;
-  static std::map<std::string, std::unique_ptr<std::ifstream>> files;
+  static std::map<std::string, std::unique_ptr<SDLFileSource>> files;
   if (it->second.size > 512ull * 1024 * 1024)
     throw std::runtime_error("cpk: entry exceeds size limit");
   std::string raw(size_t(it->second.size), '\0');
@@ -483,13 +494,11 @@ bool cpk_read(const std::string &cpk_path, const CpkIndex &index,
     if (files.find(cpk_path) == files.end() && files.size() >= 16)
       files.clear();
     auto &f = files[cpk_path];
-    if (!f || !*f)
-      f = std::make_unique<std::ifstream>(cpk_path, std::ios::binary);
-    if (!*f)
-      throw std::runtime_error("cannot open " + cpk_path);
-    f->clear();
-    f->seekg(std::streamoff(it->second.offset));
-    if (!f->read(raw.data(), std::streamsize(raw.size())))
+    if (!f)
+      f = std::make_unique<SDLFileSource>(std::filesystem::path(cpk_path));
+    check_entry(it->second.offset, it->second.size, stream_size(*f));
+    if (!seek_absolute(*f, it->second.offset) ||
+        !read_exact(*f, raw.data(), raw.size()))
       throw std::runtime_error("cpk: truncated file entry");
   }
   out = raw.size() >= 8 && std::memcmp(raw.data(), "CRILAYLA", 8) == 0

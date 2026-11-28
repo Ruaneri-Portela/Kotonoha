@@ -1,23 +1,15 @@
 #include <Amagami/VitaScripts.hpp>
 #include <algorithm>
-#include <fstream>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <stdexcept>
 #include <utility>
 
 namespace Amagami::Vita {
 namespace {
 Bytes readImage(const std::filesystem::path &path) {
-  std::ifstream f(path, std::ios::binary | std::ios::ate);
-  if (!f)
-    throw std::runtime_error("Amagami Vita: cannot open " + path.string());
-  const auto length = f.tellg();
-  if (length < 4 || length > 64 * 1024 * 1024)
+  auto bytes = Kotonoha::Filesystem::readLocalFile(path, 64u * 1024u * 1024u);
+  if (bytes.size() < 4)
     throw std::runtime_error("Amagami Vita: invalid system image size");
-  Bytes bytes(size_t(length), 0);
-  f.seekg(0);
-  if (!f.read(reinterpret_cast<char *>(bytes.data()),
-              std::streamsize(bytes.size())))
-    throw std::runtime_error("Amagami Vita: truncated system image");
   return bytes;
 }
 bool endsWith(const std::string &path, const std::string &suffix) {

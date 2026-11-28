@@ -136,6 +136,7 @@ jobs:
         run: |
           python3 tools/check_port_contracts.py
           python3 tools/check_game_platform_isolation.py
+          python3 tools/audit_filesystem_v2.py --strict
           python3 tools/ValidateBuildMetadata.py
           python3 tools/check_release_matrix.py
           python3 tools/check_unified_launcher_registry.py

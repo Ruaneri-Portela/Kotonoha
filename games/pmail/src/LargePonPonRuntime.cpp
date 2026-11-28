@@ -3,6 +3,8 @@
 #include <Kotonoha/media/DecodedImageSurface.hpp>
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
+#include <Kotonoha/Filesystem/AtomicFile.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/InputMapper.hpp>
 #include <Kotonoha/core/UI.hpp>
@@ -12,7 +14,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <fstream>
 #include <iostream>
 
 namespace Kotonoha::PmailPort {
@@ -789,6 +790,17 @@ bool LargePonPonRuntime::onEndingWait(int32_t count) {
 
 // ---- Save / Load Storage ----
 
+namespace {
+bool readSaveData(const std::filesystem::path &path, std::vector<uint8_t> &bytes) {
+  try {
+    bytes = Filesystem::readLocalFile(path, 64u * 1024u * 1024u);
+    return true;
+  } catch (const Filesystem::FilesystemError &) {
+    return false;
+  }
+}
+} // namespace
+
 std::filesystem::path LargePonPonRuntime::saveDir() const {
   return Kotonoha::applicationDirectories("pmail").saves / "largeponpon" /
          "SAVEDATA";
@@ -802,41 +814,31 @@ std::filesystem::path LargePonPonRuntime::saveSlotPath(int slot) const {
 
 void LargePonPonRuntime::loadAllPersistentFlags() {
   for (int i = 0; i < 20; ++i) {
-    std::ifstream f(saveSlotPath(i), std::ios::binary);
-    if (!f)
+    std::vector<uint8_t> buf;
+    if (!readSaveData(saveSlotPath(i), buf))
       continue;
-    std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)),
-                             std::istreambuf_iterator<char>());
     vm_.mergeGlobalFlagsFromSave(buf, false);
   }
   {
-    std::ifstream f(saveSlotPath(99), std::ios::binary);
-    if (f) {
-      std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)),
-                               std::istreambuf_iterator<char>());
+    std::vector<uint8_t> buf;
+    if (readSaveData(saveSlotPath(99), buf))
       vm_.mergeGlobalFlagsFromSave(buf, true);
-    }
   }
 }
 
 bool LargePonPonRuntime::saveSlot(int slot) {
   std::error_code ec;
   std::filesystem::create_directories(saveDir(), ec);
-  auto bytes = vm_.serializeSaveData(slot != 99);
-  std::ofstream f(saveSlotPath(slot), std::ios::binary | std::ios::trunc);
-  if (!f)
+  if (ec)
     return false;
-  f.write(reinterpret_cast<const char *>(bytes.data()),
-          static_cast<std::streamsize>(bytes.size()));
-  return f.good();
+  const auto bytes = vm_.serializeSaveData(slot != 99);
+  return Filesystem::writeBinaryFileAtomically(saveSlotPath(slot), bytes);
 }
 
 bool LargePonPonRuntime::loadSlot(int slot) {
-  std::ifstream f(saveSlotPath(slot), std::ios::binary);
-  if (!f)
+  std::vector<uint8_t> buf;
+  if (!readSaveData(saveSlotPath(slot), buf))
     return false;
-  std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)),
-                           std::istreambuf_iterator<char>());
   std::string scriptName;
   uint32_t pc = 0;
   if (!vm_.deserializeSaveData(buf, scriptName, pc))
@@ -852,20 +854,14 @@ bool LargePonPonRuntime::loadSlot(int slot) {
 }
 
 void LargePonPonRuntime::saveGame(const std::string &path) {
-  auto bytes = vm_.serializeSaveData(true);
-  std::ofstream f(path, std::ios::binary | std::ios::trunc);
-  if (f) {
-    f.write(reinterpret_cast<const char *>(bytes.data()),
-            static_cast<std::streamsize>(bytes.size()));
-  }
+  const auto bytes = vm_.serializeSaveData(true);
+  (void)Filesystem::writeBinaryFileAtomically(path, bytes);
 }
 
 void LargePonPonRuntime::loadGame(const std::string &path) {
-  std::ifstream f(path, std::ios::binary);
-  if (!f)
+  std::vector<uint8_t> buf;
+  if (!readSaveData(path, buf))
     return;
-  std::vector<uint8_t> buf((std::istreambuf_iterator<char>(f)),
-                           std::istreambuf_iterator<char>());
   std::string scriptName;
   uint32_t pc = 0;
   if (vm_.deserializeSaveData(buf, scriptName, pc) &&

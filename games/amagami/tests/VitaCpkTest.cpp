@@ -179,6 +179,10 @@ int main() {
     wrongExpanded.at("test.scf").extract_size = 5;
     rejects(
         [&] { cpk_read(filePath.string(), wrongExpanded, "test.scf", raw); });
+    auto wrongOffset = index;
+    wrongOffset.at("test.scf").offset = UINT64_MAX;
+    rejects(
+        [&] { cpk_read(filePath.string(), wrongOffset, "test.scf", raw); });
     {
       auto truncated = filePath;
       truncated += ".truncated";

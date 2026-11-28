@@ -1,7 +1,7 @@
 #include <Amagami/VitaGraphics.hpp>
 #include <Amagami/VitaGraphicsAssets.hpp>
 #include <algorithm>
-#include <fstream>
+#include <Kotonoha/Filesystem/Filesystem.hpp>
 #include <stdexcept>
 #include <utility>
 
@@ -27,17 +27,8 @@ Kotonoha::SurfacePtr fromRgba(const Amagami::Vita::Picture &image) {
   return Kotonoha::SurfacePtr(copy);
 }
 std::string readElf(const std::string &path) {
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
-  if (!file)
-    throw std::runtime_error("Amagami Vita: cannot open plain ELF: " + path);
-  const auto length = file.tellg();
-  if (length < 0 || length > 32 * 1024 * 1024)
-    throw std::runtime_error("Amagami Vita: invalid ELF file length");
-  std::string bytes(size_t(length), '\0');
-  file.seekg(0);
-  if (!bytes.empty() && !file.read(bytes.data(), std::streamsize(bytes.size())))
-    throw std::runtime_error("Amagami Vita: truncated ELF");
-  return bytes;
+  const auto bytes = Kotonoha::Filesystem::readLocalFile(path, 32u * 1024u * 1024u);
+  return std::string(bytes.begin(), bytes.end());
 }
 } // namespace
 

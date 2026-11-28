@@ -53,6 +53,8 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: false
+      - name: Verify Filesystem V2 source and Xcode wiring
+        run: python3 tools/audit_filesystem_v2.py --strict
       - name: Configure all targets with synthetic tests and Discord IPC
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
@@ -69,7 +71,7 @@ jobs:
       - name: Stage the synthetic test font
         run: |
           mkdir -p build-synthetic/bin/assets/fonts
-          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+          cp assets/fonts/NotoSansJP-Regular.ttf \
             build-synthetic/bin/assets/fonts/NotoSansJP-Regular.ttf
       - name: Run all synthetic CTest cases (no retail assets)
         run: |
