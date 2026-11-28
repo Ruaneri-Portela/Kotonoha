@@ -1,8 +1,5 @@
 #include <Kotonoha/integrations/RichPresence.hpp>
 
-#ifndef NOMINMAX
-#define NOMINMAX
-#endif
 #include <windows.h>
 #include <json-c/json.h>
 

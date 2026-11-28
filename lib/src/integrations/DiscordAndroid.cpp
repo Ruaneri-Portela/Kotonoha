@@ -2,7 +2,6 @@
 
 #define DISCORDPP_IMPLEMENTATION
 #include <discordpp.h>
-#include <jni.h>
 #include <android/log.h>
 
 #include <atomic>
@@ -13,13 +12,6 @@ namespace {
 std::atomic<bool> sdkReady{false};
 }
 
-extern "C" JNIEXPORT void JNICALL
-Java_org_kotonoha_android_GameActivity_setKotonohaDiscordReady(
-    JNIEnv *, jclass, jboolean ready) {
-  sdkReady.store(ready == JNI_TRUE);
-}
-
-namespace Kotonoha::Integrations {
 namespace {
 // SDK callbacks are pumped on this transport's single worker. No account
 // login, voice service, activity join secrets or personal tokens are used.
