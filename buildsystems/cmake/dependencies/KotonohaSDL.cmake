@@ -45,7 +45,9 @@ if (ANDROID AND NOT PKG_CONFIG_EXECUTABLE AND VCPKG_INSTALLED_DIR)
             "${VCPKG_INSTALLED_DIR}/*/tools/pkgconf/${kotonoha_pkgconf_name}")
 
     foreach (kotonoha_pkgconf_candidate IN LISTS kotonoha_pkgconf_candidates)
-        if (NOT kotonoha_pkgconf_candidate MATCHES "[/\\]android[/\\]")
+        file(RELATIVE_PATH kotonoha_pkgconf_relative
+                "${VCPKG_INSTALLED_DIR}" "${kotonoha_pkgconf_candidate}")
+        if (NOT kotonoha_pkgconf_relative MATCHES "^[^/]*-android/")
             set(PKG_CONFIG_EXECUTABLE "${kotonoha_pkgconf_candidate}" CACHE FILEPATH
                     "pkg-config compatible executable" FORCE)
             break ()
