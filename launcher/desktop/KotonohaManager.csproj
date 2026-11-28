@@ -27,7 +27,7 @@
   <!-- O motor procura assets/fonts no diretorio de trabalho do executavel. -->
   <Target Name="CopyEngineAssets" AfterTargets="Build">
     <ItemGroup>
-      <EngineAsset Include="../../../assets/**/*" />
+      <EngineAsset Include="../../assets/**/*" />
     </ItemGroup>
     <Copy SourceFiles="@(EngineAsset)"
           DestinationFiles="@(EngineAsset->'$(OutDir)assets\%(RecursiveDir)%(Filename)%(Extension)')"
