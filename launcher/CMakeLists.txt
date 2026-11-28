@@ -90,9 +90,13 @@ endif()
 # the sole exception: wasm32 has no dlopen-based shared-library model, so the
 # core is linked as an archive into the game page with its JS bridge.
 if(EMSCRIPTEN)
-    add_library(KotonohaLauncherCore STATIC ${KOTONOHA_LAUNCHER_CORE_SOURCES})
+    set(_kotonoha_launcher_core_type STATIC)
 else()
-    add_library(KotonohaLauncherCore SHARED ${KOTONOHA_LAUNCHER_CORE_SOURCES})
+    set(_kotonoha_launcher_core_type SHARED)
+endif()
+add_library(KotonohaLauncherCore ${_kotonoha_launcher_core_type}
+    ${KOTONOHA_LAUNCHER_CORE_SOURCES})
+if(NOT EMSCRIPTEN)
     target_compile_definitions(KotonohaLauncherCore PRIVATE
         KOTONOHA_LAUNCHER_CORE_BUILD=1)
     set_target_properties(KotonohaLauncherCore PROPERTIES

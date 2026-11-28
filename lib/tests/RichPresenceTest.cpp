@@ -132,6 +132,21 @@ void testReconnect() {
   assert(log.clears == 1 && log.closes >= 7);
 }
 
+void testInitialGameName() {
+  Log log;
+  log.available = true;
+  {
+    RichPresence session(std::make_unique<Fake>(log), 123456,
+                         {20ms, 10ms, 30ms, 5ms}, "Example");
+    log.wait([&] { return !log.details.empty(); });
+    session.setDetails("Public detail");
+    log.wait([&] { return log.details.size() == 2; });
+    std::lock_guard<std::mutex> lock(log.mutex);
+    assert(log.details[0] == "Example");
+    assert(log.details[1] == "Example — Public detail");
+  }
+}
+
 void testShutdown() {
   Log log;
   {
@@ -147,6 +162,7 @@ void testShutdown() {
 } // namespace
 
 int main() {
+  testInitialGameName();
   testReconnect();
   testShutdown();
 }

@@ -5,15 +5,16 @@ set_target_properties(kotonoha_rich_presence PROPERTIES POSITION_INDEPENDENT_COD
 find_package(Threads REQUIRED)
 target_link_libraries(kotonoha_rich_presence PRIVATE Threads::Threads)
 
-if(WIN32)
+if(NOT KOTONOHA_BUILD_RICH_PRESENCE OR IOS OR EMSCRIPTEN OR
+   CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS")
+    target_sources(kotonoha_rich_presence PRIVATE NullPresence.cpp)
+    target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_HAS_DISCORD_RPC=0)
+elseif(WIN32)
+    target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_HAS_DISCORD_RPC=1)
     # Discord IPC over a local named pipe.
     find_package(json-c CONFIG REQUIRED)
     target_sources(kotonoha_rich_presence PRIVATE DiscordWindows.cpp)
     target_link_libraries(kotonoha_rich_presence PRIVATE json-c::json-c)
-elseif(IOS OR EMSCRIPTEN)
-    # Discord has no local IPC endpoint on iOS (sandbox) nor in a browser:
-    # RPC is disabled where it does not make sense.
-    target_sources(kotonoha_rich_presence PRIVATE NullPresence.cpp)
 elseif(ANDROID)
     if(KOTONOHA_ANDROID_DISCORD_RPC)
         set(_discord_module "${KOTONOHA_ANDROID_DISCORD_SDK_DIR}/prefab/modules/discord_partner_sdk")
@@ -27,11 +28,13 @@ elseif(ANDROID)
             INTERFACE_INCLUDE_DIRECTORIES "${_discord_module}/include")
         target_sources(kotonoha_rich_presence PRIVATE NullPresence.cpp DiscordAndroid.cpp)
         target_link_libraries(kotonoha_rich_presence PRIVATE kotonoha_discord_sdk log)
-        target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_ANDROID_DISCORD_RPC=1)
+        target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_ANDROID_DISCORD_RPC=1 KOTONOHA_HAS_DISCORD_RPC=1)
     else()
+        target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_HAS_DISCORD_RPC=0)
         target_sources(kotonoha_rich_presence PRIVATE NullPresence.cpp)
     endif()
 else()
+    target_compile_definitions(kotonoha_rich_presence PUBLIC KOTONOHA_HAS_DISCORD_RPC=1)
     # macOS and Linux desktop: Discord IPC over a local Unix domain socket.
     find_package(json-c CONFIG QUIET)
     if(TARGET json-c::json-c)

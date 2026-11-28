@@ -280,9 +280,7 @@ if (EMSCRIPTEN OR IOS)
     set(KOTONOHA_ANDROID_DISCORD_RPC OFF CACHE BOOL
         "Discord RPC is unavailable on WebAssembly and iOS" FORCE)
 endif ()
-if (KOTONOHA_BUILD_RICH_PRESENCE)
-    add_subdirectory(src/integrations)
-endif ()
+add_subdirectory(src/integrations)
 
 if (BUILD_TESTING)
     add_subdirectory(tests)

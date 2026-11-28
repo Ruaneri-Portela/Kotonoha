@@ -78,8 +78,8 @@ int main() {
     expect(utf16 == u"A🙂日", "UTF-8 to native UTF-16 surrogate pairs");
     equal(Kotonoha::Utf16ToUtf8(utf16), utf8,
           "Native UTF-16 to UTF-8 supplementary text");
-    expect(Kotonoha::Utf8ToUtf16(std::string("\xff", 1)).empty(),
-           "Invalid UTF-8 cannot be read as native UTF-16");
+    expect(Kotonoha::Utf8ToUtf16(std::string("\xff", 1)) == u"\ufffd",
+           "Invalid UTF-8 uses U+FFFD like the portable backend");
     const std::string nul("A\0B", 3);
     equal(ConvertEncoding(nul, "UTF-8", "UTF-8"), nul,
           "Embedded NUL must not truncate binary text");

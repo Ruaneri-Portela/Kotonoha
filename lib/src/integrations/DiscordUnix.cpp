@@ -7,7 +7,11 @@
 #include <unistd.h>
 
 #include <poll.h>
+#include <fcntl.h>
+#include <cstddef>
+#include <cstdlib>
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <cstring>
@@ -41,7 +45,8 @@ const char *field(json_object *obj, const char *key) {
 
 // Discord exposes IPC sockets under XDG_RUNTIME_DIR, TMPDIR and /tmp. Try all
 // ten slots on each root so multiple Discord instances/clients are supported.
-std::string socketPath() {
+std::vector<std::string> socketPaths() {
+  std::vector<std::string> paths;
   const char *roots[] = {std::getenv("XDG_RUNTIME_DIR"), std::getenv("TMPDIR"),
                          "/tmp", "/var/tmp"};
   for (const char *root : roots) {
@@ -51,10 +56,10 @@ std::string socketPath() {
       const std::string path =
           std::string(root) + "/discord-ipc-" + std::to_string(index);
       if (::access(path.c_str(), W_OK) == 0)
-        return path;
+        paths.push_back(path);
     }
   }
-  return {};
+  return paths;
 }
 
 class DiscordSocket final : public PresenceTransport {
@@ -65,22 +70,54 @@ public:
 
   bool connect() override {
     close();
-    const auto path = socketPath();
-    if (path.empty())
-      return false;
-    fd_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
-    if (fd_ < 0)
-      return false;
-    sockaddr_un address{};
-    address.sun_family = AF_UNIX;
-    std::strncpy(address.sun_path, path.c_str(), sizeof(address.sun_path) - 1);
-    if (::connect(fd_, reinterpret_cast<sockaddr *>(&address),
-                  sizeof(address)) != 0) {
+    const auto deadline = Clock::now() + std::chrono::milliseconds(900);
+    for (const auto &path : socketPaths()) {
+      if (Clock::now() >= deadline)
+        break;
+      sockaddr_un address{};
+      if (path.size() >= sizeof(address.sun_path))
+        continue;
+      address.sun_family = AF_UNIX;
+      std::memcpy(address.sun_path, path.c_str(), path.size() + 1);
+      const auto size = static_cast<socklen_t>(
+          offsetof(sockaddr_un, sun_path) + path.size() + 1);
+#ifdef __APPLE__
+      address.sun_len = static_cast<unsigned char>(size);
+#endif
+      fd_ = ::socket(AF_UNIX, SOCK_STREAM, 0);
+      if (fd_ < 0)
+        continue;
+      const int flags = ::fcntl(fd_, F_GETFL, 0);
+      if (flags < 0 || ::fcntl(fd_, F_SETFL, flags | O_NONBLOCK) < 0 ||
+          ::fcntl(fd_, F_SETFD, FD_CLOEXEC) < 0) {
+        close();
+        continue;
+      }
+#ifdef SO_NOSIGPIPE
+      const int yes = 1;
+      if (::setsockopt(fd_, SOL_SOCKET, SO_NOSIGPIPE, &yes, sizeof(yes)) != 0) {
+        close();
+        continue;
+      }
+#endif
+      const auto attempt = std::min(deadline, Clock::now() +
+                                               std::chrono::milliseconds(300));
+      if (::connect(fd_, reinterpret_cast<sockaddr *>(&address), size) != 0) {
+        int error = 0;
+        socklen_t errorSize = sizeof(error);
+        if (errno != EINPROGRESS || !ready(POLLOUT, attempt) ||
+            ::getsockopt(fd_, SOL_SOCKET, SO_ERROR, &error, &errorSize) != 0 ||
+            error != 0) {
+          close();
+          continue;
+        }
+      }
+      if (send(0, "{\"v\":1,\"client_id\":" + quote(id_) + "}", attempt) &&
+          waitReply(true, attempt))
+        return true;
       close();
-      return false;
     }
-    return send(0, "{\"v\":1,\"client_id\":" + quote(id_) + "}") &&
-           waitReply(true);
+    return false;
   }
 
   bool healthy() override { return pump(nullptr, false); }
@@ -93,85 +130,134 @@ public:
                        "}";
     if (!image_.empty())
       body += ",\"assets\":{\"large_image\":" + quote(image_) + "}";
-    return activity(body + "}") && waitReply(false);
+    const auto deadline = Clock::now() + std::chrono::milliseconds(900);
+    return activity(body + "}", deadline) && waitReply(false, deadline);
   }
 
-  void clear() override { activity("null"); }
+  void clear() override {
+    activity("null", Clock::now() + std::chrono::milliseconds(900));
+  }
 
   void close() noexcept override {
     if (fd_ >= 0)
       ::close(fd_);
     fd_ = -1;
+    incoming_.clear();
   }
 
 private:
-  bool transfer(void *data, std::size_t length, bool writing) {
-    std::size_t done = 0;
-    while (done < length) {
-      const ssize_t count = writing
-          ? ::write(fd_, static_cast<const char *>(data) + done, length - done)
-          : ::read(fd_, static_cast<char *>(data) + done, length - done);
-      if (count > 0) {
-        done += static_cast<std::size_t>(count);
-        continue;
-      }
-      if (count < 0 && (errno == EINTR || errno == EAGAIN))
-        continue;
-      return false;
+  bool ready(short events, Clock::time_point deadline) {
+    while (Clock::now() < deadline) {
+      const auto remaining = std::chrono::duration_cast<std::chrono::milliseconds>(
+          deadline - Clock::now()).count();
+      pollfd descriptor{fd_, events, 0};
+      const int result = ::poll(&descriptor, 1, static_cast<int>(remaining + 1));
+      if (result > 0)
+        return (descriptor.revents & events) != 0;
+      if (result == 0 || errno != EINTR)
+        return false;
     }
-    return true;
+    return false;
   }
 
-  bool send(std::uint32_t opcode, const std::string &json) {
+  bool send(std::uint32_t opcode, const std::string &json,
+            Clock::time_point deadline) {
+    if (json.size() > 64 * 1024)
+      return false;
     const auto length = static_cast<std::uint32_t>(json.size());
     std::vector<char> frame(8 + length);
     std::memcpy(frame.data(), &opcode, 4);
     std::memcpy(frame.data() + 4, &length, 4);
     std::memcpy(frame.data() + 8, json.data(), length);
-    return transfer(frame.data(), frame.size(), true);
+    std::size_t done = 0;
+    while (done < frame.size()) {
+      if (Clock::now() >= deadline)
+        return false;
+#ifdef MSG_NOSIGNAL
+      constexpr int flags = MSG_NOSIGNAL;
+#else
+      constexpr int flags = 0;
+#endif
+      const ssize_t count = ::send(fd_, frame.data() + done,
+                                   frame.size() - done, flags);
+      if (count > 0) {
+        done += static_cast<std::size_t>(count);
+      } else if (count < 0 && errno == EINTR) {
+        continue;
+      } else if (count < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+        if (!ready(POLLOUT, deadline))
+          return false;
+      } else {
+        return false;
+      }
+    }
+    return true;
   }
 
-  bool activity(const std::string &payload) {
+  bool activity(const std::string &payload, Clock::time_point deadline) {
     nonce_ = std::to_string(++sequence_);
     return send(1, "{\"cmd\":\"SET_ACTIVITY\",\"nonce\":" + quote(nonce_) +
                        ",\"args\":{\"pid\":" + std::to_string(::getpid()) +
-                       ",\"activity\":" + payload + "}}");
+                       ",\"activity\":" + payload + "}}", deadline);
   }
 
-  bool waitReply(bool handshake) {
-    const auto until = Clock::now() + std::chrono::milliseconds(900);
-    do {
+  bool waitReply(bool handshake, Clock::time_point deadline) {
+    while (Clock::now() < deadline) {
       bool received = false;
       if (!pump(&received, handshake))
         return false;
       if (received)
         return true;
-      ::poll(nullptr, 0, 10);
-    } while (Clock::now() < until);
+      if (!ready(POLLIN, deadline))
+        return false;
+    }
     return false;
   }
 
   bool pump(bool *received, bool handshake) {
-    std::array<std::uint32_t, 2> header{};
-    // Read the header without consuming it when the body is not ready yet.
-    ssize_t count = ::recv(fd_, header.data(), sizeof(header), MSG_PEEK);
-    if (count == 0)
-      return false;
-    if (count < 0)
-      return errno == EAGAIN || errno == EWOULDBLOCK || errno == EINTR;
-    if (static_cast<std::size_t>(count) < sizeof(header))
-      return true;
-    const auto length = header[1];
-    if (length > 64 * 1024)
-      return false;
-    std::vector<char> raw(sizeof(header) + length);
-    if (!transfer(raw.data(), raw.size(), false))
-      return false;
-    std::string body(raw.data() + sizeof(header), length);
-    if (header[0] == 3)
-      return send(4, body);
-    if (header[0] != 1)
-      return header[0] == 4;
+    // Nonblocking reads preserve fragmented headers and payloads between calls.
+    // Bound the amount of work even if the peer continuously sends events.
+    for (unsigned iteration = 0; iteration < 32; ++iteration) {
+      std::array<std::uint32_t, 2> header{};
+      if (incoming_.size() >= sizeof(header)) {
+        std::memcpy(header.data(), incoming_.data(), sizeof(header));
+        const auto length = header[1];
+        if (length > 64 * 1024)
+          return false;
+        if (incoming_.size() >= sizeof(header) + length) {
+          std::string body(incoming_.data() + sizeof(header), length);
+          incoming_.erase(incoming_.begin(),
+                          incoming_.begin() + sizeof(header) + length);
+          if (!handle(header[0], body, received, handshake))
+            return false;
+          if (received && *received)
+            return true;
+          continue;
+        }
+      }
+      std::array<char, 4096> chunk{};
+      const ssize_t count = ::recv(fd_, chunk.data(), chunk.size(), 0);
+      if (count > 0) {
+        incoming_.insert(incoming_.end(), chunk.data(), chunk.data() + count);
+      } else if (count == 0) {
+        return false;
+      } else if (errno == EINTR) {
+        continue;
+      } else {
+        return errno == EAGAIN || errno == EWOULDBLOCK;
+      }
+    }
+    // A busy peer must not starve the session or leave buffered frames waiting
+    // for an unrelated poll event.
+    return incoming_.empty();
+  }
+
+  bool handle(std::uint32_t opcode, const std::string &body,
+              bool *received, bool handshake) {
+    if (opcode == 3)
+      return send(4, body, Clock::now() + std::chrono::milliseconds(100));
+    if (opcode != 1)
+      return opcode == 4;
     Json obj(json_tokener_parse(body.c_str()), json_object_put);
     if (!obj || !json_object_is_type(obj.get(), json_type_object) ||
         std::strcmp(field(obj.get(), "evt"), "ERROR") == 0)
@@ -186,6 +272,7 @@ private:
   }
 
   std::string id_, image_, nonce_;
+  std::vector<char> incoming_;
   std::uint64_t sequence_ = 0;
   int fd_ = -1;
 };

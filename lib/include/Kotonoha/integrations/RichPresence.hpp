@@ -93,8 +93,8 @@ private:
   const Timing timing_;
   std::mutex mutex_;
   std::condition_variable changed_;
-  std::string desired_;
   std::string gameName_;
+  std::string desired_;
   State state_ = State::Gameplay;
   bool stopping_ = false;
   std::thread worker_;

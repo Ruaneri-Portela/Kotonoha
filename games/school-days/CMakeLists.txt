@@ -87,11 +87,6 @@ add_library(school_days STATIC
     src/SchoolDaysLauncher.cpp
 )
 target_include_directories(school_days PUBLIC include src)
-if(EMSCRIPTEN OR IOS OR CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS")
-    target_compile_definitions(school_days PRIVATE KOTONOHA_HAS_DISCORD_RPC=0)
-else()
-    target_compile_definitions(school_days PRIVATE KOTONOHA_HAS_DISCORD_RPC=1)
-endif()
 target_link_libraries(school_days PUBLIC KotonohaEngine kotonoha_provider_gpk
     PRIVATE ZLIB::ZLIB kotonoha_rich_presence)
 target_compile_features(school_days PUBLIC cxx_std_17)
