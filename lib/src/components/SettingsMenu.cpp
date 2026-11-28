@@ -1,5 +1,9 @@
 #include <Kotonoha/components/DisplayModeCatalog.hpp>
 #include <Kotonoha/components/SettingsMenu.hpp>
+#include <Kotonoha/core/Config.hpp>
+#if KOTONOHA_HAS_DISCORD_RPC
+#include <Kotonoha/integrations/RichPresence.hpp>
+#endif
 #include <Kotonoha/core/Appearance.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
@@ -87,6 +91,10 @@ std::vector<int> SettingsMenu::rows() const {
     result.insert(result.end(), {14, 15, 16});
   if (kind == Page::Input || (kind == Page::System && engine.GamepadCount()))
     result.push_back(17);
+#if KOTONOHA_HAS_DISCORD_RPC
+  if (kind == Page::System)
+    result.push_back(20); // Discord Rich Presence on/off
+#endif
   result.insert(result.end(), {8, 9});
   return result;
 }
@@ -258,6 +266,13 @@ void SettingsMenu::activate(int index, int direction) {
   } else if (index == 7)
     draft.upscaling.factor =
         draft.upscaling.factor >= 4 ? 1 : draft.upscaling.factor + 0.5f;
+#endif
+#if KOTONOHA_HAS_DISCORD_RPC
+  else if (index == 20) {
+    using Kotonoha::Integrations::richPresenceEnabled;
+    using Kotonoha::Integrations::setRichPresenceEnabled;
+    setRichPresenceEnabled(!richPresenceEnabled().load());
+  }
 #endif
   else if (index == 8) {
     // The default Audio page only edits live mixer settings.
@@ -547,7 +562,16 @@ void SettingsMenu::render(RendererRef renderer) {
           (draft.vnTextInstant      ? "Instant"
            : draft.vnTextSpeed == 0 ? "Original game speed"
                                     : std::to_string(int(draft.vnTextSpeed)) +
-                                          " characters / second")};
+                                          " characters / second"),
+      "",
+#if KOTONOHA_HAS_DISCORD_RPC
+      std::string("Discord RPC: ") +
+          (Kotonoha::Integrations::richPresenceEnabled().load() ? "On"
+                                                                : "Off")
+#else
+      ""
+#endif
+      };
   const int tabs = pageCount();
   page = std::min(page, tabs - 1);
   const auto kind = currentPage();

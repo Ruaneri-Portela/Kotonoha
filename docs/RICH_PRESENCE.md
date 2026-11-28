@@ -6,9 +6,11 @@ The `kotonoha_rich_presence` static CMake target is a reusable, opt-in transport
 
 ## Build and use
 
-Configure a desktop build with `-DKOTONOHA_BUILD_RICH_PRESENCE=ON`. Link `kotonoha_rich_presence` into the consuming game target and include `<Kotonoha/integrations/RichPresence.hpp>`. The Windows transport uses local named-pipe IPC; other desktop hosts use a null transport. WebAssembly is not supported. Native Xcode targets are unchanged.
+Configure a desktop build with `-DKOTONOHA_BUILD_RICH_PRESENCE=ON`. Link `kotonoha_rich_presence` into the consuming game target and include `<Kotonoha/integrations/RichPresence.hpp>`. Windows uses a named pipe; Linux and macOS use a local Unix domain socket; Android uses the optional Social SDK. RPC is disabled on **WebAssembly and iOS**, where `KOTONOHA_HAS_DISCORD_RPC` is 0. On macOS the native Xcode targets compile `DiscordUnix.cpp`; iOS keeps the null transport.
 
-The game owns its opt-in setting, Discord application ID, and a sanitized activity policy. Check `platformPresenceAvailable()` before constructing a session. Create a transport using `discordPlatform(applicationId, largeImage, applicationName)`, then create `RichPresence` with the transport, Unix start time in seconds, and `RichPresence::Timing{}`. Call `setDetails()` with public, curated text only. Destroy the session before shutting down its host. Never publish dialogue, player choices, filesystem paths, credentials, or other sensitive data.
+The game owns its opt-in setting, Discord application ID, and a sanitized activity policy. Check `platformPresenceAvailable()` before constructing a session. Create a transport using `discordPlatform(applicationId, largeImage, applicationName)`, then create `RichPresence` with the transport, Unix start time in seconds, `RichPresence::Timing{}`, and the game display name. The name is always published; `setDetails()` appends curated text and `setState()` selects Menu/Loading/Gameplay. Destroy the session before shutting down its host. Never publish dialogue, player choices, filesystem paths, credentials, or other sensitive data.
+
+The System settings menu and the debug overlay expose a **Discord RPC** on/off switch. `setRichPresenceEnabled(false)` disconnects all sessions immediately and is shared across every game in the process.
 
 ## Android adapter (host integration required)
 

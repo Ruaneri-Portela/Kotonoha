@@ -147,9 +147,8 @@ def validate() -> dict:
 
     engine_sources, engine_xml = project_sources("KotonohaEngine")
     # CMake selects one Discord presence backend per platform; the Android
-    # implementation and the null fallback are not Windows engine sources.
-    disabled = {"MetalFXUpscaler.cpp", "MPVCompatibleUpscaler.cpp",
-                "DiscordAndroid.cpp", "NullPresence.cpp"}
+    # and Unix implementations and the null fallback are not Windows sources.
+    disabled = {"DiscordAndroid.cpp", "DiscordUnix.cpp", "NullPresence.cpp"}
     for src in (ROOT / "lib" / "src").rglob("*.cpp"):
         if src.name in disabled:
             require(src.name in engine_xml and "Exclude=" in engine_xml,

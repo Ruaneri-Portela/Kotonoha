@@ -56,8 +56,10 @@ public:
 
   bool healthy() override { return pump(nullptr, false); }
 
-  bool publish(const std::string &details, std::int64_t start) override {
+  bool publish(const std::string &details, const std::string &state,
+               std::int64_t start) override {
     std::string body = "{\"type\":0,\"details\":" + quote(details) +
+                       ",\"state\":" + quote(state) +
                        ",\"timestamps\":{\"start\":" + std::to_string(start) + "}";
     if (!image_.empty())
       body += ",\"assets\":{\"large_image\":" + quote(image_) + "}";

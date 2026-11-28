@@ -81,6 +81,26 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
+# Optional integrations have their own targets and select a single platform
+# backend. Do not also compile them into the shared engine.
+list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/src/integrations/")
+
+# Preserve the Windows L4 public/dev split without reverting the upstream
+# glob-based CMake and SDL/FFmpeg upgrades. No engine-specific School Days
+# names are introduced here.
+if(KOTONOHA_DISTRIBUTION_BUILD)
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX
+        "/src/(debug/DebugOverlay|mcp/MCPServer|debug/VoiceDubbingApplet|debug/DubbingOverlay)\\.cpp$")
+    if(KOTONOHA_ENABLE_PLAYER_DUBBING)
+        list(APPEND KOTONOHA_ENGINE_SOURCES
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/DubbingOverlay.cpp"
+            "${CMAKE_CURRENT_SOURCE_DIR}/src/debug/VoiceDubbingApplet.cpp")
+    endif()
+else()
+    list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX
+        "/src/debug/DubbingOverlay\\.cpp$")
+endif()
+
 if (APPLE)
     file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES_OBJC
             CONFIGURE_DEPENDS
@@ -251,10 +271,16 @@ option(KOTONOHA_ANDROID_DISCORD_RPC "Use the optional Discord Social SDK for And
 if (KOTONOHA_ANDROID_DISCORD_RPC AND NOT KOTONOHA_BUILD_RICH_PRESENCE)
     message(FATAL_ERROR "KOTONOHA_ANDROID_DISCORD_RPC requires KOTONOHA_BUILD_RICH_PRESENCE")
 endif ()
+# Discord RPC is only meaningful where a local IPC endpoint exists: Windows,
+# Linux and macOS desktop, plus opt-in Android with the official SDK. It is
+# always disabled on WebAssembly and iOS.
+if (EMSCRIPTEN OR IOS)
+    set(KOTONOHA_BUILD_RICH_PRESENCE OFF CACHE BOOL
+        "Discord RPC is unavailable on WebAssembly and iOS" FORCE)
+    set(KOTONOHA_ANDROID_DISCORD_RPC OFF CACHE BOOL
+        "Discord RPC is unavailable on WebAssembly and iOS" FORCE)
+endif ()
 if (KOTONOHA_BUILD_RICH_PRESENCE)
-    if (EMSCRIPTEN)
-        message(FATAL_ERROR "Rich Presence is not supported on WebAssembly")
-    endif ()
     add_subdirectory(src/integrations)
 endif ()
 

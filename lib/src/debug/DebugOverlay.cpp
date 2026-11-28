@@ -11,6 +11,10 @@
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/core/Log.hpp>
 #include <Kotonoha/core/UI.hpp>
+#include <Kotonoha/core/Config.hpp>
+#if KOTONOHA_HAS_DISCORD_RPC
+#include <Kotonoha/integrations/RichPresence.hpp>
+#endif
 #include <Kotonoha/localization/Encoding.hpp>
 #include <Kotonoha/media/SaveImage.hpp>
 #include <Kotonoha/script/TimelinePlayer.hpp>
@@ -326,6 +330,18 @@ void DebugOverlay::renderHUD(RendererRef renderer) {
 }
 
 void DebugOverlay::drawInspector() {
+#if KOTONOHA_HAS_DISCORD_RPC
+  {
+    using Kotonoha::Integrations::richPresenceEnabled;
+    using Kotonoha::Integrations::setRichPresenceEnabled;
+    bool presence = richPresenceEnabled().load();
+    if (ImGui::Checkbox("Discord Rich Presence", &presence))
+      setRichPresenceEnabled(presence);
+    ImGui::SameLine();
+    ImGui::TextUnformatted("applies to all running games");
+  }
+#endif
+
   ImGuiTheme::sectionHeader("KTRF / custom nodes");
   drawKtrfTools();
   drawForcedSubtitlesGenerator();

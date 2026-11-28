@@ -44,7 +44,9 @@ public:
     std::lock_guard<std::mutex> lock(log_.mutex);
     return log_.available;
   }
-  bool publish(const std::string &details, std::int64_t timestamp) override {
+  bool publish(const std::string &details, const std::string &state,
+               std::int64_t timestamp) override {
+    (void)state;
     std::lock_guard<std::mutex> lock(log_.mutex);
     assert(timestamp == 123456 && log_.worker == std::this_thread::get_id());
     if (log_.throwOnPublish) {
