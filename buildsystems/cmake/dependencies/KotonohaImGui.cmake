@@ -55,10 +55,8 @@ if(_kotonoha_imgui_request STREQUAL "VCPKG")
     # Keep the historical `imgui` target name used across engine, tests and
     # game ports. The imported imgui::imgui target is re-discovered in the
     # root CMakeLists.txt for sibling directories.
-    if(NOT TARGET imgui)
-        add_library(imgui INTERFACE)
-        target_link_libraries(imgui INTERFACE imgui::imgui)
-    endif()
+    set(_kotonoha_imgui_type INTERFACE)
+    set(_kotonoha_imgui_sources "")
     set(_kotonoha_imgui_resolved VCPKG)
     set(_kotonoha_imgui_config ON)
 else()
@@ -71,7 +69,8 @@ else()
         message(FATAL_ERROR "[Kotonoha] Incomplete pinned ImGui submodule: ${file}")
       endif()
     endforeach()
-    add_library(imgui ${KOTONOHA_LIB_TYPE}
+    set(_kotonoha_imgui_type ${KOTONOHA_LIB_TYPE})
+    set(_kotonoha_imgui_sources
       submodules/imgui/imgui.cpp
       submodules/imgui/imgui_draw.cpp
       submodules/imgui/imgui_tables.cpp
@@ -79,6 +78,15 @@ else()
       submodules/imgui/backends/imgui_impl_sdl3.cpp
       submodules/imgui/backends/imgui_impl_sdlrenderer3.cpp
       submodules/imgui/misc/cpp/imgui_stdlib.cpp)
+endif()
+
+# One canonical declaration, independent of the selected provider.
+if(NOT TARGET imgui)
+    add_library(imgui ${_kotonoha_imgui_type} ${_kotonoha_imgui_sources})
+endif()
+if(_kotonoha_imgui_config)
+    target_link_libraries(imgui INTERFACE imgui::imgui)
+else()
     target_include_directories(imgui PUBLIC
       submodules/imgui submodules/imgui/backends submodules/imgui/misc/cpp)
     target_link_libraries(imgui PUBLIC SDL3::SDL3)

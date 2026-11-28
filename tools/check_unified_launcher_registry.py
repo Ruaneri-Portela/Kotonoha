@@ -104,14 +104,12 @@ def audit() -> list[str]:
         issues.append("The launcher must exclude the Example demo")
     if "KOTONOHA_BUILD_ALL" not in cmake:
         issues.append("The launcher CMake target must require BUILD_ALL")
-    # KotonohaLauncherCore is the canonical reusable library; the old
-    # kotonoha_unified_launcher name remains as a CMake alias for consumers.
-    core_link = ("target_link_libraries(KotonohaLauncherCore PUBLIC" in cmake or
-                 "target_link_libraries(kotonoha_unified_launcher PUBLIC" in cmake)
-    if "core/GameFactories.cpp" not in cmake or not core_link:
+    # The canonical reusable library is the only compiled launcher core.
+    if ("core/GameFactories.cpp" not in cmake or
+            "target_link_libraries(KotonohaLauncherCore PUBLIC" not in cmake):
         issues.append("Game factories are not statically linked into the hub")
-    if "add_library(kotonoha_unified_launcher ALIAS KotonohaLauncherCore)" not in cmake:
-        issues.append("Legacy kotonoha_unified_launcher alias is missing")
+    if "add_library(kotonoha_unified_launcher" in cmake:
+        issues.append("Use the canonical KotonohaLauncherCore target")
     for option, slug, _ in re.findall(
         r'"([A-Z0-9_]+)\|([^|"\n]+)\|(games/[^"\n]+)"',
         (ROOT / "buildsystems/cmake/games/KotonohaGames.cmake").read_text(

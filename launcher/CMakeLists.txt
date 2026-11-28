@@ -170,9 +170,6 @@ endif()
 target_compile_features(KotonohaLauncherCore PUBLIC cxx_std_17)
 set_target_properties(KotonohaLauncherCore PROPERTIES CXX_EXTENSIONS OFF)
 
-# Backwards-compatible name for existing consumers and source-contract tools.
-add_library(kotonoha_unified_launcher ALIAS KotonohaLauncherCore)
-
 # Link every real game runtime, but never the Example demo.
 # The hub is only available when KOTONOHA_BUILD_ALL=ON.
 set(_kotonoha_launcher_libraries

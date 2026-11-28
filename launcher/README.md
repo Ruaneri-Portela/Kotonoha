@@ -2,7 +2,7 @@
 
 [Português (Brasil)](README.pt-BR.md)
 
-`launcher/` provides the standalone unified multi-engine launcher and engine-library registry (`kotonoha_unified_launcher` / `KotonohaLauncher`), kept outside `games/` as a top-level host component. The folder is split by ownership: `core/` + `bridge/` + `include/` are the reusable `KotonohaLauncherCore`; `app/` is what produces the launcher executable.
+`launcher/` provides the standalone unified multi-engine launcher and engine-library registry (`KotonohaLauncherCore` / `KotonohaLauncher`), kept outside `games/` as a top-level host component. The folder is split by ownership: `core/` + `bridge/` + `include/` are the reusable `KotonohaLauncherCore`; `app/` is what produces the launcher executable.
 
 ## Layout
 
@@ -24,7 +24,7 @@ The Xcode navigator mirrors this split with a `KotonohaLauncherCore` group (`cor
    - Automatically pairs companion translation overlays (such as `DDLC_PT-BR_Patch` -> `DDLC`).
 
 2. **Linked game runtimes (`EngineLibraryRegistry`)**:
-   - With `KOTONOHA_BUILD_ALL=ON`, CMake links the **12 real game** runtime libraries (excluding Example) directly into `kotonoha_unified_launcher`. `GameFactories.cpp` registers the concrete `Runtime` and asset-provider constructors at link time.
+   - With `KOTONOHA_BUILD_ALL=ON`, CMake links the **12 real game** runtime libraries (excluding Example) directly into `KotonohaLauncherCore`. `GameFactories.cpp` registers the concrete `Runtime` and asset-provider constructors at link time.
    - `KotonohaLauncher` (`app/main.cpp`) instantiates `Runtime` + `Engine` **in the same process** and returns to the hub after the game exits, restoring its per-game save environment. No game `main.cpp` or second executable is invoked.
    - The Example demo is never registered or linked into the hub; it remains a separate game target. The hub is not generated for individual-port builds.
 
@@ -83,7 +83,7 @@ The standalone hub app is built on desktop (Linux, macOS, Windows) and mobile (A
 - **CMake / desktop**: built as a **SHARED** library (`libKotonohaLauncherCore.dylib` / `.so` / `KotonohaLauncherCore.dll`); `KotonohaLauncher` links it. Emscripten is the only exception — wasm32 has no `dlopen` shared-library model, so it is built as a static archive and linked into the game page.
 - **Xcode (macOS/iOS)**: the target is a real **framework** (`KotonohaLauncherCore.framework`, `com.apple.product-type.framework`) with `DEFINES_MODULE = YES` and the umbrella header `bridge/swift/KotonohaLauncherCore.h`. Both Apple launcher apps link and embed it with `CodeSignOnCopy`; Swift clients can `import KotonohaLauncherCore`.
 - **Android**: built as `libKotonohaLauncherCore.so`; the JNI exports live in `bridge/java/JavaBridge.cpp` and are loaded with `System.loadLibrary("KotonohaLauncherCore")`. Desktop builds export the same JNI symbols from the same source file (see below).
-- The legacy CMake name `kotonoha_unified_launcher` remains as an alias.
+- Use the canonical CMake target `KotonohaLauncherCore`.
 
 All exported C ABI entry points use `KOTONOHA_LAUNCHER_EXPORT` so the shared library publishes them with default visibility (or `__declspec(dllexport)` on Windows).
 

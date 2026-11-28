@@ -110,9 +110,9 @@ void Runtime::init(Engine &engine) {
   std::string graph;
   const int graphBytes = EM_ASM_INT({
     var cache = window.KotonohaAssetCache;
-    if (!cache || typeof cache.prefetchGraph !== "function") return 0;
+    if (!cache || typeof cache.prefetchGraph != "function") return 0;
     var text = cache.prefetchGraph();
-    return typeof text === "string" ? lengthBytesUTF8(text) : 0;
+    return typeof text == "string" ? lengthBytesUTF8(text) : 0;
   });
   if (graphBytes > 0 && graphBytes <= 2 * 1024 * 1024) {
     graph.resize(static_cast<std::size_t>(graphBytes));

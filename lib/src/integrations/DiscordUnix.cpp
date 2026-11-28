@@ -47,15 +47,32 @@ const char *field(json_object *obj, const char *key) {
 // ten slots on each root so multiple Discord instances/clients are supported.
 std::vector<std::string> socketPaths() {
   std::vector<std::string> paths;
+#ifdef __APPLE__
+  // Finder-launched apps may not inherit the shell's TMPDIR.
+  std::string darwinTemp;
+  const std::size_t size = ::confstr(_CS_DARWIN_USER_TEMP_DIR, nullptr, 0);
+  if (size > 0) {
+    darwinTemp.resize(size);
+    if (::confstr(_CS_DARWIN_USER_TEMP_DIR, darwinTemp.data(), size) == size)
+      darwinTemp.resize(size - 1);
+    else
+      darwinTemp.clear();
+  }
+#else
+  const std::string darwinTemp;
+#endif
   const char *roots[] = {std::getenv("XDG_RUNTIME_DIR"), std::getenv("TMPDIR"),
-                         "/tmp", "/var/tmp"};
+                         darwinTemp.c_str(), "/tmp", "/var/tmp"};
   for (const char *root : roots) {
     if (!root || !*root)
       continue;
     for (int index = 0; index < 10; ++index) {
-      const std::string path =
-          std::string(root) + "/discord-ipc-" + std::to_string(index);
-      if (::access(path.c_str(), W_OK) == 0)
+      std::string path(root);
+      if (path.back() != '/')
+        path += '/';
+      path += "discord-ipc-" + std::to_string(index);
+      if (std::find(paths.begin(), paths.end(), path) == paths.end() &&
+          ::access(path.c_str(), F_OK) == 0)
         paths.push_back(path);
     }
   }
@@ -101,7 +118,7 @@ public:
       }
 #endif
       const auto attempt = std::min(deadline, Clock::now() +
-                                               std::chrono::milliseconds(300));
+                                               std::chrono::milliseconds(900));
       if (::connect(fd_, reinterpret_cast<sockaddr *>(&address), size) != 0) {
         int error = 0;
         socklen_t errorSize = sizeof(error);

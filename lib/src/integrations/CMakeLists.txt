@@ -52,3 +52,12 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN)
     target_link_libraries(KotonohaRichPresenceTest PRIVATE kotonoha_rich_presence Threads::Threads)
     add_test(NAME Kotonoha.RichPresence COMMAND KotonohaRichPresenceTest)
 endif()
+
+if(BUILD_TESTING AND KOTONOHA_BUILD_RICH_PRESENCE AND UNIX
+   AND NOT IOS AND NOT ANDROID AND NOT EMSCRIPTEN
+   AND NOT CMAKE_SYSTEM_NAME MATCHES "iOS|tvOS|watchOS")
+    add_executable(KotonohaDiscordUnixTest ../../tests/DiscordUnixTest.cpp)
+    target_link_libraries(KotonohaDiscordUnixTest PRIVATE kotonoha_rich_presence Threads::Threads)
+    add_test(NAME Kotonoha.DiscordUnix COMMAND KotonohaDiscordUnixTest)
+    set_tests_properties(Kotonoha.DiscordUnix PROPERTIES TIMEOUT 10 LABELS synthetic)
+endif()
