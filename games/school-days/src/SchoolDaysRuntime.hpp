@@ -496,7 +496,10 @@ public:
   // BackLog through one context-sensitive translator.
   void setLxhTranslation(Kotonoha::Translation translation,
                           std::string locale = "en", bool nativeGpk = false);
-  std::string_view presenceDetails() const;
+  Kotonoha::Integrations::PresenceDescriptor presenceDescriptor() const override {
+    return {"1575710571171684434", {}, "School Days HQ"};
+  }
+  std::string_view presenceDetails() const override;
   void shutdown();
   // SDL close/quit requests are routed through the retail EXIT confirmation.
   // Returns true when the native request was consumed by School Days.

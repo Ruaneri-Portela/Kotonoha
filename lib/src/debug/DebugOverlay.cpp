@@ -334,9 +334,12 @@ void DebugOverlay::drawInspector() {
   {
     using Kotonoha::Integrations::richPresenceEnabled;
     using Kotonoha::Integrations::setRichPresenceEnabled;
+    using Kotonoha::Integrations::setRichPresencePreference;
     bool presence = richPresenceEnabled().load();
-    if (ImGui::Checkbox("Discord Rich Presence", &presence))
+    if (ImGui::Checkbox("Discord Rich Presence", &presence)) {
       setRichPresenceEnabled(presence);
+      setRichPresencePreference(presence);
+    }
     ImGui::SameLine();
     ImGui::TextUnformatted("applies to all running games");
   }

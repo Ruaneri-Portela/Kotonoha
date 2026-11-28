@@ -4,6 +4,7 @@
 #include <Kotonoha/core/AssetProvider.hpp>
 #include <Kotonoha/core/Scene.hpp>
 #include <Kotonoha/localization/Translation.hpp>
+#include <Kotonoha/integrations/RichPresence.hpp>
 
 #include <algorithm>
 #include <cstddef>
@@ -106,6 +107,12 @@ public:
   virtual bool onEvent(EventRef event);
   virtual bool onScreenEvent(EventRef event);
   virtual std::string diagnostic() const { return {}; }
+  // Optional Discord Rich Presence data supplied by the running game. The
+  // Engine owns the session and never publishes paths, saves or dialogue.
+  virtual Integrations::PresenceDescriptor presenceDescriptor() const {
+    return {};
+  }
+  virtual std::string_view presenceDetails() const { return {}; }
   virtual bool handleNewGameAction() { return false; }
   virtual bool handleAdvanceAction() { return false; }
   virtual bool advanceStoryTime(double) { return false; }

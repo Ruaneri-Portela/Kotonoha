@@ -2,13 +2,26 @@
 #include "SchoolDaysPresencePreference.hpp"
 #include "SchoolDaysRuntime.hpp"
 
+#include <Kotonoha/Filesystem/StoragePaths.hpp>
+
 #include <ctime>
 
 namespace SchoolDays {
 void DiscordPresence::start(const std::filesystem::path &settingsPath) noexcept {
   using namespace Kotonoha::Integrations;
   try {
-    if (!platformPresenceAvailable() || !readPresencePreference(settingsPath))
+    // The game owns its per-profile opt-in; the native launcher shares one
+    // global opt-in across detached hosts. Either one enables the session.
+    const bool gameOptIn = readPresencePreference(settingsPath);
+    bool launcherOptIn = false;
+    try {
+      launcherOptIn = readPresencePreference(
+          (Kotonoha::documentsDirectory("me.hirameki.kotonoha") /
+           "settings.json").string());
+    } catch (...) {
+      launcherOptIn = false;
+    }
+    if (!platformPresenceAvailable() || (!gameOptIn && !launcherOptIn))
       return;
     // The application icon is already registered. A separate presence asset
     // key is not confirmed; do not send an unregistered large_image key.

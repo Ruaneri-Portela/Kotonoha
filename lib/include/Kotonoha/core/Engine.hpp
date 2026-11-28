@@ -62,6 +62,9 @@ struct EngineOptions {
 class Engine {
 private:
   Runtime &runtime;
+  // Engine-owned Discord presence: games provide identity/details, the library
+  // owns the IPC session and the shared opt-in.
+  Integrations::EnginePresence presence;
   Log log;
   SDLSession session;
 

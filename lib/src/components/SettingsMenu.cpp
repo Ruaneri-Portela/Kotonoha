@@ -271,7 +271,10 @@ void SettingsMenu::activate(int index, int direction) {
   else if (index == 20) {
     using Kotonoha::Integrations::richPresenceEnabled;
     using Kotonoha::Integrations::setRichPresenceEnabled;
-    setRichPresenceEnabled(!richPresenceEnabled().load());
+    using Kotonoha::Integrations::setRichPresencePreference;
+    const bool next = !richPresenceEnabled().load();
+    setRichPresenceEnabled(next);
+    setRichPresencePreference(next);
   }
 #endif
   else if (index == 8) {

@@ -1054,6 +1054,13 @@ SDL_AppResult Engine::dispatchEvent(EventPtr event) {
 SDL_AppResult Engine::Iterate() {
   const char *stage = "frame setup";
   try {
+#if KOTONOHA_HAS_DISCORD_RPC
+    try {
+      presence.update(runtime.presenceDescriptor(), runtime.presenceDetails());
+    } catch (...) {
+      // Rich presence is optional and must never stop the game.
+    }
+#endif
     if (translationDumpComplete)
       return SDL_APP_SUCCESS;
     const Uint64 nowMs = SDL_GetTicks();

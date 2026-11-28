@@ -158,6 +158,12 @@ KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherSetDetachedHost(const char *path);
 // Returns JSON: {"ok":bool,"message":...}.
 KOTONOHA_LAUNCHER_EXPORT char *KotonohaLauncherTerminateGame(int pid);
 
+// Discord Rich Presence opt-in shared by native launchers and detached hosts.
+// The preference lives in the launcher's Documents directory so the SwiftUI
+// hub and the game host always see the same value. Returns 1 when enabled.
+KOTONOHA_LAUNCHER_EXPORT int KotonohaLauncherGetDiscordPresence(void);
+KOTONOHA_LAUNCHER_EXPORT void KotonohaLauncherSetDiscordPresence(int enabled);
+
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #if TARGET_OS_IPHONE

@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		37FB4429924CE83B139070B7 /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		F8EADAEDF1CE96D7CA752FE1 /* DiscordUnix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1C000000000000000000001 /* DiscordUnix.cpp */; };
+		7B2E2BE37CFA8C6A74A7E59F /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		7A4594B250A72F30E3A75CA1 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		F2F000000000000000000104 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2F000000000000000000001 /* SchoolDaysAssetMount.cpp */; };
 		F2F000000000000000000103 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2F000000000000000000001 /* SchoolDaysAssetMount.cpp */; };
 		F2F000000000000000000102 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2F000000000000000000001 /* SchoolDaysAssetMount.cpp */; };
@@ -8333,6 +8337,8 @@
 				72361004DE90A3BF437FFB39 /* CriAudio.cpp in Sources */,
 				4B218F02D9F7C2261CDD3249 /* Ps2Tim2.cpp in Sources */,
 				E8A000000000000000000002 /* SaveImage.cpp in Sources */,
+				37FB4429924CE83B139070B7,
+				F8EADAEDF1CE96D7CA752FE1,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -8751,6 +8757,8 @@
 				043E96E019801925709AFB80 /* CriAudio.cpp in Sources */,
 				5F4E576345FC5FE699AC9CD1 /* Ps2Tim2.cpp in Sources */,
 				E8A000000000000000000003 /* SaveImage.cpp in Sources */,
+				7B2E2BE37CFA8C6A74A7E59F,
+				7A4594B250A72F30E3A75CA1,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

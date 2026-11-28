@@ -359,6 +359,12 @@ private final class MacLauncherStore: ObservableObject {
             UserDefaults.standard.set(upscalerFactor, forKey: Self.upscalerFactorKey)
         }
     }
+    @Published var discordPresence: Bool {
+        didSet {
+            UserDefaults.standard.set(discordPresence, forKey: Self.discordPresenceKey)
+            KotonohaLauncherSetDiscordPresence(discordPresence ? 1 : 0)
+        }
+    }
 
     let upscalePresets: [MacUpscalePresetOption]
     private var logFilePath: URL?
@@ -370,6 +376,7 @@ private final class MacLauncherStore: ObservableObject {
     private static let upscalerBackendKey = "me.hirameki.kotonoha.mac.upscalerBackend.v1"
     private static let upscalerPresetKey = "me.hirameki.kotonoha.mac.upscalerPreset.v1"
     private static let upscalerFactorKey = "me.hirameki.kotonoha.mac.upscalerFactor.v1"
+    private static let discordPresenceKey = "me.hirameki.kotonoha.mac.discordPresence.v1"
 
     private init() {
         let defaults = UserDefaults.standard
@@ -384,6 +391,11 @@ private final class MacLauncherStore: ObservableObject {
         self.upscalerBackend = defaults.string(forKey: Self.upscalerBackendKey) ?? "none"
         self.upscalerPreset = defaults.string(forKey: Self.upscalerPresetKey) ?? "0"
         self.upscalerFactor = defaults.string(forKey: Self.upscalerFactorKey) ?? "2.0"
+        if defaults.object(forKey: Self.discordPresenceKey) != nil {
+            self.discordPresence = defaults.bool(forKey: Self.discordPresenceKey)
+        } else {
+            self.discordPresence = KotonohaLauncherGetDiscordPresence() != 0
+        }
         self.upscalePresets = Self.loadUpscalePresets()
         configureGameLog()
     }
@@ -1370,6 +1382,13 @@ private struct MacSettingsSheet: View {
                         }
                     }
                     Text("Auto uses MetalFX on Metal, Anime4K/ArtCNN on OpenGL, and Linear elsewhere.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Discord") {
+                    Toggle("Discord Rich Presence", isOn: $store.discordPresence)
+                    Text("Shows the running game on Discord. The Discord desktop app must be open in the same user session.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

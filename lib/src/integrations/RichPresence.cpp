@@ -4,7 +4,6 @@
 #include <utility>
 
 namespace Kotonoha::Integrations {
-
 namespace {
 const char *stateLabel(RichPresence::State state) noexcept {
   using State = RichPresence::State;

@@ -4,7 +4,9 @@
 #include "PathUtf8.hpp"
 #include <KotonohaLauncher/UnifiedLauncher.hpp>
 
+#include <Kotonoha/core/Config.hpp>
 #include <Kotonoha/core/Engine.hpp>
+#include <Kotonoha/integrations/RichPresence.hpp>
 #include <SDL3/SDL.h>
 #if !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
 #include <json-c/json.h>
@@ -37,6 +39,7 @@ extern "C" char **environ;
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -397,6 +400,21 @@ void runLaunchOnNativeMainThread(void *userData) {
 } // namespace
 #endif
 
+extern "C" int KotonohaLauncherGetDiscordPresence(void) {
+  // Thin C ABI facade: the preference itself belongs to the Kotonoha library.
+  return Kotonoha::Integrations::richPresencePreferenceEnabled() ? 1 : 0;
+}
+
+extern "C" void KotonohaLauncherSetDiscordPresence(int enabled) {
+  try {
+    Kotonoha::Integrations::setRichPresencePreference(enabled != 0);
+  } catch (const std::exception &error) {
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION,
+                "Could not save Discord presence preference: %s",
+                error.what());
+  }
+}
+
 // Runs the game on the calling thread. Detached host processes call this
 // directly: after fork() the surviving thread is the process' only thread,
 // so dispatching to a main queue that no longer runs would deadlock.
@@ -533,6 +551,7 @@ static char *launchGameDirect(const KotonohaGameLaunchRequest *request) {
                                             : "(none)",
                 SDL_GetCurrentAudioDriver() ? SDL_GetCurrentAudioDriver()
                                             : "(none)");
+
     if (!params.startScenario.empty()) {
       try {
         mounted.runtime->SetState(Kotonoha::GameState::Gameplay);
