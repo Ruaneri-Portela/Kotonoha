@@ -5,6 +5,11 @@
 #   SUBMODULES/AUTO - media deps always come from the system when vcpkg is
 #                     inactive (there are no media submodules in this repo).
 include("${CMAKE_CURRENT_LIST_DIR}/KotonohaDepsProvider.cmake")
+# Standalone consumers (including provider smoke tests) need the same
+# resolution as the top-level CMake project.
+if(NOT KOTONOHA_MEDIA_PROVIDER_RESOLVED)
+    kotonoha_resolve_deps_provider()
+endif()
 
 if (ANDROID)
     # Android keeps its per-ABI vcpkg installation and explicit import libs.

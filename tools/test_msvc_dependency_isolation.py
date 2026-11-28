@@ -125,7 +125,7 @@ def test_media(work: Path) -> None:
     configure(project, work / "media-native")
     write_ffmpeg((work / "host-msys2/include").as_posix())
     configure(project, work / "media-poison", expected=False,
-              diagnostic="outside native vcpkg triplet")
+              diagnostic="outside the vcpkg triplet")
 
 
 def main() -> None:

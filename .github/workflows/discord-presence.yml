@@ -1,0 +1,51 @@
+name: Discord desktop IPC regressions
+
+on:
+  push:
+    branches: [main, dev]
+    paths:
+      - "lib/src/integrations/**"
+      - "lib/include/Kotonoha/integrations/**"
+      - "lib/tests/RichPresenceTest.cpp"
+      - "lib/tests/DiscordUnixTest.cpp"
+      - ".github/workflows/discord-presence.yml"
+  pull_request:
+    paths:
+      - "lib/src/integrations/**"
+      - "lib/include/Kotonoha/integrations/**"
+      - "lib/tests/RichPresenceTest.cpp"
+      - "lib/tests/DiscordUnixTest.cpp"
+      - ".github/workflows/discord-presence.yml"
+
+jobs:
+  desktop-ipc:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install json-c
+        shell: bash
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            brew install json-c pkgconf
+          else
+            sudo apt-get update
+            sudo apt-get install -y libjson-c-dev pkg-config
+          fi
+      - name: Compile and run synthetic IPC tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread -Ilib/include \
+            lib/src/integrations/RichPresence.cpp lib/tests/RichPresenceTest.cpp \
+            -o /tmp/kotonoha-presence-test
+          /tmp/kotonoha-presence-test
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread -Ilib/include \
+            $(pkg-config --cflags json-c) lib/src/integrations/DiscordUnix.cpp \
+            lib/tests/DiscordUnixTest.cpp $(pkg-config --libs json-c) \
+            -o /tmp/kotonoha-ipc-test
+          /tmp/kotonoha-ipc-test
+    timeout-minutes: 10

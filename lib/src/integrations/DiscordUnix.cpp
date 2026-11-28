@@ -117,8 +117,7 @@ public:
         continue;
       }
 #endif
-      const auto attempt = std::min(deadline, Clock::now() +
-                                               std::chrono::milliseconds(900));
+      const auto attempt = deadline;
       if (::connect(fd_, reinterpret_cast<sockaddr *>(&address), size) != 0) {
         int error = 0;
         socklen_t errorSize = sizeof(error);
