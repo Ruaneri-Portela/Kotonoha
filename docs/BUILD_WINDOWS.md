@@ -37,6 +37,45 @@ For a multi-config Visual Studio build, select a Visual Studio generator
 instead of Ninja and build with `cmake --build <dir> --config Release`; in that
 case `CMAKE_BUILD_TYPE` is ignored.
 
+## Windows build driver
+
+Build drivers follow the platform convention: **Windows uses PowerShell
+(`.ps1`)**, while macOS/Linux use Python (`tools/BuildApple.py`,
+`tools/BuildIOS.py`, `tools/BuildMatrix.py`). Do not add a Python driver for
+the Windows/MSVC path.
+
+`tools/BuildWindows.ps1` is the Windows counterpart of `tools/BuildApple.py`. It
+runs the native MSBuild matrix and the MSVC CMake presets against the shared
+vcpkg roots under `out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Arch x64 -Configuration Release
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Target cmake -Arch arm64
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Install -CleanObjs
+```
+
+`-Target` selects `all` (default), `msbuild` or `cmake`; `-Arch` and
+`-Configuration` accept `all` or one value. `-Install` runs
+`PrepareVisualStudio.ps1 -Mode Install` first; `-CleanObjs` removes stale
+`buildsystems/visualstudio/obj/<Platform>` intermediates.
+
+The driver applies these toolchain workarounds:
+
+- Ninja calls `cl.exe` directly, so it needs the `vcvarsall.bat` environment
+  (`x86`, `amd64`, `amd64_arm64`). Without it the compiler cannot find standard
+  headers (`cstddef: No such file or directory`).
+- An x64 host cannot execute the `arm64-windows` CPython interpreter. The ARM64
+  CMake configure passes the host interpreter through `-DPython3_EXECUTABLE`
+  while still linking the ARM64 Development component from vcpkg.
+- MSVC 14.52's ARM64 cross compiler hits `C1001` on
+  `SchoolDaysBackLogPresenter.cpp` with `/O2`. The driver passes
+  `-DCMAKE_CXX_FLAGS_RELEASE=/Od` for ARM64 by default; use `-Optimization on`
+  to override once the compiler is fixed.
+- Stale Win32 objects built against the old ImGui headers fail to link with an
+  unresolved `ImDrawList::AddLine`. Use `-CleanObjs` after changing the ImGui
+  provider.
+
 ## MinGW native (Windows host)
 
 Run from an MSYS2 shell. `SYSTEM` uses pacman/UCRT packages:

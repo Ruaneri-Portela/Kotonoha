@@ -161,6 +161,7 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/out/build/windows-x86-msvc-vcpkg/vcpkg_installed",
         "VCPKG_TARGET_TRIPLET": "x86-windows",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
         "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
@@ -175,6 +176,7 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/out/build/windows-x64-msvc-vcpkg/vcpkg_installed",
         "VCPKG_TARGET_TRIPLET": "x64-windows",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
         "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",
@@ -189,6 +191,7 @@
       "inherits": "windows-base",
       "cacheVariables": {
         "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/out/build/windows-arm64-msvc-vcpkg/vcpkg_installed",
         "VCPKG_TARGET_TRIPLET": "arm64-windows",
         "VCPKG_OVERLAY_PORTS": "${sourceDir}/vcpkg-overlays/ports",
         "VCPKG_MANIFEST_FEATURES": "sdl-vcpkg;imgui-vcpkg",

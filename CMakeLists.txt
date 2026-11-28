@@ -8,30 +8,84 @@ include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/KotonohaAndroid.cmake")
 # KOTONOHA_IMGUI_PROVIDER before project().
 include("${CMAKE_CURRENT_SOURCE_DIR}/buildsystems/cmake/dependencies/KotonohaDepsProvider.cmake")
 
-# Windows targets using vcpkg default to the MinGW dynamic triplets. An
-# explicit VCPKG_TARGET_TRIPLET (preset or -D=...) always wins. SYSTEM and
-# SUBMODULES builds (MSYS2/UCRT, apt, Homebrew) never get a vcpkg triplet.
+# Windows targets using vcpkg select native MSVC triplets when targeting Visual
+# Studio / cl.exe and MinGW dynamic triplets when targeting MinGW. An explicit
+# VCPKG_TARGET_TRIPLET (preset or -D=...) always wins. SYSTEM and SUBMODULES
+# builds (MSYS2/UCRT, apt, Homebrew) never get a vcpkg triplet.
 if(NOT VCPKG_TARGET_TRIPLET AND
    (KOTONOHA_DEPS_PROVIDER STREQUAL "VCPKG" OR
     CMAKE_TOOLCHAIN_FILE MATCHES "[\\/]vcpkg\\.cmake$") AND
    (CMAKE_HOST_SYSTEM_NAME STREQUAL "Windows" OR
     CMAKE_SYSTEM_NAME STREQUAL "Windows" OR MINGW))
-    set(_kotonoha_windows_arch "${CMAKE_SYSTEM_PROCESSOR}")
+    set(_kotonoha_windows_arch "${CMAKE_GENERATOR_PLATFORM}")
+    if(NOT _kotonoha_windows_arch)
+        set(_kotonoha_windows_arch "${CMAKE_SYSTEM_PROCESSOR}")
+    endif()
     if(NOT _kotonoha_windows_arch)
         set(_kotonoha_windows_arch "${CMAKE_HOST_SYSTEM_PROCESSOR}")
     endif()
     string(TOLOWER "${_kotonoha_windows_arch}" _kotonoha_windows_arch)
-    if(_kotonoha_windows_arch MATCHES "^(i[3-6]86|x86|i686)$")
-        set(_kotonoha_windows_triplet "x86-mingw-dynamic")
-    elseif(_kotonoha_windows_arch MATCHES "^(aarch64|arm64)$")
-        set(_kotonoha_windows_triplet "arm64-mingw-dynamic")
+    set(_kotonoha_prefer_msvc_triplet OFF)
+    if(CMAKE_GENERATOR MATCHES "^Visual Studio" OR
+       CMAKE_CXX_COMPILER MATCHES "(^|[\\/])cl(\\.exe)?$" OR
+       (DEFINED ENV{VSCMD_VER} AND NOT MINGW AND
+        NOT CMAKE_CXX_COMPILER MATCHES "(g\\+\\+|clang\\+\\+)"))
+        set(_kotonoha_prefer_msvc_triplet ON)
+    endif()
+    if(_kotonoha_prefer_msvc_triplet)
+        if(_kotonoha_windows_arch MATCHES "^(win32|i[3-6]86|x86|i686)$")
+            set(_kotonoha_windows_triplet "x86-windows")
+        elseif(_kotonoha_windows_arch MATCHES "^(aarch64|arm64)$")
+            set(_kotonoha_windows_triplet "arm64-windows")
+        else()
+            set(_kotonoha_windows_triplet "x64-windows")
+        endif()
     else()
-        set(_kotonoha_windows_triplet "x64-mingw-dynamic")
+        if(_kotonoha_windows_arch MATCHES "^(win32|i[3-6]86|x86|i686)$")
+            set(_kotonoha_windows_triplet "x86-mingw-dynamic")
+        elseif(_kotonoha_windows_arch MATCHES "^(aarch64|arm64)$")
+            set(_kotonoha_windows_triplet "arm64-mingw-dynamic")
+        else()
+            set(_kotonoha_windows_triplet "x64-mingw-dynamic")
+        endif()
     endif()
     set(VCPKG_TARGET_TRIPLET "${_kotonoha_windows_triplet}" CACHE STRING
-        "vcpkg target triplet (Windows defaults to MinGW dynamic)")
+        "vcpkg target triplet")
+    unset(_kotonoha_prefer_msvc_triplet)
     unset(_kotonoha_windows_triplet)
     unset(_kotonoha_windows_arch)
+endif()
+
+# Share the exact same per-architecture vcpkg install root between MSVC CMake
+# builds and the native MSBuild solution (out/build/windows-<arch>-msvc-vcpkg/
+# vcpkg_installed, mirroring Xcode's out/build/macos-<arch>-vcpkg/vcpkg_installed)
+# unless VCPKG_INSTALLED_DIR was explicitly overridden.
+if(CMAKE_TOOLCHAIN_FILE MATCHES "[\\/]vcpkg\\.cmake$" AND
+   VCPKG_TARGET_TRIPLET MATCHES "^(x86|x64|arm64)-windows$")
+    string(REGEX REPLACE "-windows$" "" _kotonoha_vs_vcpkg_arch
+           "${VCPKG_TARGET_TRIPLET}")
+    if(DEFINED ENV{KOTONOHA_VS_VCPKG_ROOT} AND
+       NOT "$ENV{KOTONOHA_VS_VCPKG_ROOT}" STREQUAL "")
+        file(TO_CMAKE_PATH "$ENV{KOTONOHA_VS_VCPKG_ROOT}"
+             _kotonoha_vs_vcpkg_base)
+        set(_kotonoha_vs_vcpkg_installed
+            "${_kotonoha_vs_vcpkg_base}/${_kotonoha_vs_vcpkg_arch}")
+    else()
+        set(_kotonoha_vs_vcpkg_installed
+            "${CMAKE_CURRENT_SOURCE_DIR}/out/build/windows-${_kotonoha_vs_vcpkg_arch}-msvc-vcpkg/vcpkg_installed")
+    endif()
+    if(NOT DEFINED VCPKG_INSTALLED_DIR)
+        set(VCPKG_INSTALLED_DIR "${_kotonoha_vs_vcpkg_installed}" CACHE PATH
+            "Shared MSVC vcpkg install root (matches MSBuild Kotonoha.sln)")
+    endif()
+    if(NOT DEFINED VCPKG_OVERLAY_PORTS)
+        set(VCPKG_OVERLAY_PORTS
+            "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg-overlays/ports" CACHE PATH
+            "Kotonoha vcpkg port overlays")
+    endif()
+    unset(_kotonoha_vs_vcpkg_arch)
+    unset(_kotonoha_vs_vcpkg_base)
+    unset(_kotonoha_vs_vcpkg_installed)
 endif()
 
 # vcpkg builds target the portable macOS 15 baseline from CMakePresets.

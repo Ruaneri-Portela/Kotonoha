@@ -1,8 +1,8 @@
 {
     "vcpkg_install_roots":  {
-                                "arm64":  "buildsystems/visualstudio/vcpkg/arm64",
-                                "x86":  "buildsystems/visualstudio/vcpkg/x86",
-                                "x64":  "buildsystems/visualstudio/vcpkg/x64"
+                                "arm64":  "out/build/windows-arm64-msvc-vcpkg/vcpkg_installed",
+                                "x86":  "out/build/windows-x86-msvc-vcpkg/vcpkg_installed",
+                                "x64":  "out/build/windows-x64-msvc-vcpkg/vcpkg_installed"
                             },
     "vcpkg_triplets":  {
                            "x64":  "x64-windows",
@@ -71,7 +71,7 @@
                       "x64",
                       "ARM64"
                   ],
-    "source_files":  327,
+    "source_files":  326,
     "include_directories":  117,
     "games":  {
                   "Game_SummerRadish":  "summer-radish-vacation",
@@ -483,7 +483,7 @@
                     {
                         "lib_for":  "Game_SchoolDays",
                         "name":  "Game_SchoolDaysLib",
-                        "sources":  67,
+                        "sources":  66,
                         "type":  "StaticLibrary",
                         "slug":  "school-days",
                         "guid":  "{DD4940E9-1711-4D72-1A1B-9F6810A5F125}",

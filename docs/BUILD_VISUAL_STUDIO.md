@@ -46,8 +46,14 @@ the same DLL serves JNI clients; the Java example adds that directory to `PATH`
 so its dependent DLLs are found.
 
 Opening the `.sln` in Visual Studio works as well — vcpkg include/library paths
-are resolved from `buildsystems/visualstudio/vcpkg/<arch>/<triplet>/`, so no global `vcpkg integrate
-install` is required.
+are resolved from `out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed/<triplet>/`
+(shared directly with the MSVC CMake presets, just like Xcode on macOS), so no
+global `vcpkg integrate install` is required.
+
+For the full Win32/x64/ARM64 × Debug/Release matrix plus the matching MSVC CMake
+presets, use the shared driver described in
+[BUILD_WINDOWS.md](BUILD_WINDOWS.md#windows-build-driver):
+`powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1`.
 
 ## Verification
 

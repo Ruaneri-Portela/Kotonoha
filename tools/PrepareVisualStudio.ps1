@@ -200,7 +200,8 @@ function New-Vcxproj {
         [void]$sb.AppendLine("    <ImpLib><ModuleDefinitionFile>`$(IntDir)$Name.def</ModuleDefinitionFile></ImpLib>")
         [void]$sb.AppendLine('  </ItemDefinitionGroup>')
         [void]$sb.AppendLine('  <Target Name="KotonohaGenerateExports" BeforeTargets="Link">')
-        [void]$sb.AppendLine('    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(RepoRoot)tools\GenerateVisualStudioExports.ps1&quot; -ObjectDir &quot;$(IntDir).&quot; -OutputDef &quot;$(IntDir)' + $Name + '.def&quot; -Library ' + $Name + ' -Platform &quot;$(Platform)&quot;" />')
+        [void]$sb.AppendLine('    <WriteLinesToFile File="$(IntDir)KotonohaActiveObjs.txt" Lines="@(ClCompile-&gt;''%(Filename).obj'')" Overwrite="true" />')
+        [void]$sb.AppendLine('    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(RepoRoot)tools\GenerateVisualStudioExports.ps1&quot; -ObjectDir &quot;$(IntDir).&quot; -OutputDef &quot;$(IntDir)' + $Name + '.def&quot; -Library ' + $Name + ' -Platform &quot;$(Platform)&quot; -ActiveObjectsFile &quot;$(IntDir)KotonohaActiveObjs.txt&quot;" />')
         [void]$sb.AppendLine('  </Target>')
     }
     [void]$sb.AppendLine('  <ItemGroup>')
@@ -318,10 +319,7 @@ function Invoke-Generate {
         $libName = $entry.Name + 'Lib'
         $gameLibNames += $libName
         $sources = @(
-            (SourceItemXml -include ("`$(RepoRoot)games\" + $entry.Slug + '\src\**\*.cpp') -exclude (@("`$(RepoRoot)games\" + $entry.Slug + '\src\main.cpp') + @(
-                # School Days: obsoleto, nao compilado pelo CMake.
-                '$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp'
-            )))
+            (SourceItemXml -include ("`$(RepoRoot)games\" + $entry.Slug + '\src\**\*.cpp') -exclude @("`$(RepoRoot)games\" + $entry.Slug + '\src\main.cpp'))
         )
         if ($entry.Slug -eq 'reallive') {
             $sources += (SourceItemXml '$(RepoRoot)games\reallive\vendor\libreallive\*.cc')
@@ -419,9 +417,9 @@ function Invoke-Generate {
         platforms = @('Win32', 'x64', 'ARM64')
         vcpkg_triplets = @{ 'Win32' = 'x86-windows'; 'x64' = 'x64-windows'; 'ARM64' = 'arm64-windows' }
         vcpkg_install_roots = @{
-            'x86' = 'buildsystems/visualstudio/vcpkg/x86'
-            'x64' = 'buildsystems/visualstudio/vcpkg/x64'
-            'arm64' = 'buildsystems/visualstudio/vcpkg/arm64'
+            'x86' = 'out/build/windows-x86-msvc-vcpkg/vcpkg_installed'
+            'x64' = 'out/build/windows-x64-msvc-vcpkg/vcpkg_installed'
+            'arm64' = 'out/build/windows-arm64-msvc-vcpkg/vcpkg_installed'
         }
         vcpkg_features = @('sdl-vcpkg', 'imgui-vcpkg')
         preparation = @{ script = 'tools/PrepareVisualStudio.ps1'; manifest = 'vcpkg.json'; overlays = 'vcpkg-overlays/ports' }
@@ -471,19 +469,20 @@ function Invoke-Install {
         throw 'vcpkg nao encontrado. Defina VCPKG_ROOT ou instale o vcpkg via Visual Studio Installer.'
     }
     $exe = Join-Path $VcpkgRoot 'vcpkg.exe'
-    # O vcpkg do Visual Studio nao tem modo classico: cada triplet precisa de
-    # um install root proprio (modo manifesto remove os outros da mesma raiz).
-    # O cache binarios permanece o padrao do vcpkg (%LOCALAPPDATA%\vcpkg\archives).
-    $installRoot = if ($env:KOTONOHA_VS_VCPKG_ROOT) {
-        $env:KOTONOHA_VS_VCPKG_ROOT
-    } else {
-        Join-Path $VS 'vcpkg'
-    }
+    # Assim como no Xcode (out/build/macos-*-vcpkg/vcpkg_installed), cada
+    # arquitetura usa out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed para
+    # compartilhar exatamente o mesmo cache instalado entre CMake e MSBuild.
     foreach ($arch in $Architectures) {
         $triplet = $TripletMap[$arch]
-        Write-Host "[Kotonoha] vcpkg install $triplet -> $installRoot\$arch"
+        $archInstallRoot = if ($env:KOTONOHA_VS_VCPKG_ROOT) {
+            Join-Path $env:KOTONOHA_VS_VCPKG_ROOT $arch
+        } else {
+            Join-Path $Repo "out\build\windows-$arch-msvc-vcpkg\vcpkg_installed"
+        }
+        EnsureDir $archInstallRoot
+        Write-Host "[Kotonoha] vcpkg install $triplet -> $archInstallRoot"
         & $exe install '--x-wait-for-lock' "--triplet=$triplet" "--x-manifest-root=$Repo" `
-            "--x-install-root=$(Join-Path $installRoot $arch)" `
+            "--x-install-root=$archInstallRoot" `
             "--overlay-ports=$(Join-Path $Repo 'vcpkg-overlays\ports')" `
             '--x-feature=sdl-vcpkg' '--x-feature=imgui-vcpkg'
         if ($LASTEXITCODE -ne 0) { throw "vcpkg falhou para $triplet (exit $LASTEXITCODE)" }

@@ -54,13 +54,17 @@ powershell -ExecutionPolicy Bypass -File tools\PrepareVisualStudio.ps1 -Mode Bui
 ```
 
 `Install` places dependencies in
-`buildsystems/visualstudio/vcpkg/<arch>/<triplet>/` (ignored by Git); each
-architecture has its own root because vcpkg manifest mode prunes other
-triplets from the same install root. `Build` invokes `MSBuild.exe` with `Debug|Release` × `Win32|x64|ARM64`
+`out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed/<triplet>/` (ignored by
+Git), sharing the exact same per-architecture vcpkg install root with the MSVC
+CMake presets (`windows-x86-msvc-vcpkg`, `windows-x64-msvc-vcpkg`,
+`windows-arm64-msvc-vcpkg`), just like Xcode shares
+`out/build/macos-<arch>-vcpkg/vcpkg_installed/`. `Build` invokes `MSBuild.exe` with `Debug|Release` × `Win32|x64|ARM64`
 and writes artifacts to `out/<Platform>/<Configuration>/`.
 
 You can also open `Kotonoha.sln` directly in Visual Studio and select any of
-the six solution platforms.
+the six solution platforms. To build the whole MSBuild matrix together with the
+MSVC CMake presets, use `powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1`
+(see [BUILD_WINDOWS.md](../../docs/BUILD_WINDOWS.md#windows-build-driver)).
 
 ## Validation
 

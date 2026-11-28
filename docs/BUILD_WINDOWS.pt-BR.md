@@ -37,6 +37,46 @@ Para um build multi-config com o Visual Studio, escolha um gerador do Visual
 Studio em vez do Ninja e compile com `cmake --build <dir> --config Release`;
 nesse caso `CMAKE_BUILD_TYPE` é ignorado.
 
+## Driver de build Windows
+
+Os drivers de build seguem a convenção da plataforma: **Windows usa
+PowerShell (`.ps1`)**, enquanto macOS/Linux usam Python (`tools/BuildApple.py`,
+`tools/BuildIOS.py`, `tools/BuildMatrix.py`). Não adicione um driver Python para
+o caminho Windows/MSVC.
+
+`tools/BuildWindows.ps1` é o equivalente no Windows de `tools/BuildApple.py`.
+Ele executa a matriz nativa do MSBuild e os presets CMake do MSVC usando as
+raízes vcpkg compartilhadas em
+`out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed`:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Arch x64 -Configuration Release
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Target cmake -Arch arm64
+powershell -ExecutionPolicy Bypass -File tools\BuildWindows.ps1 -Install -CleanObjs
+```
+
+`-Target` seleciona `all` (padrão), `msbuild` ou `cmake`; `-Arch` e
+`-Configuration` aceitam `all` ou um valor único. `-Install` executa
+`PrepareVisualStudio.ps1 -Mode Install` antes; `-CleanObjs` remove os
+intermediários obsoletos em `buildsystems/visualstudio/obj/<Platform>`.
+
+O driver aplica estes workarounds de toolchain:
+
+- O Ninja chama `cl.exe` diretamente e precisa do ambiente do `vcvarsall.bat`
+  (`x86`, `amd64`, `amd64_arm64`). Sem ele o compilador não encontra headers
+  padrão (`cstddef: No such file or directory`).
+- Um host x64 não executa o interpretador CPython `arm64-windows`. O configure
+  CMake ARM64 recebe o interpretador host por `-DPython3_EXECUTABLE` enquanto
+  continua linkando o componente Development ARM64 do vcpkg.
+- O compilador cruzado ARM64 do MSVC 14.52 apresenta `C1001` em
+  `SchoolDaysBackLogPresenter.cpp` com `/O2`. O driver passa
+  `-DCMAKE_CXX_FLAGS_RELEASE=/Od` para ARM64 por padrão; use `-Optimization on`
+  para sobrescrever quando o compilador estiver corrigido.
+- Objetos Win32 obsoletos compilados contra os headers antigos do ImGui falham
+  no link com `ImDrawList::AddLine` não resolvido. Use `-CleanObjs` após trocar
+  o provider do ImGui.
+
 ## MinGW nativo (host Windows)
 
 Execute em um shell MSYS2. `SYSTEM` usa os pacotes do pacman/UCRT:

@@ -131,9 +131,12 @@ Todos os builds com vcpkg compartilham o **cache binário padrão do vcpkg**
 Linux/macOS). Nenhum script do Kotonoha sobrescreve `VCPKG_DEFAULT_BINARY_CACHE`,
 portanto um pacote compilado uma vez pela solução Visual Studio é reutilizado
 pelos fluxos CMake/MSVC, MinGW e Xcode/CMake; apenas o diretório de instalação
-é separado por triplet. `KOTONOHA_VS_VCPKG_ROOT` permite apontar a raiz de
-instalação do Visual Studio para um local compartilhado, mantendo o cache padrão
-do vcpkg.
+é separado por arquitetura e triplet. A solução Visual Studio e os presets CMake
+`windows-*-msvc-vcpkg` compartilham
+`out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed/<triplet>/`, o equivalente
+no Windows de `out/build/macos-<arch>-vcpkg/vcpkg_installed/` do Xcode.
+`KOTONOHA_VS_VCPKG_ROOT` pode substituir essa raiz de instalação, mantendo o
+cache binário padrão do vcpkg.
 
 Confira os provedores resolvidos no cache:
 

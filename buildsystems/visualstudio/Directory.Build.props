@@ -16,13 +16,12 @@
     <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'Win32'">x86-windows</KotonohaVcpkgTriplet>
     <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'x64'">x64-windows</KotonohaVcpkgTriplet>
     <KotonohaVcpkgTriplet Condition="'$(Platform)' == 'ARM64'">arm64-windows</KotonohaVcpkgTriplet>
-    <!-- Uma raiz por arquitetura: vcpkg em modo manifesto remove os outros
-         triplets da mesma raiz, entao x86/x64/arm64 nao podem compartilhar. -->
-    <!-- Install root configuravel: por padrao fica ao lado da solucao, mas
-         KOTONOHA_VS_VCPKG_ROOT permite reutilizar um root compartilhado. -->
-    <KotonohaVcpkgInstallRoot Condition="'$(KOTONOHA_VS_VCPKG_ROOT)' != ''">$(KOTONOHA_VS_VCPKG_ROOT)</KotonohaVcpkgInstallRoot>
-    <KotonohaVcpkgInstallRoot Condition="'$(KotonohaVcpkgInstallRoot)' == ''">$(MSBuildThisFileDirectory)vcpkg</KotonohaVcpkgInstallRoot>
-    <KotonohaVcpkgRoot>$(KotonohaVcpkgInstallRoot)\$(KotonohaVcpkgArch)\$(KotonohaVcpkgTriplet)\</KotonohaVcpkgRoot>
+    <!-- Uma raiz por arquitetura compartilhada com CMakePresets.json, igual ao
+         Xcode (out/build/windows-<arch>-msvc-vcpkg/vcpkg_installed).
+         KOTONOHA_VS_VCPKG_ROOT permite substituir por um root customizado. -->
+    <KotonohaVcpkgParent Condition="'$(KOTONOHA_VS_VCPKG_ROOT)' != ''">$(KOTONOHA_VS_VCPKG_ROOT)\$(KotonohaVcpkgArch)</KotonohaVcpkgParent>
+    <KotonohaVcpkgParent Condition="'$(KotonohaVcpkgParent)' == ''">$(RepoRoot)out\build\windows-$(KotonohaVcpkgArch)-msvc-vcpkg\vcpkg_installed</KotonohaVcpkgParent>
+    <KotonohaVcpkgRoot>$(KotonohaVcpkgParent)\$(KotonohaVcpkgTriplet)\</KotonohaVcpkgRoot>
     <!-- A solucao instala e resolve o vcpkg por si (PrepareVisualStudio.ps1). -->
     <VcpkgEnabled>false</VcpkgEnabled>
     <VcpkgEnableManifest>false</VcpkgEnableManifest>

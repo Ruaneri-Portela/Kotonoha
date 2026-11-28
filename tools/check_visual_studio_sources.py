@@ -35,9 +35,9 @@ def load_manifest() -> dict:
     require((ROOT / "tools" / "PrepareVisualStudio.ps1").is_file(), "Missing PrepareVisualStudio.ps1")
     require(data["vcpkg_features"] == ["sdl-vcpkg", "imgui-vcpkg"], "Wrong vcpkg features")
     require(data["vcpkg_install_roots"] == {
-        "x86": "buildsystems/visualstudio/vcpkg/x86",
-        "x64": "buildsystems/visualstudio/vcpkg/x64",
-        "arm64": "buildsystems/visualstudio/vcpkg/arm64",
+        "x86": "out/build/windows-x86-msvc-vcpkg/vcpkg_installed",
+        "x64": "out/build/windows-x64-msvc-vcpkg/vcpkg_installed",
+        "arm64": "out/build/windows-arm64-msvc-vcpkg/vcpkg_installed",
     }, "Wrong per-architecture vcpkg install roots")
     return data
 
@@ -96,8 +96,8 @@ def validate() -> dict:
     require("KotonohaCopyVcpkgRuntime" in targets_xml, "Directory.Build.targets: DLL deployment missing")
     for triplet in manifest["vcpkg_triplets"].values():
         require(triplet in props, f"props: missing triplet {triplet}")
-    require("$(KotonohaVcpkgInstallRoot)\\$(KotonohaVcpkgArch)" in props,
-            "props: vcpkg roots are not separated per architecture")
+    require("windows-$(KotonohaVcpkgArch)-msvc-vcpkg\\vcpkg_installed" in props,
+            "props: vcpkg roots are not shared per architecture in out/build/windows-*-msvc-vcpkg/vcpkg_installed")
     require("GeneratedIncludeDirs.props" in props, "props: missing generated include import")
     include_props = (VS / "GeneratedIncludeDirs.props").read_text(encoding="utf-8")
     require("submodules" not in include_props,
