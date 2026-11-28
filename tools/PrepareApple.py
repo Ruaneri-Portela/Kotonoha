@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Prepare vcpkg and BeeWare CPython 3.15 for Kotonoha on Apple platforms.
 
+vcpkg is never downloaded: it must already exist, discovered via $VCPKG_ROOT
+(or --vcpkg-executable / $VCPKG_EXE).
+
 Source archives are cached in build/<platform>-deps/python; Python.xcframework
 is installed to buildsystems/xcode/python/<platform> for Xcode's references.
 
@@ -482,7 +485,13 @@ def missing_vcpkg_libraries(triplet: str, root: Path) -> list[str]:
     return [name for name in VCPKG_LINK_LIBRARIES if not present(name)]
 
 
-def resolve_vcpkg(explicit: Path | None, *, allow_bootstrap: bool) -> Path:
+def resolve_vcpkg(explicit: Path | None) -> Path:
+    """Locate an existing vcpkg executable, primarily via $VCPKG_ROOT.
+
+    This script never downloads or bootstraps vcpkg. An explicit executable
+    (--vcpkg-executable / $VCPKG_EXE) takes precedence; otherwise $VCPKG_ROOT
+    is searched first, followed by a few conventional local locations.
+    """
     candidates: list[Path] = []
     if explicit is not None:
         candidates.append(explicit.expanduser())
@@ -501,23 +510,9 @@ def resolve_vcpkg(explicit: Path | None, *, allow_bootstrap: bool) -> Path:
             return path.resolve()
     if explicit is not None or os.environ.get("VCPKG_EXE"):
         raise FileNotFoundError(f"Requested vcpkg executable not found: {candidates[0]}")
-    if not allow_bootstrap:
-        raise FileNotFoundError("vcpkg executable not found (set VCPKG_ROOT, VCPKG_EXE or --vcpkg-executable)")
-    if sys.platform != "darwin":
-        raise RuntimeError("Bootstrap of Apple vcpkg dependencies requires macOS and Xcode command-line tools")
-    destination = ROOT / "build/tools/vcpkg"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if not (destination / "bootstrap-vcpkg.sh").is_file():
-        if destination.exists() and any(destination.iterdir()):
-            raise RuntimeError(f"Incomplete vcpkg checkout at {destination}. Resolve it or use --vcpkg-executable.")
-        say(f"Cloning upstream vcpkg to {destination}")
-        run(["git", "clone", "https://github.com/microsoft/vcpkg.git", str(destination)])
-    say("Bootstrapping vcpkg executable")
-    run(["bash", str(destination / "bootstrap-vcpkg.sh"), "-disableMetrics"])
-    executable = destination / "vcpkg"
-    if not executable.is_file():
-        raise RuntimeError("vcpkg bootstrap did not create the executable")
-    return executable
+    raise FileNotFoundError(
+        "vcpkg executable not found; set VCPKG_ROOT to an existing vcpkg checkout "
+        "(this script never downloads or bootstraps vcpkg)")
 
 
 @contextlib.contextmanager
@@ -555,7 +550,7 @@ def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path
                 if not manifest.is_file():
                     raise FileNotFoundError(
                         f"Missing {manifest}; copy the integration to the root of the original Kotonoha repository")
-                tool = resolve_vcpkg(executable, allow_bootstrap=True)
+                tool = resolve_vcpkg(executable)
                 say(f"Preparing vcpkg ({selected_sdk}/{arch}, {triplet}) in {root}")
                 # --x-install-root puts each triplet at the path referenced by the
                 # Xcode .xcconfig files. The repo vcpkg.json drives packages.
@@ -591,7 +586,8 @@ def main() -> int:
     parser.add_argument("--only-python", action="store_true", help="Prepare only CPython, without vcpkg")
     parser.add_argument("--vcpkg", choices=("auto", "install", "check", "skip"), default="auto",
                         help="auto reuses complete installs; install runs vcpkg; check only verifies; skip disables")
-    parser.add_argument("--vcpkg-executable", type=Path, help="Use an existing vcpkg executable")
+    parser.add_argument("--vcpkg-executable", type=Path,
+                        help="Use an existing vcpkg executable (default: $VCPKG_ROOT/vcpkg)")
     parser.add_argument("--configuration", default=os.environ.get("CONFIGURATION", "Debug"),
                         help="Xcode configuration for the SDL frameworks (default: $CONFIGURATION or Debug)")
     parser.add_argument("--xcode-pre-action", action="store_true",
