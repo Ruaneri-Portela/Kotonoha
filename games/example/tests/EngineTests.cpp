@@ -578,8 +578,12 @@ void testHiDPIAndSpaces(Kotonoha::Engine &engine) {
       screen(engine, RenderSpace::Screen);
   runtime.AddScene(&novel);
   runtime.AddScene(&screen);
-  require(engine.GetDebug().getSettings().showFPS,
-          "Engine initializes FPS without game registration");
+  // Diagnostics are opt-in on every runtime, independent of game registration.
+  auto &diagnostics = engine.GetDebug().getSettings();
+  require(!diagnostics.showFPS && !diagnostics.showNodeClock,
+          "Engine initializes diagnostics disabled without game registration");
+  diagnostics.showFPS = true;
+  diagnostics.showNodeClock = true;
   require(SDL_SetWindowSize(&engine.GetWindow(), 1000, 1000),
           "Resize test window");
   SDL_PumpEvents();
@@ -639,6 +643,7 @@ void testHiDPIAndSpaces(Kotonoha::Engine &engine) {
           "IME follows letterbox and HiDPI transforms");
   require(SDL_StopTextInput(&engine.GetWindow()), "Stop test IME");
   runtime.ClearScenes();
+  diagnostics = {};
 }
 
 void testRuntime(Kotonoha::Engine &engine) {
