@@ -44,7 +44,7 @@ documentos, rota, scripts) usam seletores nativos de arquivo/pasta.
 ## Compilar e executar
 
 ```sh
-dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release
+dotnet build launcher/desktop/KotonohaManager.csproj -c Release
 ```
 
 Para o VS Code, `Properties/launchSettings.json` define dois perfis com
@@ -59,7 +59,7 @@ Defina `KOTONOHA_NATIVE_DIR` para um diretório que contenha
 
 ```powershell
 $env:KOTONOHA_NATIVE_DIR = 'E:\Kotonoha\buildsystems\visualstudio\out\x64\Release'
-dotnet run --project launcher\desktop\KotonohaManager\KotonohaManager.csproj -c Release
+dotnet run --project launcher\desktop\KotonohaManager.csproj -c Release
 ```
 
 Na primeira execução a raiz padrão é `Documents/Kotonoha/games`
@@ -73,7 +73,7 @@ A importação de ZIP protege contra path traversal e aplica os mesmos limites d
 ## Verificação
 
 ```sh
-dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release --no-restore
+dotnet build launcher/desktop/KotonohaManager.csproj -c Release --no-restore
 ```
 
 A varredura carrega o catálogo nativo completo e sem duplicatas em uma tarefa

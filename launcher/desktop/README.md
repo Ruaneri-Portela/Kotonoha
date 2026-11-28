@@ -44,7 +44,7 @@ route, scripts) use native file/folder pickers.
 ## Build and run
 
 ```sh
-dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release
+dotnet build launcher/desktop/KotonohaManager.csproj -c Release
 ```
 
 For VS Code, `Properties/launchSettings.json` defines two profiles with
@@ -60,7 +60,7 @@ and its runtime dependencies before starting the app:
 
 ```powershell
 $env:KOTONOHA_NATIVE_DIR = 'E:\Kotonoha\buildsystems\visualstudio\out\x64\Release'
-dotnet run --project launcher\desktop\KotonohaManager\KotonohaManager.csproj -c Release
+dotnet run --project launcher\desktop\KotonohaManager.csproj -c Release
 ```
 
 On first run the library root defaults to `Documents/Kotonoha/games`
@@ -75,7 +75,7 @@ limits as the Android Storage Access Framework importer.
 ## Verification
 
 ```sh
-dotnet build launcher/desktop/KotonohaManager/KotonohaManager.csproj -c Release --no-restore
+dotnet build launcher/desktop/KotonohaManager.csproj -c Release --no-restore
 ```
 
 The scan loads a complete, deduplicated native catalog in the background and

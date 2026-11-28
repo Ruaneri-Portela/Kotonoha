@@ -37,7 +37,8 @@ public:
     discordpp::RunCallbacks();
     return true;
   }
-  bool publish(const std::string &details, std::int64_t start) override {
+  bool publish(const std::string &details, const std::string &state,
+               std::int64_t start) override {
     if (!client_ || !sdkReady.load()) return false;
     discordpp::Activity activity;
     activity.SetType(discordpp::ActivityTypes::Playing);
@@ -47,6 +48,7 @@ public:
     if (!name_.empty()) activity.SetName(name_);
     activity.SetStatusDisplayType(discordpp::StatusDisplayTypes::Name);
     activity.SetDetails(details);
+    activity.SetState(state);
     discordpp::ActivityTimestamps timestamps;
     timestamps.SetStart(static_cast<std::uint64_t>(start) * 1000u);
     activity.SetTimestamps(timestamps);

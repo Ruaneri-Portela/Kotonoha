@@ -42,7 +42,7 @@ O [launcher unificado independente](launcher/README.pt-BR.md) funciona no deskto
 
 | Pasta | Função |
 | --- | --- |
-| `launcher/` | Launcher unificado desktop para vários motores, host destacado (`host/`) e gerenciador Avalonia (`desktop/KotonohaManager/`) |
+| `launcher/` | Launcher unificado desktop para vários motores, host destacado (`host/`) e gerenciador Avalonia (`desktop/`) |
 | `lib/` | Motor compartilhado, headers públicos e testes |
 | `modules/vms/` | Máquinas virtuais de scripts |
 | `modules/providers/` | Leitura de assets e arquivos compactados |

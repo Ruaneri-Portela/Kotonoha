@@ -111,7 +111,7 @@ Each bridge calls the same C ABI; none duplicates launcher logic. Heap strings r
 **JNI namespace note:** the shipped app uses `me.hirameki.kotonoha.android` and its JNI symbols are `Java_me_hirameki_kotonoha_android_LauncherBridge_*`. The reusable bridge exports `Java_me_hirameki_kotonoha_launcher_KotonohaLauncherBridge_*`. Both sets are exported by the core on desktop as well; there are no `org.kotonoha.android` symbols left.
 
 The Avalonia desktop manager lives in
-[`desktop/KotonohaManager/`](desktop/KotonohaManager/README.md) and uses the
+[`desktop/`](desktop/README.md) and uses the
 same bridge and design tokens.
 
 ## Unified design system and UI feature parity

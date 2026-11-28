@@ -18,7 +18,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Licenças e procedência | [Auditoria do repositório](LICENSING.pt-BR.md) · [Avisos de terceiros](../THIRD_PARTY_NOTICES.pt-BR.md) |
 | CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.pt-BR.md) |
 | Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
-| Launcher unificado e bridges | [Arquitetura do launcher](../launcher/README.pt-BR.md) · [Gerenciador desktop](../launcher/desktop/KotonohaManager/README.pt-BR.md) |
+| Launcher unificado e bridges | [Arquitetura do launcher](../launcher/README.pt-BR.md) · [Gerenciador desktop](../launcher/desktop/README.pt-BR.md) |
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
 | Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
 | Interface, legendas e preferências | [Configurações do motor](ENGINE_SETTINGS.pt-BR.md) |

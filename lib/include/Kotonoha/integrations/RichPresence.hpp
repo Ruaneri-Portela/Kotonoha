@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <condition_variable>
 #include <cstdint>
@@ -11,6 +12,16 @@
 
 namespace Kotonoha::Integrations {
 
+// Global opt-out shared by the system settings and the debug menu. Sessions
+// observe it on their worker and disconnect/reconnect without a restart.
+inline std::atomic<bool> &richPresenceEnabled() noexcept {
+  static std::atomic<bool> enabled{true};
+  return enabled;
+}
+inline void setRichPresenceEnabled(bool enabled) noexcept {
+  richPresenceEnabled().store(enabled, std::memory_order_release);
+}
+
 // A transport runs exclusively on its session's worker. All calls must have
 // bounded latency. Only player-facing, sanitized strings belong here.
 class PresenceTransport {
@@ -18,7 +29,8 @@ public:
   virtual ~PresenceTransport() = default;
   virtual bool connect() = 0;
   virtual bool healthy() = 0;
-  virtual bool publish(const std::string &details, std::int64_t start) = 0;
+  virtual bool publish(const std::string &details, const std::string &state,
+                       std::int64_t start) = 0;
   virtual void clear() = 0;
   virtual void close() noexcept = 0;
 };
@@ -64,9 +76,15 @@ public:
     Duration heartbeat{1000};
   };
 
-  RichPresence(std::unique_ptr<PresenceTransport>, std::int64_t start, Timing);
+  // Curated, player-facing activity states. Games may omit setDetails()
+  // and set the state only; the game name is always published as details.
+  enum class State { Menu, Loading, Gameplay };
+
+  RichPresence(std::unique_ptr<PresenceTransport>, std::int64_t start, Timing,
+               std::string gameName = {});
   ~RichPresence();
   void setDetails(std::string details);
+  void setState(State state) noexcept;
 
 private:
   void run() noexcept;
@@ -76,6 +94,8 @@ private:
   std::mutex mutex_;
   std::condition_variable changed_;
   std::string desired_;
+  std::string gameName_;
+  State state_ = State::Gameplay;
   bool stopping_ = false;
   std::thread worker_;
 };

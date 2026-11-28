@@ -25,6 +25,23 @@
 #ifdef __APPLE__
 #include <TargetConditionals.h>
 #endif
+// Discord RPC exists only where a local IPC endpoint is available: Windows,
+// Linux and macOS desktop, plus opt-in Android. Never on WASM or iOS.
+#ifndef KOTONOHA_HAS_DISCORD_RPC
+# if defined(__EMSCRIPTEN__)
+#  define KOTONOHA_HAS_DISCORD_RPC 0
+# elif defined(__ANDROID__)
+#  ifdef KOTONOHA_ANDROID_DISCORD_RPC
+#   define KOTONOHA_HAS_DISCORD_RPC 1
+#  else
+#   define KOTONOHA_HAS_DISCORD_RPC 0
+#  endif
+# elif defined(__APPLE__) && TARGET_OS_IPHONE
+#  define KOTONOHA_HAS_DISCORD_RPC 0
+# else
+#  define KOTONOHA_HAS_DISCORD_RPC 1
+# endif
+#endif
 
 namespace Kotonoha {
 

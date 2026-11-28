@@ -284,10 +284,9 @@ function Invoke-Generate {
     # MetalFX/MPV ficam de fora, exatamente como no CMake com a opcao OFF.
     $engineGuid = New-Vcxproj -Name 'KotonohaEngine' -Type 'DynamicLibrary' -Group 'lib' -AutoExport -Sources @(
         (SourceItemXml -include '$(RepoRoot)lib\src\**\*.cpp' -exclude @(
-            '$(RepoRoot)lib\src\media\upscaling\MetalFXUpscaler.cpp',
-            '$(RepoRoot)lib\src\media\upscaling\MPVCompatibleUpscaler.cpp',
             # CMake selects a single Discord presence backend per platform.
             '$(RepoRoot)lib\src\integrations\DiscordAndroid.cpp',
+            '$(RepoRoot)lib\src\integrations\DiscordUnix.cpp',
             '$(RepoRoot)lib\src\integrations\NullPresence.cpp'))
     )
     $manifestTargets.Add(@{ name = 'KotonohaEngine'; type = 'DynamicLibrary'; group = 'lib'; guid = $engineGuid; sources = 85 })

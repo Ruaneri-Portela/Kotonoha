@@ -42,7 +42,7 @@ The [standalone unified launcher](launcher/README.md) is a desktop executable th
 
 | Path | Purpose |
 | --- | --- |
-| `launcher/` | Standalone multi-engine desktop launcher, detached host (`host/`), and Avalonia game manager (`desktop/KotonohaManager/`) |
+| `launcher/` | Standalone multi-engine desktop launcher, detached host (`host/`), and Avalonia game manager (`desktop/`) |
 | `lib/` | Shared engine, public headers, and tests |
 | `modules/vms/` | Script virtual machines |
 | `modules/providers/` | Asset and archive providers |

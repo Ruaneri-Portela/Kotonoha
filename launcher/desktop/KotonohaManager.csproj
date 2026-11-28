@@ -8,7 +8,7 @@
     <AssemblyName>KotonohaManager</AssemblyName>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- Icone oficial do kit visual (design/generated/generic). -->
-    <ApplicationIcon>..\..\..\design\generated\generic\icon.ico</ApplicationIcon>
+    <ApplicationIcon>..\..\design\generated\generic\icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -20,7 +20,7 @@
 
   <!-- Fonte unica da ponte C ABI, compartilhada com os outros frontends .NET. -->
   <ItemGroup>
-    <Compile Include="../../bridge/dotnet/KotonohaLauncher.cs"
+    <Compile Include="../bridge/dotnet/KotonohaLauncher.cs"
              Link="Bridge/KotonohaLauncher.cs" />
   </ItemGroup>
 
@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Styles/Theme.axaml" />
-    <AvaloniaResource Include="..\..\..\design\generated\generic\icon.ico"
+    <AvaloniaResource Include="..\..\design\generated\generic\icon.ico"
                       Link="Assets/icon.ico" />
   </ItemGroup>
 </Project>

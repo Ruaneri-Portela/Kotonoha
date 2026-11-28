@@ -18,7 +18,7 @@ Start with the [project README](../README.md), then choose a topic:
 | Licensing and provenance | [Repository license audit](LICENSING.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md) |
 | CI, build artifacts and dependency cache | [GitHub Actions and vcpkg](CI_VCPKG.md) |
 | Portable outputs, shared SDL entrypoints, ZIP | [Deployment and CPack](BUILD_PACKAGES.md) |
-| Unified launcher & bridges | [Launcher architecture](../launcher/README.md) · [Desktop manager](../launcher/desktop/KotonohaManager/README.md) |
+| Unified launcher & bridges | [Launcher architecture](../launcher/README.md) · [Desktop manager](../launcher/desktop/README.md) |
 | Assets and patches | [Overlays and translation](ASSET_OVERLAYS.md) |
 | File locations | [Directory policy](DIRECTORY_POLICY.md) |
 | UI, subtitles, and saved options | [Engine settings](ENGINE_SETTINGS.md) |

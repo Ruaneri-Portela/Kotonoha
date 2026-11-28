@@ -5,9 +5,23 @@
 
 namespace Kotonoha::Integrations {
 
+namespace {
+const char *stateLabel(RichPresence::State state) noexcept {
+  using State = RichPresence::State;
+  switch (state) {
+  case State::Menu: return "Main menu";
+  case State::Loading: return "Loading";
+  case State::Gameplay: return "In game";
+  }
+  return "In game";
+}
+} // namespace
+
 RichPresence::RichPresence(std::unique_ptr<PresenceTransport> transport,
-                           std::int64_t start, Timing timing)
-    : transport_(std::move(transport)), start_(start), timing_(timing) {
+                           std::int64_t start, Timing timing,
+                           std::string gameName)
+    : transport_(std::move(transport)), start_(start), timing_(timing),
+      gameName_(std::move(gameName)), desired_(gameName_) {
   if (transport_)
     worker_ = std::thread(&RichPresence::run, this);
 }
@@ -25,9 +39,23 @@ RichPresence::~RichPresence() {
 void RichPresence::setDetails(std::string details) {
   {
     std::lock_guard<std::mutex> lock(mutex_);
-    if (details == desired_ || details.empty())
+    if (details.empty())
       return;
-    desired_ = std::move(details);
+    // The curated detail is appended to the game name, never replaces it.
+    const auto next = gameName_.empty()
+                          ? details
+                          : gameName_ + " — " + details;
+    if (next == desired_)
+      return;
+    desired_ = next;
+  }
+  changed_.notify_one();
+}
+
+void RichPresence::setState(State state) noexcept {
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    state_ = state;
   }
   changed_.notify_one();
 }
@@ -35,6 +63,7 @@ void RichPresence::setDetails(std::string details) {
 void RichPresence::run() noexcept {
   using Clock = std::chrono::steady_clock;
   std::string sent;
+  State sentState = State::Gameplay;
   bool connected = false;
   auto delay = timing_.retry;
   auto reconnect = Clock::now();
@@ -45,6 +74,19 @@ void RichPresence::run() noexcept {
     auto now = Clock::now();
     if (desired_.empty()) {
       changed_.wait(lock);
+      continue;
+    }
+    if (!richPresenceEnabled().load(std::memory_order_acquire)) {
+      if (connected) {
+        lock.unlock();
+        transport_->close();
+        lock.lock();
+        connected = false;
+        sent.clear();
+        sentState = State::Gameplay;
+      }
+      reconnect = Clock::now() + timing_.retry;
+      changed_.wait_until(lock, reconnect);
       continue;
     }
     bool ok = true;
@@ -59,20 +101,24 @@ void RichPresence::run() noexcept {
       try { ok = transport_->healthy(); } catch (...) { ok = false; }
       lock.lock();
       checkAfter = Clock::now() + timing_.heartbeat;
-    } else if (connected && desired_ != sent && now >= publishAfter) {
+    } else if (connected && (desired_ != sent || state_ != sentState) &&
+               now >= publishAfter) {
       // Take the newest value AFTER connection and backoff. No FIFO backlog.
       auto latest = desired_;
+      const auto currentState = state_;
+      const auto label = stateLabel(currentState);
       lock.unlock();
-      try { ok = transport_->publish(latest, start_); } catch (...) { ok = false; }
+      try { ok = transport_->publish(latest, label, start_); } catch (...) { ok = false; }
       lock.lock();
       publishAfter = Clock::now() + timing_.interval;
       if (ok) {
         sent = std::move(latest);
+        sentState = currentState;
         delay = timing_.retry;
       }
     } else {
       auto wake = connected ? checkAfter : reconnect;
-      if (connected && desired_ != sent)
+      if (connected && (desired_ != sent || state_ != sentState))
         wake = std::min(wake, publishAfter);
       changed_.wait_until(lock, wake);
     }
@@ -83,6 +129,7 @@ void RichPresence::run() noexcept {
       lock.lock();
       connected = false;
       sent.clear();
+      sentState = State::Gameplay;
       reconnect = Clock::now() + delay;
       delay = std::min(timing_.maxRetry, delay * 2);
     }

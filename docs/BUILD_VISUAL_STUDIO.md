@@ -65,7 +65,7 @@ the Visual Studio solution.
 `KotonohaLauncherCore.dll` spawns the universal detached helper
 `KotonohaGameHost.exe` (`launcher/host/GameHost.cpp`) to execute each game on
 its own main thread (an SDL3 requirement) across all desktop frontends. The
-managed game manager in `launcher/desktop/KotonohaManager/` invokes the C ABI
+managed game manager in `launcher/desktop/` invokes the C ABI
 bridge, receives the child PID, captures stdout/stderr and keeps the game card
 green until the process exits. The manager switches between Portuguese and
 English at runtime and copies `assets/` to its build output so the engine can

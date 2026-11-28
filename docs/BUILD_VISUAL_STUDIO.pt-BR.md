@@ -67,7 +67,7 @@ de configurações da solução Visual Studio.
 `KotonohaLauncherCore.dll` inicia o executável auxiliar destacado universal
 `KotonohaGameHost.exe` (`launcher/host/GameHost.cpp`) para executar cada jogo na
 sua própria main thread (requisito do SDL3) em qualquer frontend desktop. O
-gerenciador em `launcher/desktop/KotonohaManager/` consome a C ABI do core,
+gerenciador em `launcher/desktop/` consome a C ABI do core,
 recebe o PID, captura stdout/stderr e mantém o card verde até o processo
 encerrar. O gerenciador alterna entre português e inglês em tempo real e copia
 `assets/` para o diretório de saída para que o motor abra as fontes incluídas.
