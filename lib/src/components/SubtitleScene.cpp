@@ -692,9 +692,6 @@ void SubtitleScene::render(RendererRef renderer, float) {
     } catch (const std::exception &e) {
       SDL_LogWarn(LogMedia, "Subtitle font: %s", e.what());
     }
-    // Android resolves its system font through FileResolver/Java. Do not
-    // switch to desktop Fontconfig when a rebuilt libass happens to include
-    // that provider: retain the explicit font and registered font attachments.
 #if defined(__ANDROID__)
     constexpr auto fontProvider = ASS_FONTPROVIDER_NONE;
 #else
