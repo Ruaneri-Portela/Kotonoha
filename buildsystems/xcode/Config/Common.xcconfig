@@ -196,7 +196,12 @@ KOTONOHA_MCP_DEF[sdk=iphoneos*] = KOTONOHA_ENABLE_MCP=0
 KOTONOHA_MCP_DEF[sdk=iphonesimulator*] = KOTONOHA_ENABLE_MCP=0
 KOTONOHA_METALFX_DEF = KOTONOHA_HAS_METALFX=1
 KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
-GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
+// Discord Rich Presence uses a local Unix socket on macOS; iOS keeps the
+// null transport and must not expose the preference switch.
+KOTONOHA_DISCORD_RPC_DEF = KOTONOHA_HAS_DISCORD_RPC=1
+KOTONOHA_DISCORD_RPC_DEF[sdk=iphoneos*] =
+KOTONOHA_DISCORD_RPC_DEF[sdk=iphonesimulator*] =
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF) $(KOTONOHA_DISCORD_RPC_DEF)
 
 // All app targets link SDL3 / SDL3_ttf / ImGui from vcpkg on both macOS and iOS.
 // CoreFoundation handles engine text conversion, but bundled/third-party

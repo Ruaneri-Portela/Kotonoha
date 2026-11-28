@@ -622,8 +622,8 @@ int Kotonoha_KtrfBuild(const Kotonoha_KtrfSection *sections, uint32_t count,
   uint32_t i;
   ktrf_clear_error(error);
   if (sections == NULL || out == NULL || count == 0u ||
-      count > (SIZE_MAX - KOTONOHA_KTRF_HEADER_SIZE) /
-                  KOTONOHA_KTRF_SECTION_ENTRY_SIZE)
+      (size_t)count > (SIZE_MAX - KOTONOHA_KTRF_HEADER_SIZE) /
+                          KOTONOHA_KTRF_SECTION_ENTRY_SIZE)
     return ktrf_fail(error, KOTONOHA_KTRF_ERROR_ARGUMENT,
                      "invalid KTRF section arguments");
   size = KOTONOHA_KTRF_HEADER_SIZE +
