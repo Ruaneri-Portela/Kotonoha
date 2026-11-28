@@ -1,0 +1,86 @@
+name: Full native synthetic CTest suite
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - ".github/workflows/native-synthetic.yml"
+      - "CMakeLists.txt"
+      - "buildsystems/cmake/**"
+      - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "launcher/**"
+  pull_request:
+    paths:
+      - ".github/workflows/native-synthetic.yml"
+      - "CMakeLists.txt"
+      - "buildsystems/cmake/**"
+      - "lib/**"
+      - "modules/**"
+      - "games/**"
+      - "launcher/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-synthetic-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic:
+    name: Build all native targets and run asset-free tests
+    runs-on: ubuntu-latest
+    container: debian:trixie
+    timeout-minutes: 75
+    env:
+      SDL_VIDEO_DRIVER: dummy
+      SDL_AUDIO_DRIVER: dummy
+      SDL_VIDEODRIVER: dummy
+      SDL_AUDIODRIVER: dummy
+    steps:
+      - name: Install system build and test dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            ca-certificates git cmake ninja-build g++ pkg-config python3 python3-dev \
+            libsdl3-dev libsdl3-ttf-dev libass-dev libavformat-dev libavcodec-dev \
+            libavutil-dev libswscale-dev libswresample-dev libjson-c-dev \
+            libgl-dev libfreetype-dev libharfbuzz-dev zlib1g-dev ffmpeg \
+            fonts-dejavu-core
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+      - name: Configure all targets with synthetic tests and Discord IPC
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          cmake -S . -B build-synthetic -G Ninja \
+            -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTING=ON \
+            -DKOTONOHA_BUILD_ALL=ON -DKOTONOHA_BUILD_LAUNCHER=ON \
+            -DKOTONOHA_BUILD_RICH_PRESENCE=ON \
+            -DKOTONOHA_BUNDLE_LOCAL_GAME_ASSETS=OFF \
+            -DKOTONOHA_DEPS_PROVIDER=SYSTEM -DKOTONOHA_SDL_PROVIDER=SYSTEM \
+            -DKOTONOHA_IMGUI_PROVIDER=SUBMODULES \
+            -DKOTONOHA_AUTO_FETCH_SUBMODULES=ON
+      - name: Build every native target
+        run: cmake --build build-synthetic --parallel 2
+      - name: Stage the synthetic test font
+        run: |
+          mkdir -p build-synthetic/bin/assets/fonts
+          cp /usr/share/fonts/truetype/dejavu/DejaVuSans.ttf \
+            build-synthetic/bin/assets/fonts/NotoSansJP-Regular.ttf
+      - name: Run all synthetic CTest cases (no retail assets)
+        run: |
+          ctest --test-dir build-synthetic -L synthetic -N
+          ctest --test-dir build-synthetic -L synthetic --output-on-failure --no-tests=error --timeout 120
+      - name: Upload CTest diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-synthetic-diagnostics
+          path: |
+            build-synthetic/Testing/Temporary/
+            build-synthetic/CMakeFiles/CMakeConfigureLog.yaml
+          if-no-files-found: ignore

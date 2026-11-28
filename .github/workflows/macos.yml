@@ -188,6 +188,7 @@ jobs:
              \
             -DVCPKG_OVERLAY_PORTS="$GITHUB_WORKSPACE/vcpkg-overlays/ports" \
             -DKOTONOHA_BUILD_ALL=ON -DBUILD_TESTING=ON \
+            -DKOTONOHA_BUILD_RICH_PRESENCE=ON \
             -DKOTONOHA_BUILD_MACOS_BUNDLES=${{ matrix.bundles }} \
             -DKOTONOHA_BUNDLE_LOCAL_GAME_ASSETS=OFF
 
