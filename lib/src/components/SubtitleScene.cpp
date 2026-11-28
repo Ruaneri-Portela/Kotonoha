@@ -683,9 +683,16 @@ void SubtitleScene::render(RendererRef renderer, float) {
     } catch (const std::exception &e) {
       SDL_LogWarn(LogMedia, "Subtitle font: %s", e.what());
     }
+    // Android uses the explicit system font resolved by FileResolver/Java.
+    // Do not let a rebuilt libass with Fontconfig change that selection.
+#if defined(__ANDROID__)
+    constexpr auto fontProvider = ASS_FONTPROVIDER_NONE;
+#else
+    constexpr auto fontProvider = ASS_FONTPROVIDER_AUTODETECT;
+#endif
     ass_set_fonts(state->renderer.get(),
                   fontPath.empty() ? nullptr : fontPath.c_str(), nullptr,
-                  ASS_FONTPROVIDER_AUTODETECT, nullptr, 1);
+                  fontProvider, nullptr, 1);
     if (!appearance.vnFontPath.empty() &&
         state->registeredVNFont != appearance.vnFontPath) {
       auto bytes = FileResolver::loadFontMemory(appearance.vnFontPath);
