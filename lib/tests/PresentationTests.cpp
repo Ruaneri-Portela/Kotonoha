@@ -939,6 +939,7 @@ void subtitleRasterization(Engine &engine) {
     SDL_RenderClear(&renderer);
     scene.render(renderer, 1);
     SDL_Rect viewport{};
+    const bool explicitViewport = SDL_RenderViewportSet(&renderer);
     float scaleX = 1, scaleY = 1;
     int logicalWidth = 0, logicalHeight = 0;
     SDL_RendererLogicalPresentation logical;
@@ -956,19 +957,31 @@ void subtitleRasterization(Engine &engine) {
     require(SDL_SetRenderLogicalPresentation(&renderer, logicalWidth,
                                              logicalHeight, logical) &&
                 SDL_SetRenderScale(&renderer, scaleX, scaleY) &&
-                SDL_SetRenderViewport(&renderer, &viewport),
+                SDL_SetRenderViewport(&renderer, explicitViewport ? &viewport : nullptr),
             "Restore subtitle readback state");
     require(bool(pixels), "Read Retina subtitle pixels");
     return pixels;
   };
   const auto equalPixels = [](const SDL_Surface &a, const SDL_Surface &b) {
-    if (a.w != b.w || a.h != b.h || a.format != b.format)
+    if (a.w != b.w || a.h != b.h || a.format != b.format) {
+      std::cerr << "Subtitle readback geometry/format mismatch: "
+                << a.w << "x" << a.h << " vs " << b.w << "x" << b.h << '\n';
       return false;
-    for (int y = 0; y < a.h; ++y)
-      if (std::memcmp(static_cast<const Uint8 *>(a.pixels) + y * a.pitch,
-                      static_cast<const Uint8 *>(b.pixels) + y * b.pitch,
-                      a.w * SDL_BYTESPERPIXEL(a.format)) != 0)
+    }
+    const auto bytesPerPixel = SDL_BYTESPERPIXEL(a.format);
+    for (int y = 0; y < a.h; ++y) {
+      const auto *left = static_cast<const Uint8 *>(a.pixels) + y * a.pitch;
+      const auto *right = static_cast<const Uint8 *>(b.pixels) + y * b.pitch;
+      if (std::memcmp(left, right, a.w * bytesPerPixel) != 0) {
+        int x = 0;
+        while (x < a.w && std::memcmp(left + x * bytesPerPixel,
+                                      right + x * bytesPerPixel,
+                                      bytesPerPixel) == 0)
+          ++x;
+        std::cerr << "First unequal subtitle pixel: " << x << "," << y << '\n';
         return false;
+      }
+    }
     return true;
   };
   require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
@@ -981,10 +994,10 @@ void subtitleRasterization(Engine &engine) {
   const auto reference = capture();
   require(colored(renderer, 1) > 1000,
           "Reference has visible high-density text");
-  require(SDL_SetRenderViewport(&renderer, nullptr) &&
+  require(SDL_SetRenderLogicalPresentation(
+                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX) &&
               SDL_SetRenderScale(&renderer, 2, 2) &&
-              SDL_SetRenderLogicalPresentation(
-                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_LETTERBOX),
+              SDL_SetRenderViewport(&renderer, nullptr),
           "Simulate Retina output with a smaller logical scene");
   const auto retina = capture();
   require(
@@ -1003,12 +1016,14 @@ void subtitleRasterization(Engine &engine) {
 
   require(SDL_SetRenderLogicalPresentation(&renderer, 0, 0,
                                            SDL_LOGICAL_PRESENTATION_DISABLED) &&
-              SDL_SetRenderScale(&renderer, 4, 1600.0f / 360),
+              SDL_SetRenderScale(&renderer, 4, 1600.0f / 360) &&
+              SDL_SetRenderViewport(&renderer, nullptr),
           "Configure stretched physical-pixel reference");
   const auto stretchedReference = capture();
-  require(SDL_SetRenderScale(&renderer, 2, 2) &&
-              SDL_SetRenderLogicalPresentation(
-                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_STRETCH),
+  require(SDL_SetRenderLogicalPresentation(
+                  &renderer, 1280, 720, SDL_LOGICAL_PRESENTATION_STRETCH) &&
+              SDL_SetRenderScale(&renderer, 2, 2) &&
+              SDL_SetRenderViewport(&renderer, nullptr),
           "Configure nonuniform logical presentation");
   const auto stretched = capture();
   require(

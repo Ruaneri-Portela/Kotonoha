@@ -746,6 +746,17 @@ void SubtitleScene::render(RendererRef renderer, float) {
       throw std::runtime_error("Invalid logical presentation size");
     sx *= area.w / logicalWidth;
     sy *= area.h / logicalHeight;
+    // SDL 3.2 updates the logical transform but may leave the previous
+    // viewport/clip queued. Requeue the caller's unchanged state before
+    // rendering glyphs, so cached and freshly rasterized frames agree.
+    SDL_Rect viewport{}, clip{};
+    const bool hasViewport = SDL_RenderViewportSet(&renderer);
+    const bool hasClip = SDL_RenderClipEnabled(&renderer);
+    if (!SDL_GetRenderViewport(&renderer, &viewport) ||
+        !SDL_GetRenderClipRect(&renderer, &clip) ||
+        !SDL_SetRenderViewport(&renderer, hasViewport ? &viewport : nullptr) ||
+        !SDL_SetRenderClipRect(&renderer, hasClip ? &clip : nullptr))
+      throw std::runtime_error(SDL_GetError());
   }
   if (!std::isfinite(sx) || !std::isfinite(sy) || sx <= 0 || sy <= 0)
     throw std::runtime_error("Invalid subtitle scale");

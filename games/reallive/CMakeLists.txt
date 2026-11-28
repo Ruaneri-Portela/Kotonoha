@@ -333,9 +333,13 @@ if(BUILD_TESTING)
     target_link_libraries(RealLiveSpriteAtlasTests PRIVATE RealLiveFormats)
     add_test(NAME RealLive.SpriteAtlas COMMAND RealLiveSpriteAtlasTests)
     set_tests_properties(RealLive.SpriteAtlas PROPERTIES
-        LABELS synthetic SKIP_RETURN_CODE 77)
+        LABELS real SKIP_RETURN_CODE 77)
+    if(REALLIVE_TEST_DATA)
+        set_property(TEST RealLive.SpriteAtlas APPEND PROPERTY
+            ENVIRONMENT "REALLIVE_TEST_DATA=${REALLIVE_TEST_DATA}")
+    endif()
     if(CLANNAD_TEST_DATA)
-        set_tests_properties(RealLive.SpriteAtlas PROPERTIES
+        set_property(TEST RealLive.SpriteAtlas APPEND PROPERTY
             ENVIRONMENT "CLANNAD_TEST_DATA=${CLANNAD_TEST_DATA}")
     endif()
     add_executable(RealLiveConfigTests tests/ConfigTest.cpp)
@@ -346,6 +350,7 @@ endif()
 kotonoha_label_directory_tests(REAL
     RealLiveSession
     RealLive.G00RetailArt
+    RealLive.SpriteAtlas
     RealLive.Movie
     RealLive.Retail.AirSE
     RealLive.Retail.KanonSE

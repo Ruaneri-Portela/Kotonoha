@@ -203,6 +203,12 @@ void testTranslations(Kotonoha::Engine &engine) {
     require(translation.text(200, " padded ") == " kept ",
             "Failed load preserves the previous dictionary");
   }
+  malformed.write(u8R"({"200":{"Épilogue":"你好 🌸","escaped":"\\u00e9","literal":"\u00e9"}})");
+  translation.load(malformed.path.string());
+  require(translation.text(200, u8"Épilogue") == u8"你好 🌸" &&
+              translation.text(200, "escaped") == "\\u00e9" &&
+              translation.text(200, "literal") == u8"é",
+          "Strict JSON preserves literal UTF-8, supplementary scalars and escapes");
   malformed.write(R"({"200":{"x":"first","x":"last"}})");
   translation.load(malformed.path.string());
   require(translation.text(200, "x") == "last",

@@ -1,5 +1,5 @@
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
-#include <Kotonoha/localization/Encoding.hpp>
+#include <Kotonoha/localization/StrictJsonSource.hpp>
 #include <Kotonoha/core/Settings.hpp>
 #include <Kotonoha/media/AudioMixer.hpp>
 
@@ -102,11 +102,11 @@ EngineSettings EngineSettings::load(const std::string &path,
       json_tokener_new(), json_tokener_free);
   if (!parser)
     throw std::bad_alloc();
-  // json-c 0.18 can reject valid multibyte input with its UTF-8 flag.
-  // Roundtrip through the engine's strict scalar decoder rejects malformed
-  // UTF-8 (including overlong encodings and surrogate code points).
-  if (Utf16ToUtf8(Utf8ToUtf16(text)) != text)
-    throw std::runtime_error("Invalid UTF-8 in JSON: " + path);
+  try {
+    text = StrictJsonSource(text);
+  } catch (const std::runtime_error &error) {
+    throw std::runtime_error(path + ": " + error.what());
+  }
   json_tokener_set_flags(parser.get(), JSON_TOKENER_STRICT);
   JSON root(json_tokener_parse_ex(parser.get(), text.c_str(),
                                   static_cast<int>(text.size() + 1)),
