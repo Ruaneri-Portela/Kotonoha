@@ -450,7 +450,7 @@ android.applicationVariants.all { variant ->
     // Do not override School Days' fork-specific SPLASH.PNG with the
     // upstream universal-brand splash. All other games use upstream branding.
     if (variant.flavorName != 'schoolDays') {
-      from(brandOutput.map { new File(it.asFile, 'splash/SPLASH.PNG') }) {
+      from(new File(brandOutput, 'splash/SPLASH.PNG')) {
         into 'assets'
       }
     }

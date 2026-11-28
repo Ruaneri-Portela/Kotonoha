@@ -32,7 +32,7 @@ execução de todos os jogos em todas as plataformas.
 | Média | Contagens de aplicações estavam desatualizadas em README/AGENTS/guias | Alinhar os documentos ao manifesto de 16 aplicações |
 | Média | `assets/Anime4K/SOURCE.txt` documentava apenas três shaders, apesar de haver muito mais | Tornar a lacuna explícita; comparar a revisão de cada variante com a origem antes de redistribuí-la |
 | Depende do titular | `lib/tests/fixtures/SvgTestFont.ttf` não apresenta documentação clara de origem no material auditado | Confirmar condições da fonte e direitos de distribuição; não pressupor aprovação |
-| Resolvido (gerado no repositório) | O splash e os ícones antes mantidos em `assets/SPLASH.PNG` / `assets/icon.*` agora são gerados em `design/generated/` por `tools/generate_brand_assets.py` a partir de `design/tokens.json` | Manter o gerador e o arquivo de tokens como fonte documentada; não restaurar os binários legados |
+| Resolvido (gerado no repositório) | O splash universal e os ícones de plataforma antes mantidos em `assets/icon.*` são gerados em `design/generated/` por `tools/generate_brand_assets.py` a partir de `design/tokens.json`; `assets/SPLASH.PNG` e `assets/SchoolDays.ico` permanecem estritamente como overrides autorizados do port School Days | Manter `design/tokens.json` como fonte universal da marca e restringir os overrides do School Days ao respectivo alvo/flavor |
 | Alta | As referências [rlvm](https://github.com/eglaysher/rlvm) e [ponscripter-fork](https://github.com/sekaiproject/ponscripter-fork) estão identificadas como GPL-3.0 e GPL-2.0 | Não incorporar arquivos desses motores ao código MIT sem avaliação de compatibilidade e cumprimento da licença; o subconjunto `libreallive` tem cabeçalhos MIT próprios e aviso separado. A origem de todos os ports exige análise arquivo a arquivo |
 | Contínua | Ainda não foi demonstrada compatibilidade total de N2System/LucaSystem com todos os jogos, saves e plataformas | Manter os checklists nas issues #83 e #75 até existirem provas verificáveis |
 
@@ -50,4 +50,4 @@ execução de todos os jogos em todas as plataformas.
 4. Preservar créditos e licenças de Anime4K, ArtCNN e porções do open-amagami.
 5. Executar `python3 tools/ValidateRepositoryHygiene.py` antes de publicar.
 
-Veja o inventário em [THIRD_PARTY_NOTICES.md](../THIRD_PARTY_NOTICES.md).
+Veja o inventário em [THIRD_PARTY_NOTICES.pt-BR.md](../THIRD_PARTY_NOTICES.pt-BR.md).

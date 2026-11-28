@@ -1,8 +1,8 @@
-# Kotonoha v3 Fork Workflow (`tsubaki-0x/Kotonoha`)
+# School Days HQ & Fork Workflow (`Ruaneri-Portela/Kotonoha` & `tsubaki-0x/Kotonoha`)
 
 **English (US)** | [Português (Brasil)](FORK_WORKFLOW.pt-BR.md)
 
-This guide documents the active architecture, branch policy, DEV/DIST build procedures, isolated testing rules, and upstream contribution workflow for the `tsubaki-0x/Kotonoha` fork targeting **School Days HQ v1.02** on **Windows x64** and **Android (`arm64-v8a`)**.
+This guide documents the shared architecture, repository/branch workflow, DEV/DIST build procedures, isolated testing rules, and private QA staging for **School Days HQ v1.02** across **Windows x64** and **Android (`arm64-v8a` / dual-ABI)**.
 
 ---
 
@@ -17,31 +17,30 @@ Both platforms execute one shared School Days HQ game-logic codebase without dup
 
 ---
 
-## 2. Permanent Branches & Upstream Alignment
+## 2. Repositories & Permanent Branches
 
-| Branch | Role |
+| Repository / Branch | Role |
 |---|---|
-| `dev` | Default branch of `tsubaki-0x/Kotonoha`; active development and clean upstream collaboration baseline. |
-| `hybrid` | Hybrid distribution branch preserving School Days HQ DEV/DIST packaging and fork-specific Windows/Android distribution infrastructure. |
-| `upstream/dev` (`Ruaneri-Portela/Kotonoha`) | Upstream reference repository. Never push directly to `upstream`. |
+| `Ruaneri-Portela/Kotonoha` (`dev`) | Canonical multi-engine upstream integration branch (16 game applications, unified launcher, and shared build systems). |
+| `tsubaki-0x/Kotonoha` (`dev`) | School Days HQ collaboration branch synchronized with `Ruaneri-Portela/Kotonoha:dev`. |
+| `tsubaki-0x/Kotonoha` (`hybrid`) | Hybrid distribution branch preserving fork-specific School Days HQ DEV/DIST private QA packaging tooling. |
 
-- Sync remotely with `git fetch origin --prune` and `git fetch upstream --prune`.
-- Always create upstream PR branches directly from `upstream/dev` with narrowly scoped commits, zero School Days symbols inside `lib/`, and zero proprietary assets.
-- Never force-push published branches (`dev` or `hybrid`).
+- Keep cross-repository PRs narrowly scoped, with zero School Days symbols inside `lib/` and zero proprietary assets.
+- Never force-push published branches (`dev`, `main`, or `hybrid`).
 
 ---
 
 ## 3. DEV vs DIST Policy & Windows x64 Compilation
 
-Always compile virgin Windows builds in **brand-new CMake directories** using `Visual Studio 18 2026` (`-A x64`), `Release` configuration (`--config Release --parallel 1`), SDL3/SDL3_ttf/ImGui from submodules, and auxiliary libraries from `x64-windows-static-md`.
+Always compile virgin Windows builds in **brand-new CMake directories** using `Visual Studio 18 2026` (`-A x64`) or CMake presets (`CMakePresets.json`), `Release` configuration (`--config Release --parallel 1`), SDL3/SDL3_ttf/ImGui from submodules (or `VCPKG`), and auxiliary libraries from `vcpkg`.
 
 ### Mandatory CMake Flags
 ```cmake
 -DKOTONOHA_BUILD_ALL=OFF
 -DKOTONOHA_BUILD_SCHOOL_DAYS=ON
 -DBUILD_TESTING=ON
--DKOTONOHA_SDL_FROM_VCPKG=OFF
--DKOTONOHA_IMGUI_FROM_VCPKG=OFF
+-DKOTONOHA_SDL_PROVIDER=SUBMODULES
+-DKOTONOHA_IMGUI_PROVIDER=SUBMODULES
 -DKOTONOHA_DEV_CONTROL=OFF
 -DKOTONOHA_ENABLE_PLAYER_DUBBING=OFF
 ```
@@ -112,9 +111,11 @@ Legacy L4 two-DLL staging scripts (`games/school-days/tools/stage_clean_local_l4
 
 - Run headless engine/game regression checks with `SDL_VIDEO_DRIVER=dummy` and `SDL_AUDIO_DRIVER=dummy`:
   - `python3 tools/ValidateBuildMetadata.py`
-  - `python3 tools/check_game_platform_isolation.py`
-  - `python3 tools/check_hybrid_android_contracts.py` (on the hybrid branch)
+  - `python3 tools/check_xcode_sources.py`
+  - `python3 tools/check_visual_studio_sources.py`
+  - `python3 tools/check_school_days_platform_io.py`
   - `git diff --check`
+  - *(On `tsubaki-0x/Kotonoha:hybrid` only)*: `python3 tools/check_hybrid_android_contracts.py`
   - Windows DEV baseline: `65/65` targeted CTests (`97/98` full suite; historical `#1 Kotonoha.Infrastructure` fails only on the Apple MetalFX software-renderer stub on Windows).
   - Windows DIST baseline: `6/6` targeted DIST CTests and `91/91` full DIST CTests.
 - For interactive/real-data QA, always pass isolated `--documents <temp-dir>` and `--config <temp-file>` so real saves (`Save/`, `GlobalFlag.DAT`) and `Config.DAT` are never modified.
@@ -124,5 +125,5 @@ Legacy L4 two-DLL staging scripts (`games/school-days/tools/stage_clean_local_l4
 
 ## 6. Known Limitations
 
-- Upstream `Ruaneri-Portela/Kotonoha:dev` uses a unified multi-game Android launcher (`LauncherActivity.java` + `SafBridge.java`) and dual-ABI (`arm64-v8a` + `armeabi-v7a` NEON); upstream Android contributions must integrate cleanly with that architecture rather than replacing it.
+- `buildsystems/android/` integrates both the unified multi-game Android launcher (`launcher` flavor: `LauncherActivity.java` + `SafBridge.java`) and all 16 per-game flavors (including `schoolDays` with portrait `SchoolDaysSetup.java` SAF onboarding and dual-ABI support). Keep shared Android classes in `me.hirameki.kotonoha.android` compatible across both `launcher` and `schoolDays` flavors.
 - Physical hardware QA on POCO X7 Pro and real-GPU visual QA on Windows must always be reported separately from CTest/Gradle/static validation.

@@ -124,10 +124,9 @@ function(kotonoha_configure_app target)
     # back to the target/filename ("KotonohaLauncher") in Explorer and Task
     # Manager. Only the unified launcher is presented as "Kotonoha"; every
     # individual game port keeps its own name.
-    if(WIN32)
     # School Days has its own primary WinRes icon (resource ID 1), supplied
     # by the fork. Do not append the generic engine icon with the same ID.
-    # Other Windows game ports use the shared K branding.
+    # Other Windows game ports use the shared K branding (VERSIONINFO above).
     if(WIN32 AND NOT APP_GAME STREQUAL "school-days")
         set(_winres "${CMAKE_CURRENT_BINARY_DIR}/${target}-brand.rc")
         if(KOTONOHA_BRAND_OUTPUT AND EXISTS "${KOTONOHA_BRAND_OUTPUT}/generic/icon.ico")

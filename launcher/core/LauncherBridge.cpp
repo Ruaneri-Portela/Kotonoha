@@ -730,7 +730,7 @@ char *KotonohaLauncherDefaultSchoolDaysRoute(void) {
   try {
 #if defined(KOTONOHA_LAUNCH_SCHOOL_DAYS)
     return dupCString(
-        Kotonoha::Providers::SchoolDaysAssets::defaultRoute().string());
+        SchoolDays::Assets::defaultRoute().string());
 #else
     return dupCString("");
 #endif

@@ -113,14 +113,6 @@ cmake -S . -B build-vcpkg -G Ninja \
   -DKOTONOHA_SDL_PROVIDER=VCPKG \
   -DKOTONOHA_IMGUI_PROVIDER=VCPKG
 
-All vcpkg builds share the **default vcpkg binary cache**
-(`%LOCALAPPDATA%\vcpkg\archives` on Windows, `~/.cache/vcpkg/archives` on
-Linux/macOS). No Kotonoha script overrides `VCPKG_DEFAULT_BINARY_CACHE`, so a
-package built once by the Visual Studio solution is reused by CMake/MSVC,
-MinGW and the Xcode/CMake flows; only the install root is per triplet.
-`KOTONOHA_VS_VCPKG_ROOT` can point the Visual Studio install root to a shared
-location, while the cache stays the vcpkg default.
-
 # Pinned submodules for SDL3/SDL3_ttf and ImGui, system media libraries
 git submodule update --init --recursive
 cmake -S . -B build-submodules -G Ninja \
@@ -133,6 +125,14 @@ cmake -S . -B build-submodules -G Ninja \
 cmake -S . -B build-bad -G Ninja -DKOTONOHA_IMGUI_PROVIDER=SYSTEM
 # CMake Error: Dear ImGui cannot be resolved from SYSTEM packages.
 ```
+
+All vcpkg builds share the **default vcpkg binary cache**
+(`%LOCALAPPDATA%\vcpkg\archives` on Windows, `~/.cache/vcpkg/archives` on
+Linux/macOS). No Kotonoha script overrides `VCPKG_DEFAULT_BINARY_CACHE`, so a
+package built once by the Visual Studio solution is reused by CMake/MSVC,
+MinGW and the Xcode/CMake flows; only the install root is per triplet.
+`KOTONOHA_VS_VCPKG_ROOT` can point the Visual Studio install root to a shared
+location, while the cache stays the vcpkg default.
 
 Check the resolved providers in the cache:
 

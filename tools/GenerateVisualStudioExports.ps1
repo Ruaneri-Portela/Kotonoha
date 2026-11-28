@@ -30,6 +30,10 @@ foreach ($obj in Get-ChildItem -LiteralPath $ObjectDir -Filter '*.obj' -File -Er
         # Simbolos internos do CRT/STL nao fazem parte da API publica das DLLs.
         if ($symbol.StartsWith('.') -or $symbol.StartsWith('__') -or
             $symbol.StartsWith('?_OptionsStorage') -or
+            # Template/COMDAT instantiations (std::unique_ptr, _Compressed_pair,
+            # ...) are inlined and are not part of the public C/C++ ABI; exporting
+            # them makes the linker fail with LNK2001 on ARM64.
+            $symbol.StartsWith('??$') -or
             $symbol -in @('__fltused', '__security_cookie', '__C_specific_handler')) { continue }
         # LNK4102: exportar thunks de destrutor pode gerar imagem invalida.
         if ($line -match 'deleting destructor|vtordisp|\[thunk\]') { continue }

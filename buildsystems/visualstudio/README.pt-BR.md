@@ -1,6 +1,6 @@
 # Solução Visual Studio
 
-**Português (Brasil)** | [English (US)](README.md)
+[English (US)](README.md) | **Português (Brasil)**
 
 `Kotonoha.sln` é uma solução nativa do Visual Studio versionada, análoga a
 `buildsystems/xcode/Kotonoha.xcodeproj`. Ela compila as fontes **diretamente**:
@@ -15,9 +15,9 @@ sem invocar CMake e sem gerar arquivos de projeto durante a compilação.
 | `modules\formats` | 14 `Format_*` | uma biblioteca estática por diretório `modules/formats/*/*` |
 | `modules\providers` | 13 `Provider_*` | uma biblioteca estática por diretório `modules/providers/*` |
 | `games` | 16 `Game_*Lib` + 16 `Game_*` | uma biblioteca estática por port (`games/*/src`, exceto `main.cpp`) e um executável compilando apenas `main.cpp` |
-| `launcher` | `KotonohaLauncherCore`, `KotonohaLauncher` | fontes do núcleo mais links para as 16 bibliotecas estáticas dos jogos; único `main.cpp` |
+| `launcher` | `KotonohaLauncherCore`, `KotonohaGameHost`, `KotonohaLauncher` | DLL do núcleo + bridges JNI/C ABI linkadas às bibliotecas estáticas dos jogos, executável host destacado e executável SDL do launcher unificado |
 
-Total: 74 projetos (16 jogos, 39 módulos). `KotonohaEngine` e
+Total: 75 projetos (16 jogos, 39 módulos, 1 DLL do motor e 3 projetos do launcher). `KotonohaEngine` e
 `KotonohaLauncherCore` são DLLs;
 `GenerateVisualStudioExports.ps1` reproduz o `WINDOWS_EXPORT_ALL_SYMBOLS` do
 CMake para elas. Cada biblioteca de jogo tem seu próprio `IntDir`, portanto

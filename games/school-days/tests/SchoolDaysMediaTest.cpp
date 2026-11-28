@@ -4,6 +4,7 @@
 #include <Kotonoha/components/VNSaveMenu.hpp>
 #include <Kotonoha/core/Engine.hpp>
 #include <Kotonoha/debug/DebugOverlay.hpp>
+#include <cstring>
 #include <iostream>
 #include <stdexcept>
 

@@ -6,9 +6,15 @@ Para a solução Visual Studio nativa (sem CMake; Win32/x64/ARM64, Debug e
 Release, toolset v145 / VS 18), veja
 [BUILD_VISUAL_STUDIO.pt-BR.md](BUILD_VISUAL_STUDIO.pt-BR.md).
 
-O CMake é configurado diretamente com `cmake -S . -B <build-dir> -G Ninja`;
-nenhum arquivo de presets é versionado. Estes builds são single-config, portanto
-`CMAKE_BUILD_TYPE` seleciona Debug ou Release.
+Configure o CMake usando um preset de [`CMakePresets.json`](../CMakePresets.json)
+(por exemplo `windows-x64-msvc-vcpkg` ou `windows-x64-mingw-system`) ou
+diretamente com `cmake -S . -B <build-dir> -G Ninja`. Esses builds são
+single-config, portanto `CMAKE_BUILD_TYPE` seleciona Debug ou Release.
+
+Os aplicativos desktop ficam em `<build-dir>/outputs/<target>/`. O CMake sempre
+emite `KotonohaGameHost` na **mesma** pasta de `KotonohaLauncher`
+(`outputs/KotonohaLauncher/`) via `kotonoha_configure_helper_output()`; o host
+destacado nunca deve ficar em `bin/`.
 
 ## MSVC (host Windows)
 

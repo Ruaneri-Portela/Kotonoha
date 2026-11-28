@@ -227,13 +227,13 @@ void registerLinkedEngineFactories(EngineLibraryRegistry &registry) {
         const std::string overlayOrScripts = !entry.params.scriptsDir.empty()
                                                  ? entry.params.scriptsDir
                                                  : opts.assetOverlayDirectory();
-        auto assets = std::make_shared<Kotonoha::Providers::SchoolDaysAssets>(
+        auto assets = std::make_shared<SchoolDays::Assets>(
             Kotonoha::gameDataDirectory(selectedSourcePath(entry)),
             overlayOrScripts);
         std::string route = entry.params.ktrfPath;
         if (route.empty()) {
           route =
-              Kotonoha::Providers::SchoolDaysAssets::defaultRoute().string();
+              SchoolDays::Assets::defaultRoute().string();
         }
         std::filesystem::path docs =
             entry.params.customDocumentsDir.empty()

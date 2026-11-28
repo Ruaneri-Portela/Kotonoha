@@ -7,6 +7,7 @@
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
 #include <Kotonoha/routing/SchoolDaysKtrfSession.hpp>
 
+#include <cstdint>
 #include <stdexcept>
 #include <algorithm>
 #include <cctype>
@@ -214,14 +215,14 @@ std::optional<std::size_t> SchoolDaysTranslationGate::LxhFirstEvent(
     if (event->command == END_ROLL && event->data.path_end) {
       ++creditCount;
       creditOrdinal = ordinal;
-      creditsEnd = event->endTick;
+      creditsEnd = static_cast<std::uint32_t>(event->endTick);
     } else if (event->command == PLAY_MOVIE && event->data.play_movie &&
                event->data.play_movie->path &&
                NormalizedPath(event->data.play_movie->path).find(moviePath) !=
                    std::string::npos) {
       ++movieCount;
       movieOrdinal = ordinal;
-      movieStart = event->startTick;
+      movieStart = static_cast<std::uint32_t>(event->startTick);
     } else if (event->command == Next) {
       ++nextCount;
     }

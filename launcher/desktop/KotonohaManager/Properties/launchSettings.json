@@ -4,13 +4,13 @@
     "KotonohaManager": {
       "commandName": "Project",
       "environmentVariables": {
-        "KOTONOHA_NATIVE_DIR": "build\\outputs\\KotonohaLauncher"
+        "KOTONOHA_NATIVE_DIR": "out\\build\\windows-x64-mingw-system\\outputs\\KotonohaLauncher"
       }
     },
     "KotonohaManagerRelease": {
       "commandName": "Project",
       "environmentVariables": {
-        "KOTONOHA_NATIVE_DIR": "build\\outputs\\KotonohaLauncher"
+        "KOTONOHA_NATIVE_DIR": "out\\build\\windows-x64-mingw-system\\outputs\\KotonohaLauncher"
       }
     }
   }

@@ -11,10 +11,16 @@ endif()
 # to the app bundle's own Python standard library.
 if(KOTONOHA_GAME_HOST AND EXISTS "${KOTONOHA_GAME_HOST}")
     get_filename_component(app_executable_dir "${APP_EXECUTABLE}" DIRECTORY)
-    file(MAKE_DIRECTORY "${app_executable_dir}")
-    file(COPY "${KOTONOHA_GAME_HOST}" DESTINATION "${app_executable_dir}"
-         FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
-                          GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    get_filename_component(host_file_name "${KOTONOHA_GAME_HOST}" NAME)
+    if(NOT "${KOTONOHA_GAME_HOST}" STREQUAL
+            "${app_executable_dir}/${host_file_name}")
+        # Helper targets now emit directly into the app output folder; only
+        # copy when the host was built elsewhere (e.g. a macOS bundle).
+        file(MAKE_DIRECTORY "${app_executable_dir}")
+        file(COPY "${KOTONOHA_GAME_HOST}" DESTINATION "${app_executable_dir}"
+             FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE
+                              GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    endif()
 endif()
 # Remove Python's nested helper application only from the staged bundle.
 include("${CMAKE_CURRENT_LIST_DIR}/PruneNestedPythonApp.cmake")

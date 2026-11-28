@@ -6,7 +6,7 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 
 | Assunto | Guia |
 | --- | --- |
-| Identidade visual | [Carta de estilo oficial](../design/README.md) |
+| Identidade visual | [Carta de estilo oficial](../design/README.pt-BR.md) |
 | Compilação | [Guias de compilação](BUILD_GUIDES.pt-BR.md) |
 | Dependências nativas | [Homebrew / apt / MSYS2 UCRT / vcpkg / submódulos](DEPENDENCIES.pt-BR.md) |
 | Windows (solução nativa) | [Visual Studio 18 / v145](BUILD_VISUAL_STUDIO.pt-BR.md) |
@@ -14,17 +14,18 @@ Comece pelo [README do projeto](../README.pt-BR.md) e escolha um assunto:
 | Android | [Android](BUILD_ANDROID.pt-BR.md) · [Gradle](../buildsystems/android/README.pt-BR.md) |
 | Apple | [macOS](BUILD_MACOS.pt-BR.md) · [iOS](BUILD_IOS.pt-BR.md) · [Xcode](../buildsystems/xcode/README.pt-BR.md) |
 | Navegador | [WebAssembly](BUILD_WEB.pt-BR.md) |
-| Testes | [Validação](BUILD_VALIDATION.pt-BR.md) |
-| Licenças e procedência | [Auditoria do repositório](LICENSING.pt-BR.md) · [Avisos de terceiros](../THIRD_PARTY_NOTICES.md) |
+| Testes | [Validação](BUILD_VALIDATION.pt-BR.md) · [Grupos de teste](TESTING.pt-BR.md) |
+| Licenças e procedência | [Auditoria do repositório](LICENSING.pt-BR.md) · [Avisos de terceiros](../THIRD_PARTY_NOTICES.pt-BR.md) |
 | CI, artefatos e cache de dependências | [GitHub Actions e vcpkg](CI_VCPKG.pt-BR.md) |
 | Distribuição, callbacks SDL e ZIP | [Deploy e CPack](BUILD_PACKAGES.pt-BR.md) |
+| Launcher unificado e bridges | [Arquitetura do launcher](../launcher/README.pt-BR.md) · [Gerenciador desktop](../launcher/desktop/KotonohaManager/README.pt-BR.md) |
 | Assets e patches | [Overlays e traduções](ASSET_OVERLAYS.pt-BR.md) |
 | Caminhos de arquivos | [Política de diretórios](DIRECTORY_POLICY.pt-BR.md) |
 | Interface, legendas e preferências | [Configurações do motor](ENGINE_SETTINGS.pt-BR.md) |
-| Touchscreen, teclado e controles | [Entrada unificada](INPUT_CONTROLS.pt-BR.md) |
-| Debug UI, applets e versão Git | [Depuração e diagnósticos SDL](DEBUG_TOOLS.pt-BR.md) |
+| Touchscreen, teclado e controles | [Entrada unificada](INPUT_CONTROLS.pt-BR.md) · [Matriz por port](INPUT.pt-BR.md) |
+| Debug UI, applets e versão Git | [Depuração e diagnósticos SDL](DEBUG_TOOLS.pt-BR.md) · [Integração nos ports](PORT_DEBUG_INTEGRATION.pt-BR.md) |
 | Ports de jogos | [Índice de ports](../games/README.pt-BR.md) · [Revisão de compatibilidade](PORT_COMPATIBILITY.pt-BR.md) |
-| Estrutura interna | [Máquinas virtuais](../modules/vms/README.pt-BR.md) · [Provedores](../modules/providers/README.pt-BR.md) |
+| Estrutura interna | [Máquinas virtuais](../modules/vms/README.pt-BR.md) · [Provedores](../modules/providers/README.pt-BR.md) · [Formatos de arquivo](../modules/formats/README.pt-BR.md) |
 
 ## Padrão de documentação
 
@@ -34,8 +35,8 @@ Arquivos `PORT_STATUS.md`, notas datadas em `games/*/docs/`, licenças/avisos de
 
 ## Filesystem virtual experimental
 
-O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, mas a migração dos leitores legados é parcial. A [especificação original](filesystem/SPECIFICATION.pt-BR.md) é a referência; nenhum port deve ser considerado inteiramente migrado sem testes.
+O [Filesystem V2](filesystem/README.pt-BR.md), experimental e somente para leitura, já está na árvore de código da `dev`, enquanto a migração dos leitores legados ocorre de forma incremental. Consulte a [especificação de arquitetura](filesystem/SPECIFICATION.pt-BR.md) como referência de projeto; nenhum port deve ser considerado inteiramente migrado sem verificação.
 
-## Preserva??o do fork ? Windows L4
+## QA do School Days HQ e segurança de dados
 
-Ao integrar o upstream, preserve os testes de paridade visual e funcional do School Days HQ Windows L4 e utilize apenas assets sint?ticos e perfis de teste `--documents` isolados. Nunca siga junctions NTFS em scripts de limpeza nem remova bin?rios retail originais, arquivos GPK, tradu??es privadas, distribui??es QA instaladas ou saves reais. Capturas hist?ricas de QA documentam as condi??es da ?poca, n?o necessariamente o estado atual. O ?ndice anterior do fork est? preservado no arquivo independente pr?-sincroniza??o.
+Preserve a suíte de regressão visual e funcional do School Days HQ (Windows x64 e Android SAF), utilizando apenas fixtures sintéticas e perfis isolados via `--documents` e `--config`. Consulte [FORK_WORKFLOW.pt-BR.md](FORK_WORKFLOW.pt-BR.md) e [KNOWN_STATE.pt-BR.md](KNOWN_STATE.pt-BR.md). Nunca siga junctions NTFS em rotinas de limpeza nem altere binários retail originais, arquivos GPK, traduções privadas, distribuições QA instaladas ou saves pessoais. Capturas históricas de QA documentam as condições da época, não necessariamente cada evolução posterior do motor.

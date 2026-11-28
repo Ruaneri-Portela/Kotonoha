@@ -1,5 +1,7 @@
 # Third-party notices and redistribution boundary
 
+**English (US)** | [Português (Brasil)](THIRD_PARTY_NOTICES.pt-BR.md)
+
 This file documents third-party components known to be used by Kotonoha.
 It is **not** a license grant for those components or for any commercial game.
 
@@ -61,10 +63,11 @@ every Kotonoha implementation was **not fully established** by this audit.
 
 ## Material requiring provenance confirmation
 
-- Splash and platform icons are generated into `design/generated/` by
-  `tools/generate_brand_assets.py` from `design/tokens.json`. Their source is
-  in-repo, so the former `assets/SPLASH.PNG` / `assets/icon.*` provenance
-  review no longer applies; those legacy binaries are being removed.
+- Universal splash and platform icons are generated into `design/generated/` by
+  `tools/generate_brand_assets.py` from `design/tokens.json` (legacy generic
+  `assets/icon.*` binaries were removed). `assets/SPLASH.PNG` and
+  `assets/SchoolDays.ico` are retained strictly as owner-authorized School Days
+  port branding overrides and are not used for generic Kotonoha game ports.
 - `lib/tests/fixtures/SvgTestFont.ttf`: test-only font; origin and embedding
   permission still need to be recorded. Do not copy it into a player bundle.
 - Synthetic game test fixtures should remain traceable to their generators;

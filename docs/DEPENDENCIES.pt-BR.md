@@ -126,6 +126,15 @@ cmake -S . -B build-bad -G Ninja -DKOTONOHA_IMGUI_PROVIDER=SYSTEM
 # CMake Error: Dear ImGui cannot be resolved from SYSTEM packages.
 ```
 
+Todos os builds com vcpkg compartilham o **cache binário padrão do vcpkg**
+(`%LOCALAPPDATA%\vcpkg\archives` no Windows, `~/.cache/vcpkg/archives` no
+Linux/macOS). Nenhum script do Kotonoha sobrescreve `VCPKG_DEFAULT_BINARY_CACHE`,
+portanto um pacote compilado uma vez pela solução Visual Studio é reutilizado
+pelos fluxos CMake/MSVC, MinGW e Xcode/CMake; apenas o diretório de instalação
+é separado por triplet. `KOTONOHA_VS_VCPKG_ROOT` permite apontar a raiz de
+instalação do Visual Studio para um local compartilhado, mantendo o cache padrão
+do vcpkg.
+
 Confira os provedores resolvidos no cache:
 
 ```sh

@@ -55,6 +55,9 @@ void DiscImage::open(const std::filesystem::path &file) {
 bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
   close();
   auto next = std::make_unique<Stream>();
+  // SDL3 expects UTF-8 regardless of the Windows ANSI codepage. Declared
+  // before the Emscripten branch so the fallback `else` body can use it.
+  const auto filename = file.u8string();
 #ifdef __EMSCRIPTEN__
   // Browser assets can come from MEMFS or HTTP Range, neither of which must
   // exist as an SDL disk file. Preserve the random-access DiscImage reader by
@@ -74,8 +77,6 @@ bool DiscImage::tryOpen(const std::filesystem::path &file, std::string *error) {
     }
   } else
 #endif
-    // SDL3 expects UTF-8 regardless of the Windows ANSI codepage.
-    const auto filename = file.u8string();
     next->io.reset(SDL_IOFromFile(filename.c_str(), "rb"));
   if (!next->io) {
     if (error)

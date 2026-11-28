@@ -11,13 +11,13 @@ export VCPKG_ROOT=/caminho/para/vcpkg
 ./gradlew :app:assembleSchoolDaysDebug -Pabis=armeabi-v7a -PbundleGameAssets=false
 ```
 
-Execute dentro de `buildsystems/android/` (PowerShell: defina `$env:VCPKG_ROOT` e use `.\gradlew.bat`). Outros flavors: `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `RealLive`, `Kirikiri`, `LucaSystem` e `Pmail`.
+Execute dentro de `buildsystems/android/` (PowerShell: defina `$env:VCPKG_ROOT` e use `.\gradlew.bat`). Todos os 17 flavors: `Launcher` (hub unificado), `Example`, `Amagami`, `ZeroNoTsukaima`, `SnowRadish`, `SummerRadish`, `MEO`, `KatawaShoujo`, `DokiDoki`, `SchoolDays`, `RealLive`, `Kirikiri`, `LucaSystem`, `Pmail`, `Ponscripter`, `N2System` e `Artemis`.
 
 - APKs ficam em `app/build/outputs/apk/`. ABIs padrão: `arm64-v8a,armeabi-v7a,x86_64`; compile só ARMv7 com `-Pabis=armeabi-v7a`. O ARMv7 exige NEON (`ANDROID_ARM_NEON=ON`, triplet vcpkg `arm-neon-android`), portanto o dispositivo 32 bits deve ter suporte a NEON.
-- Cada flavor tem seu ID próprio e o CMake compila apenas o alvo nativo correspondente.
+- Cada flavor tem seu ID próprio e o CMake compila apenas o alvo nativo correspondente (`KotonohaLauncherCore` no flavor `Launcher`).
 - O Gradle usa o submódulo SDL e dependências do vcpkg. DDLC usa CPython por ABI (`armeabi-v7a` utiliza `arm-neon-android`); prefira uma ABI por build.
 - Gradle inclui `assets/` do motor, mas **exclui `game-assets/` comerciais por padrão**; o Example continua com assets próprios. `-PbundleGameAssets=true` é exclusivo para testes privados autorizados e a variante Android `dist` sempre exclui esses dados. Os recursos são extraídos no início; saves ficam separados.
-- No Android, iOS e WebAssembly (WASM), dados de usuário e saves são armazenados diretamente em `pacote/**` (ignorando o nome do pacote/bundle), enquanto builds desktop standalone usam `Kotonoha/pacote/**`. No modo unificado (`UnifiedLauncher`), o nome do pacote é omitido para os saves.
+- Dados de usuário e saves ficam isolados em `<userData>/Kotonoha/<app-id>/` no desktop e dispositivos móveis (`Android/data/<app-id>/files/Kotonoha/<app-id>/` no Android), enquanto o `UnifiedLauncher` isola os perfis por slug de jogo.
 - Importações de pastas e ZIP no Android utilizam cópia robusta de diretórios e persistência de permissão SAF.
 - O School Days sempre carrega seus 29 GPKs retail externos via SAF;
   -PbundleGameAssets não os incorpora. -PincludeLauncherArt=false desliga

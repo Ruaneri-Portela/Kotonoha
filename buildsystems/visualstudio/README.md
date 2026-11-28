@@ -15,9 +15,9 @@ no CMake invocation, no generated project files at build time.
 | `modules\formats` | 14 `Format_*` | one static library per `modules/formats/*/*` directory |
 | `modules\providers` | 13 `Provider_*` | one static library per `modules/providers/*` directory |
 | `games` | 16 `Game_*Lib` + 16 `Game_*` | one static library per port (`games/*/src`, except `main.cpp`) and one executable compiling only `main.cpp` |
-| `launcher` | `KotonohaLauncherCore`, `KotonohaLauncher` | core sources plus links to all 16 game static libraries; single `main.cpp` |
+| `launcher` | `KotonohaLauncherCore`, `KotonohaGameHost`, `KotonohaLauncher` | core DLL + JNI/C ABI bridges linking all game static libraries, detached game host executable, and unified SDL launcher executable |
 
-Total: 74 projects. `KotonohaEngine` and `KotonohaLauncherCore` are DLLs;
+Total: 75 projects (16 games, 39 modules, 1 engine DLL, 3 launcher projects). `KotonohaEngine` and `KotonohaLauncherCore` are DLLs;
 `GenerateVisualStudioExports.ps1` reproduces CMake's
 `WINDOWS_EXPORT_ALL_SYMBOLS` for them. Each game library has its own `IntDir`,
 so identically named sources in different ports (`Source.cpp`, `Archive.cpp`,
