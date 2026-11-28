@@ -5,7 +5,7 @@
 #include <Kotonoha/routing/SchoolDaysLxhContent.hpp>
 
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <stdexcept>
 #include <system_error>
@@ -50,7 +50,7 @@ std::optional<bool> SchoolDaysLxhPreference::Read(
     return std::nullopt;
   if (std::filesystem::file_size(path, ec) > kMaxIniBytes || ec)
     return std::nullopt;
-  std::ifstream input(path);
+  Kotonoha::Filesystem::InputFile input(path);
   if (!input)
     return std::nullopt;
   std::string line;
@@ -81,7 +81,7 @@ void SchoolDaysLxhPreference::Write(const std::filesystem::path &documentsRoot,
   if (std::filesystem::is_regular_file(path, ec) && !ec) {
     if (std::filesystem::file_size(path, ec) > kMaxIniBytes || ec)
       throw std::runtime_error("Oversized School Days Kotonoha.ini file");
-    std::ifstream input(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
     if (!input)
       throw std::runtime_error("Cannot open School Days Kotonoha.ini");
     contents.assign(std::istreambuf_iterator<char>(input), {});

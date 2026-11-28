@@ -30,7 +30,7 @@
 #include <array>
 #include <cmath>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <limits>
 #include <stdexcept>
@@ -71,12 +71,15 @@ SavedLanguage readLanguagePreference(const fs::path &path) {
   if (path.empty() || !fs::is_regular_file(path, ec) ||
       fs::file_size(path, ec) > 32768 || ec)
     return {};
-  std::ifstream input(path);
+  Kotonoha::Filesystem::InputFile input(path);
   SavedLanguage saved;
   std::getline(input, saved.name);
   std::getline(input, saved.jsonPath);
   std::string thirdLine;
   std::getline(input, thirdLine);
+  for (auto *line : {&saved.name, &saved.jsonPath, &thirdLine}) {
+    if (!line->empty() && line->back() == '\r') line->pop_back();
+  }
   constexpr std::string_view key = "lxh-json=";
   if (thirdLine.rfind(key.data(), 0) == 0)
     saved.lxhJsonPath = thirdLine.substr(key.size());
@@ -216,9 +219,10 @@ bool readLauncherMusicEnabled(const fs::path &path) {
   if (path.empty() || !fs::is_regular_file(path, ec) || ec ||
       fs::file_size(path, ec) > 16 || ec)
     return true;
-  std::ifstream input(path);
+  Kotonoha::Filesystem::InputFile input(path);
   std::string value;
   std::getline(input, value);
+  if (!value.empty() && value.back() == '\r') value.pop_back();
   return value != "off";
 }
 
@@ -232,7 +236,7 @@ int readAspectPreference(const fs::path &root) {
     if (!fs::is_regular_file(file, ec) || ec) continue;
     if (fs::file_size(file, ec) > 131072u || ec)
       throw std::runtime_error("Oversized School Days aspect preference file");
-    std::ifstream input(file);
+    Kotonoha::Filesystem::InputFile input(file);
     if (!input) throw std::runtime_error("Cannot read School Days aspect preference");
     std::string line;
     while (std::getline(input, line)) {
@@ -257,7 +261,7 @@ void writeAspectPreference(const fs::path &root, int preference) {
   if (fs::is_regular_file(path, ec) && !ec) {
     if (fs::file_size(path, ec) > 131072u || ec)
       throw std::runtime_error("Oversized School Days aspect preference file");
-    std::ifstream input(path, std::ios::binary);
+    Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
     if (!input) throw std::runtime_error("Cannot reopen School Days aspect file");
     contents.assign(std::istreambuf_iterator<char>(input), {});
   }
@@ -1197,7 +1201,7 @@ std::string Launcher::resolveStoredShaderPaths(
   if (!fs::is_regular_file(path, ec) || ec) return stored;
   if (fs::file_size(path, ec) > 131072u || ec)
     return fallback("oversized/unreadable");
-  std::ifstream input(path, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
   if (!input) return fallback("cannot read");
   std::string header;
   std::getline(input, header);
@@ -2013,7 +2017,7 @@ bool Launcher::loadLauncherArtwork() {
       const auto length = fs::file_size(candidate, ec);
       if (ec || length == 0 || length > 16 * 1024 * 1024u)
         throw std::runtime_error("invalid artwork size");
-      std::ifstream input(candidate, std::ios::binary);
+      Kotonoha::Filesystem::InputFile input(candidate, std::ios::binary);
       if (!input) throw std::runtime_error("cannot read artwork");
       std::vector<Uint8> bytes((std::istreambuf_iterator<char>(input)), {});
       auto surface = Kotonoha::MediaDecoder::decodePicture(bytes);

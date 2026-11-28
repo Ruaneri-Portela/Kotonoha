@@ -25,7 +25,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <memory>
 #include <optional>
 #include <stdexcept>
@@ -35,7 +35,7 @@ namespace {
 // Per-game Android frame pacing. This does not change script/video time (24fps)
 // or any Windows render loop, and is intentionally separate from device Hz.
 int ReadAndroidFrameLimit(const std::filesystem::path &documents) {
-  std::ifstream input(documents / "Kotonoha.ini");
+  Kotonoha::Filesystem::InputFile input(documents / "Kotonoha.ini");
   std::string line;
   while (std::getline(input, line)) {
     constexpr const char *key = "AndroidFrameLimit=";
@@ -58,7 +58,7 @@ void DevStartupLog(const char *phase, const std::string &detail = {}) noexcept {
     const char *base = SDL_GetBasePath();
     if (!base) return;
     static bool first = true;
-    std::ofstream log(std::filesystem::path(base) / "dev-startup.log",
+    Kotonoha::Filesystem::OutputFile log(std::filesystem::path(base) / "dev-startup.log",
                       first ? std::ios::trunc : std::ios::app);
     first = false;
     if (!log) return;

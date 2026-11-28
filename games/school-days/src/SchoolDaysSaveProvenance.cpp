@@ -7,7 +7,7 @@
 #include <array>
 #include <cstdint>
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iterator>
 #include <limits>
 #include <sstream>
@@ -103,7 +103,7 @@ bool AsciiSceneKey(const std::u16string& input, std::string* out) {
 }
 
 bool ReadDisk(const std::filesystem::path& path, std::vector<uint8_t>* bytes) {
-  std::ifstream file(path, std::ios::binary | std::ios::ate);
+  Kotonoha::Filesystem::InputFile file(path, std::ios::binary | std::ios::ate);
   if (!file) return false;
   const auto end = file.tellg();
   if (end < 0 || static_cast<uintmax_t>(end) >
@@ -254,7 +254,7 @@ bool SchoolDaysSaveProvenance::Publish(
   auto temporary = sidecar;
   temporary += ".tmp";
   {
-    std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
+    Kotonoha::Filesystem::OutputFile output(temporary, std::ios::binary | std::ios::trunc);
     output << payload.str();
     output.close();
     if (!output) {
@@ -284,7 +284,7 @@ SchoolDaysSaveProvenance::Verdict SchoolDaysSaveProvenance::Check(
   if (!std::filesystem::is_regular_file(sidecar, ec) || ec) return Verdict::Untrusted;
   const auto length = std::filesystem::file_size(sidecar, ec);
   if (ec || length == 0 || length > MaxSidecarSize) return Verdict::Untrusted;
-  std::ifstream input(sidecar, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(sidecar, std::ios::binary);
   if (!input) return Verdict::Untrusted;
   const std::string contents(std::istreambuf_iterator<char>{input},
                              std::istreambuf_iterator<char>{});

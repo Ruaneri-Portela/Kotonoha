@@ -7,7 +7,7 @@
 #include <array>
 #include <cctype>
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -104,7 +104,7 @@ inline fs::path ReadSidecar(const std::string &settingsPath) {
   if (!fs::is_regular_file(sidecar, ec) || ec ||
       fs::file_size(sidecar, ec) > 4096 || ec)
     return {};
-  std::ifstream input(sidecar, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(sidecar, std::ios::binary);
   std::string header, directory, trailing;
   if (!std::getline(input, header) || header != "SchoolDaysShaderFolders.v1" ||
       !std::getline(input, directory) || std::getline(input, trailing) ||

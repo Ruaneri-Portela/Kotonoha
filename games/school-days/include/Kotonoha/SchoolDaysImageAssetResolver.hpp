@@ -3,7 +3,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <limits>
 #include <string>
 #include <vector>
@@ -71,7 +71,7 @@ inline bool ReadSchoolDaysAssetReference(const std::string& reference,
         }
         return gSchoolDaysVirtualAssetRead(reference, bytes, error);
     }
-    std::ifstream file(std::filesystem::path(reference), std::ios::binary | std::ios::ate);
+    Kotonoha::Filesystem::InputFile file(std::filesystem::path(reference), std::ios::binary | std::ios::ate);
     if (!file) {
         if (error != nullptr) *error = "School Days asset file could not be opened";
         return false;

@@ -45,7 +45,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <iomanip>
 #include <limits>
 #include <optional>
@@ -2446,7 +2446,7 @@ struct RealLiveRuntime::Impl {
       if (ec || !std::filesystem::is_regular_file(path, ec) ||
           std::filesystem::file_size(path, ec) > 32u * 1024u * 1024u || ec)
         throw std::runtime_error("Invalid REALLIVE read-history file");
-      std::ifstream input(path, std::ios::binary);
+      Kotonoha::Filesystem::InputFile input(path, std::ios::binary);
       if (!input)
         throw std::runtime_error("Cannot open REALLIVE read-history file");
       const auto restored = readReadHistory(input);

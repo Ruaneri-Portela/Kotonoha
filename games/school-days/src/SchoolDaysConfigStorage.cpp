@@ -7,7 +7,6 @@
 #include <charconv>
 #include <cmath>
 #include <cstdio>
-#include <fstream>
 #include <limits>
 #include <unordered_map>
 
@@ -63,7 +62,7 @@ bool ReadWholeFile(const std::filesystem::path& path,
                    std::vector<uint8_t>* bytes, std::string* error) {
     if (bytes == nullptr) return Fail(error, "Config.DAT read output is null");
     bytes->clear();
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
+    Kotonoha::Filesystem::InputFile file(path, std::ios::binary | std::ios::ate);
     if (!file) return Fail(error, "Config.DAT could not be opened for read");
     const auto end = file.tellg();
     if (end < 0 || static_cast<uintmax_t>(end) >

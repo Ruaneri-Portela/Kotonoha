@@ -6,7 +6,7 @@
 // a player's installation or retail GPK are serialized.
 
 #include <filesystem>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 #include <algorithm>
 #include <cctype>
 #include <map>
@@ -42,7 +42,7 @@ inline std::string Read(const std::string &settingsFile) {
   if (!fs::is_regular_file(file, ec) || ec ||
       fs::file_size(file, ec) > 256 || ec)
     throw std::runtime_error("Invalid School Days native-language profile");
-  std::ifstream input(file, std::ios::binary);
+  Kotonoha::Filesystem::InputFile input(file, std::ios::binary);
   std::string marker, locale, extra;
   if (!std::getline(input, marker) || !std::getline(input, locale))
     throw std::runtime_error("Malformed translation-pack.txt (native GPK profile)");

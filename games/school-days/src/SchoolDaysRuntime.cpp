@@ -64,7 +64,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <deque>
-#include <fstream>
 #include <iterator>
 #include <limits>
 #include <mutex>
@@ -585,7 +584,7 @@ std::filesystem::path RemasterDisplaySettingsPath(
 }
 
 int LoadRemasterAspectPreference(const std::filesystem::path &documents) {
-  std::ifstream input(RemasterDisplaySettingsPath(documents));
+  Kotonoha::Filesystem::InputFile input(RemasterDisplaySettingsPath(documents));
   if (!input) input.open(documents / "RemasterDisplay.ini");
   std::string line;
   while (std::getline(input, line)) {

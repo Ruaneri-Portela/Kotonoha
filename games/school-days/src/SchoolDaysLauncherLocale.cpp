@@ -4,7 +4,7 @@
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 
 namespace Kotonoha::SchoolDaysLauncherLocale {
 namespace {
@@ -1021,11 +1021,12 @@ std::optional<Language> ReadPreference(const std::string &settingsPath) {
   if (file.empty() || !std::filesystem::is_regular_file(file, ec) || ec ||
       std::filesystem::file_size(file, ec) > 64 || ec)
     return std::nullopt;
-  std::ifstream input(file);
+  Kotonoha::Filesystem::InputFile input(file);
   if (!input)
     return std::nullopt;
   std::string line;
   std::getline(input, line);
+  if (!line.empty() && line.back() == '\r') line.pop_back();
   return ParseCode(line);
 }
 

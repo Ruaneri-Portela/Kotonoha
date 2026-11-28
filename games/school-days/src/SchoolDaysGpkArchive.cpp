@@ -8,7 +8,6 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
-#include <fstream>
 #include <limits>
 #include <utility>
 
@@ -269,7 +268,7 @@ void SchoolDaysGpkArchive::Close() {
 std::unique_ptr<std::istream> SchoolDaysGpkArchive::OpenStream() const {
   if (source_)
     return ArchiveInput(path_, source_);
-  return std::make_unique<std::ifstream>(path_, std::ios::binary);
+  return std::make_unique<Kotonoha::Filesystem::InputFile>(path_, std::ios::binary);
 }
 
 bool SchoolDaysGpkArchive::Open(

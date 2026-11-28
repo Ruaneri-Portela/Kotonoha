@@ -1,7 +1,7 @@
 #include "SchoolDaysPresencePreference.hpp"
 
 #include <Kotonoha/Filesystem/StoragePaths.hpp>
-#include <fstream>
+#include <Kotonoha/Filesystem/Adapters/StreamAdapter.hpp>
 
 namespace SchoolDays {
 namespace {
@@ -13,7 +13,7 @@ std::filesystem::path preference(const std::filesystem::path &settings) {
 bool readPresencePreference(const std::filesystem::path &settingsPath) {
   if (settingsPath.empty())
     return false;
-  std::ifstream file(preference(settingsPath), std::ios::binary);
+  Kotonoha::Filesystem::InputFile file(preference(settingsPath), std::ios::binary);
   char bytes[4]{};
   file.read(bytes, sizeof(bytes));
   return file.eof() && file.gcount() == 3 && bytes[0] == 'o' &&
