@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Prepare vcpkg and BeeWare CPython 3.15 for Kotonoha on Apple platforms.
 
-vcpkg is never downloaded: it must already exist, discovered via $VCPKG_ROOT
-(or --vcpkg-executable / $VCPKG_EXE).
+Xcode builds only check the prepared dependency directories. Manual preparation
+uses an existing vcpkg via $VCPKG_ROOT (or --vcpkg-executable / $VCPKG_EXE);
+no automatic search or bootstrap is performed.
 
 Source archives are cached in build/<platform>-deps/python; Python.xcframework
 is installed to buildsystems/xcode/python/<platform> for Xcode's references.
@@ -439,6 +440,7 @@ VCPKG_LINK_LIBRARIES = (
     "json-c", "ass", "harfbuzz", "fribidi", "freetype", "fontconfig",
     "brotlidec", "brotlicommon", "expat", "png", "unibreak",
     "avcodec", "avformat", "avutil", "swresample", "swscale",
+    "SDL3", "SDL3_ttf", "imgui",
 )
 
 
@@ -486,33 +488,20 @@ def missing_vcpkg_libraries(triplet: str, root: Path) -> list[str]:
 
 
 def resolve_vcpkg(explicit: Path | None) -> Path:
-    """Locate an existing vcpkg executable, primarily via $VCPKG_ROOT.
-
-    This script never downloads or bootstraps vcpkg. An explicit executable
-    (--vcpkg-executable / $VCPKG_EXE) takes precedence; otherwise $VCPKG_ROOT
-    is searched first, followed by a few conventional local locations.
-    """
-    candidates: list[Path] = []
+    """Manual preparation uses only an explicitly configured tool."""
     if explicit is not None:
-        candidates.append(explicit.expanduser())
+        path = explicit.expanduser()
     elif os.environ.get("VCPKG_EXE"):
-        candidates.append(Path(os.environ["VCPKG_EXE"]).expanduser())
+        path = Path(os.environ["VCPKG_EXE"]).expanduser()
+    elif os.environ.get("VCPKG_ROOT"):
+        path = Path(os.environ["VCPKG_ROOT"]).expanduser() / "vcpkg"
     else:
-        if os.environ.get("VCPKG_ROOT"):
-            candidates.append(Path(os.environ["VCPKG_ROOT"]).expanduser() / "vcpkg")
-        exe_in_path = shutil.which("vcpkg")
-        if exe_in_path:
-            candidates.append(Path(exe_in_path))
-        candidates.append(Path.home() / ".local/vcpkg/vcpkg")
-        candidates.extend((ROOT / "vcpkg/vcpkg", ROOT / "tools/vcpkg/vcpkg", ROOT / "out/tools/vcpkg/vcpkg"))
-    for path in candidates:
-        if path.is_file() and os.access(path, os.X_OK):
-            return path.resolve()
-    if explicit is not None or os.environ.get("VCPKG_EXE"):
-        raise FileNotFoundError(f"Requested vcpkg executable not found: {candidates[0]}")
+        path = ROOT / "vcpkg/vcpkg"
+    if path.is_file() and os.access(path, os.X_OK):
+        return path.resolve()
     raise FileNotFoundError(
-        "vcpkg executable not found; set VCPKG_ROOT to an existing vcpkg checkout "
-        "(this script never downloads or bootstraps vcpkg)")
+        f"vcpkg executable not found at {path}; set VCPKG_ROOT to your existing "
+        "checkout and run tools/PrepareApple.py manually.")
 
 
 @contextlib.contextmanager
@@ -533,24 +522,31 @@ def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path
         say("vcpkg preparation skipped by --vcpkg skip")
         return
     manifest = ROOT / "vcpkg.json"
-    env = apple_tool_env()
     overlays = ROOT / "vcpkg-overlays"
     for selected_sdk in sdk_variants(platform, sdk):
         for arch in vcpkg_archs(selected_sdk):
             triplet, root = vcpkg_variant(selected_sdk, arch)
+            if mode == "check":
+                missing = missing_vcpkg_libraries(triplet, root)
+                if missing:
+                    platform_arg = "macos" if selected_sdk == "macosx" else "ios"
+                    raise RuntimeError(
+                        f"Missing prepared dependencies at {root / triplet}: "
+                        f"{', '.join(missing)}. Run from the repository root: "
+                        f"python3 tools/PrepareApple.py --platform {platform_arg} "
+                        f"--sdk {selected_sdk} --only-vcpkg")
+                say(f"Verified vcpkg ({selected_sdk}/{arch}, {triplet}): {root}")
+                continue
             with install_lock(f"{selected_sdk}-{arch}"):
                 missing = missing_vcpkg_libraries(triplet, root)
                 if mode != "install" and not missing:
                     say(f"Verified vcpkg ({selected_sdk}/{arch}, {triplet}): {root}")
                     continue
-                if mode == "check":
-                    raise RuntimeError(
-                        f"Missing vcpkg libraries for {triplet} ({selected_sdk}/{arch}): "
-                        f"{', '.join(missing)}. Run with --vcpkg auto.")
                 if not manifest.is_file():
                     raise FileNotFoundError(
                         f"Missing {manifest}; copy the integration to the root of the original Kotonoha repository")
                 tool = resolve_vcpkg(executable)
+                env = apple_tool_env()
                 say(f"Preparing vcpkg ({selected_sdk}/{arch}, {triplet}) in {root}")
                 # --x-install-root puts each triplet at the path referenced by the
                 # Xcode .xcconfig files. The repo vcpkg.json drives packages.
@@ -617,6 +613,7 @@ def main() -> int:
         args.platform = ("macos" if platform_name == "macosx" else "ios")
         args.sdk = platform_name
         args.only_vcpkg = True
+        args.vcpkg = "check"
         args.configuration = os.environ.get("CONFIGURATION", "Debug")
     if args.only_python and args.only_vcpkg:
         parser.error("--only-vcpkg and --only-python are mutually exclusive")
@@ -638,12 +635,12 @@ def main() -> int:
             args.sdk = "iphonesimulator"
         elif "iphoneos" in sdkroot:
             args.sdk = "iphoneos"
-        else:
-            args.sdk = "iphonesimulator"
     if args.sdk:
         sdk_variants(selected, args.sdk)
     try:
         say(f"Preparing Apple dependencies, platform={selected}, SDK={args.sdk or 'all'}")
+        if not args.only_python and args.vcpkg == "check":
+            prepare_vcpkg(platform=selected, sdk=args.sdk, mode="check", executable=None)
         prepare_visual_assets(platform=selected)
         if not args.only_vcpkg:
             if selected in ("ios", "all"):
@@ -658,7 +655,7 @@ def main() -> int:
                     checksum=args.macos_sha256, force_download=args.force_download,
                 )
                 prepare_macos(macos, force_prepare=args.force_prepare or args.force_download or args.macos_archive is not None)
-        if not args.only_python:
+        if not args.only_python and args.vcpkg != "check":
             prepare_vcpkg(platform=selected, sdk=args.sdk, mode=args.vcpkg, executable=args.vcpkg_executable)
     except (OSError, RuntimeError, ValueError, tarfile.TarError, urllib.error.URLError,
             subprocess.CalledProcessError) as exc:

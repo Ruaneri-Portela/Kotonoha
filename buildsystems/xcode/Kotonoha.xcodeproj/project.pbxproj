@@ -6658,7 +6658,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios --vcpkg check";
 		};
 		46562E8C221C482B7284183A /* Install shared macOS app icon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -7263,7 +7263,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios --vcpkg check";
 		};
 		A9BA1E88A9BA1E88A9BA1E88 /* Prepare CPython SDK before linking (direct target builds) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -7278,7 +7278,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos --vcpkg check";
 		};
 		AC5F1CB868293E7CFBFF56A0 /* Install shared macOS app icon */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -7370,7 +7370,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos --vcpkg check";
 		};
 		B6B6000000000000000000BC /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -7598,7 +7598,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform ios --vcpkg check";
 		};
 		D7D7000000000000000000CE /* Embed SDL3 + SDL3_ttf and Verify Assets */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -7872,7 +7872,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos";
+			shellScript = "/usr/bin/env python3 \"${SRCROOT}/../../tools/PrepareApple.py\" --platform macos --vcpkg check";
 		};
 /* End PBXShellScriptBuildPhase section */
 
