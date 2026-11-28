@@ -13,14 +13,12 @@
 		F2F000000000000000000101 /* SchoolDaysAssetMount.cpp in Sources */ = {isa = PBXBuildFile; fileRef = F2F000000000000000000001 /* SchoolDaysAssetMount.cpp */; };
 		F2E000000000000000000002 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
 		F2E000000000000000000001 /* SchoolDaysRuntimePresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2E3C944C1ECD2E2243DCFEC5 /* SchoolDaysRuntimePresence.cpp */; };
-		F2D000000000000000000102 /* rich in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* rich */; };
-		F2D000000000000000000002 /* rich in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* rich */; };
-		F2C000000000000000000204 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
+		F2D000000000000000000102 /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
+		F2D000000000000000000002 /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
 		F2C000000000000000000104 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		F2C000000000000000000101 /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
 		F2C000000000000000000102 /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
 		F2C000000000000000000103 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
-		F2C000000000000000000004 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		F2C000000000000000000001 /* SchoolDaysPresencePolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 2D82F2DA9F3E164016ED8D03 /* SchoolDaysPresencePolicy.cpp */; };
 		F2C000000000000000000002 /* SchoolDaysPresencePreference.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 214CB1BFEC5AB7168B53A68B /* SchoolDaysPresencePreference.cpp */; };
 		F2C000000000000000000003 /* SchoolDaysDiscordPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 0651FAE21E7E432CD89F4384 /* SchoolDaysDiscordPresence.cpp */; };
@@ -1298,6 +1296,8 @@
 		CB0B5914D336F2CDC235190B /* RichPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = B55FEFD0E27935F752B91119 /* RichPresence.cpp */; };
 		A1C714F2D16DA5183C979CB0 /* NullPresence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 279A29EC61457F4BDA33EE6C /* NullPresence.cpp */; };
 		D1C000000000000000000002 /* DiscordUnix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1C000000000000000000001 /* DiscordUnix.cpp */; };
+		D1C000000000000000000003 /* DiscordUnix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1C000000000000000000001 /* DiscordUnix.cpp */; };
+		D1C000000000000000000004 /* DiscordUnix.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D1C000000000000000000001 /* DiscordUnix.cpp */; };
 		D7D700000000000000000088 /* SchoolDaysSaveFeelModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = C87403999D2B9C01A08AF7EF /* SchoolDaysSaveFeelModel.cpp */; };
 		D7D700000000000000000089 /* SchoolDaysSaveFeelRenderPlan.cpp in Sources */ = {isa = PBXBuildFile; fileRef = CC4D2C5469D80A95E62440C6 /* SchoolDaysSaveFeelRenderPlan.cpp */; };
 		D7D70000000000000000008A /* SchoolDaysSaveLoadModel.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 71A9BEB3F5D3A20614522643 /* SchoolDaysSaveLoadModel.cpp */; };
@@ -8342,7 +8342,7 @@
 			files = (
 				F2F000000000000000000102 /* SchoolDaysAssetMount.cpp in Sources */,
 				F2E000000000000000000002 /* SchoolDaysRuntimePresence.cpp in Sources */,
-				F2D000000000000000000102 /* rich in Sources */,
+				F2D000000000000000000102 /* RichPresence.cpp in Sources */,
 				F2C000000000000000000103 /* SchoolDaysDiscordPresence.cpp in Sources */,
 				F2C000000000000000000102 /* SchoolDaysPresencePreference.cpp in Sources */,
 				F2C000000000000000000101 /* SchoolDaysPresencePolicy.cpp in Sources */,
@@ -9228,11 +9228,11 @@
 			files = (
 				F2F000000000000000000101 /* SchoolDaysAssetMount.cpp in Sources */,
 				F2E000000000000000000001 /* SchoolDaysRuntimePresence.cpp in Sources */,
-				F2D000000000000000000002 /* rich in Sources */,
+				F2D000000000000000000002 /* RichPresence.cpp in Sources */,
 				F2C000000000000000000003 /* SchoolDaysDiscordPresence.cpp in Sources */,
 				F2C000000000000000000002 /* SchoolDaysPresencePreference.cpp in Sources */,
 				F2C000000000000000000001 /* SchoolDaysPresencePolicy.cpp in Sources */,
-				F2C000000000000000000004 /* NullPresence.cpp in Sources */,
+				D1C000000000000000000003 /* DiscordUnix.cpp in Sources */,
 				F2B000000000000000000101 /* SchoolDaysAssets.cpp in Sources */,
 				F2B000000000000000000102 /* SchoolDaysDisplayNarrativeMarkup.cpp in Sources */,
 				F2B000000000000000000103 /* SchoolDaysGpkArchive.cpp in Sources */,
@@ -9553,7 +9553,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				F2F000000000000000000103 /* SchoolDaysAssetMount.cpp in Sources */,
-				F2C000000000000000000204 /* NullPresence.cpp in Sources */,
 				F2B000000000000000000101 /* SchoolDaysAssets.cpp in Sources */,
 				F2B000000000000000000102 /* SchoolDaysDisplayNarrativeMarkup.cpp in Sources */,
 				F2B000000000000000000103 /* SchoolDaysGpkArchive.cpp in Sources */,
@@ -9577,7 +9576,7 @@
 				ABA81BE967C68859D6D7C21F /* SchoolDaysPresencePolicy.cpp in Sources */,
 				8DB01CBA3C007AA6FB489BF6 /* SchoolDaysRuntimePresence.cpp in Sources */,
 				CFF75D8EC66F9A35084021F7 /* RichPresence.cpp in Sources */,
-				D1C000000000000000000002 /* DiscordUnix.cpp in Sources */,
+				D1C000000000000000000004 /* DiscordUnix.cpp in Sources */,
 				6C94BEA7E336684115EE10E7 /* SchoolDaysLauncher.cpp in Sources */,
 				AE978CA769A76FAA1AE5A8EC /* SchoolDaysReplayRenderPlan.cpp in Sources */,
 				35B6C77D0C68A57C2A90B7C3 /* KtrfAssetResolver.cpp in Sources */,

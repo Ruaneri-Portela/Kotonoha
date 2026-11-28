@@ -2,6 +2,12 @@ name: Xcode macOS and iOS scheme validation
 
 on:
   workflow_dispatch:
+  push:
+    branches: [dev]
+    paths:
+      - "buildsystems/xcode/**"
+      - "tools/check_xcode_presence.py"
+      - ".github/workflows/xcode.yml"
   pull_request:
     paths:
       - "buildsystems/xcode/**"
@@ -31,6 +37,9 @@ jobs:
           - platform: macOS-arm64
             sdk: macosx
             scheme: KotonohaExample (macOS)
+          - platform: macOS-launcher
+            sdk: macosx
+            scheme: KotonohaLauncher (macOS)
           - platform: iOS-simulator-arm64
             sdk: iphonesimulator
             scheme: KotonohaExample (iOS)
@@ -38,7 +47,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate project metadata
-        run: python3 tools/ValidateBuildMetadata.py
+        run: |
+          python3 tools/ValidateBuildMetadata.py
+          python3 tools/check_xcode_presence.py
       - name: Check Xcode schemes and build configuration
         run: |
           xcodebuild -version

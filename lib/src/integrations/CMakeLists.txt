@@ -51,6 +51,7 @@ if(BUILD_TESTING AND NOT ANDROID AND NOT EMSCRIPTEN)
     add_executable(KotonohaRichPresenceTest ../../tests/RichPresenceTest.cpp)
     target_link_libraries(KotonohaRichPresenceTest PRIVATE kotonoha_rich_presence Threads::Threads)
     add_test(NAME Kotonoha.RichPresence COMMAND KotonohaRichPresenceTest)
+    set_tests_properties(Kotonoha.RichPresence PROPERTIES TIMEOUT 10 LABELS synthetic)
 endif()
 
 if(BUILD_TESTING AND KOTONOHA_BUILD_RICH_PRESENCE AND UNIX

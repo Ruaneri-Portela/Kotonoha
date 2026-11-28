@@ -2,11 +2,11 @@
 
 **English (US)** | [Portugu?s (Brasil)](RICH_PRESENCE.pt-BR.md)
 
-The `kotonoha_rich_presence` static CMake target is a reusable, opt-in transport. It is not linked into the shared engine or any game by default. No login, token, game assets or Discord SDK binaries are included.
+The `kotonoha_rich_presence` static CMake target is a reusable, opt-in transport. It is not linked into the shared engine; consumers can link it even when RPC is disabled, in which case it supplies the null transport. No login, token, game assets or Discord SDK binaries are included.
 
 ## Build and use
 
-Configure a desktop build with `-DKOTONOHA_BUILD_RICH_PRESENCE=ON`. Link `kotonoha_rich_presence` into the consuming game target and include `<Kotonoha/integrations/RichPresence.hpp>`. Windows uses a named pipe; Linux and macOS use a local Unix domain socket; Android uses the optional Social SDK. RPC is disabled on **WebAssembly and iOS**, where `KOTONOHA_HAS_DISCORD_RPC` is 0. On macOS the native Xcode targets compile `DiscordUnix.cpp`; iOS keeps the null transport.
+Configure a desktop build with `-DKOTONOHA_BUILD_RICH_PRESENCE=ON`. Link `kotonoha_rich_presence` into the consuming game target and include `<Kotonoha/integrations/RichPresence.hpp>`. Windows uses a named pipe; Linux and macOS use a local Unix domain socket; Android uses the optional Social SDK. RPC is disabled on **WebAssembly and iOS**, where `KOTONOHA_HAS_DISCORD_RPC` is 0. On macOS the native Xcode launcher, detached host's launcher core and standalone consuming app compile `DiscordUnix.cpp` exactly once per target; iOS keeps the null transport. The Discord desktop application must be running in the same user session. The socket lookup also uses the Darwin per-user temporary directory, so apps started from Finder do not depend on a shell environment.
 
 The game owns its opt-in setting, Discord application ID, and a sanitized activity policy. Check `platformPresenceAvailable()` before constructing a session. Create a transport using `discordPlatform(applicationId, largeImage, applicationName)`, then create `RichPresence` with the transport, Unix start time in seconds, `RichPresence::Timing{}`, and the game display name. The name is always published; `setDetails()` appends curated text and `setState()` selects Menu/Loading/Gameplay. Destroy the session before shutting down its host. Never publish dialogue, player choices, filesystem paths, credentials, or other sensitive data.
 
@@ -18,4 +18,5 @@ The optional Android transport requires the separately obtained official Discord
 
 ## Tests
 
-Build `KotonohaRichPresenceTest` with `BUILD_TESTING=ON` and `KOTONOHA_BUILD_RICH_PRESENCE=ON`, then run `ctest --test-dir build -R '^Kotonoha.RichPresence$' --output-on-failure`. The test uses a fake transport; it does not connect to Discord.
+Build `KotonohaRichPresenceTest` with `BUILD_TESTING=ON` and `KOTONOHA_BUILD_RICH_PRESENCE=ON`, then run `ctest --test-dir build -R '^Kotonoha.RichPresence$' --output-on-failure`. The test uses a fake transport; it does not connect to Discord. On Unix desktops also build `KotonohaDiscordUnixTest` and run `ctest --test-dir build -R '^Kotonoha\.(RichPresence|DiscordUnix)
+ --output-on-failure`. The IPC test uses an isolated local fake server to exercise socket fallback, fragmented frames, handshake, activity, ping/pong and clearing. GitHub Actions runs both tests on macOS and Linux.

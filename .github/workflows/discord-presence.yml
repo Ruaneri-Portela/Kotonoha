@@ -4,6 +4,8 @@ on:
   push:
     branches: [main, dev]
     paths:
+      - "buildsystems/xcode/Kotonoha.xcodeproj/project.pbxproj"
+      - "tools/check_xcode_presence.py"
       - "lib/src/integrations/**"
       - "lib/include/Kotonoha/integrations/**"
       - "lib/tests/RichPresenceTest.cpp"
@@ -11,6 +13,8 @@ on:
       - ".github/workflows/discord-presence.yml"
   pull_request:
     paths:
+      - "buildsystems/xcode/Kotonoha.xcodeproj/project.pbxproj"
+      - "tools/check_xcode_presence.py"
       - "lib/src/integrations/**"
       - "lib/include/Kotonoha/integrations/**"
       - "lib/tests/RichPresenceTest.cpp"
@@ -26,6 +30,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+      - name: Check Xcode RPC transport ownership
+        run: python3 tools/check_xcode_presence.py
       - name: Install json-c
         shell: bash
         run: |
@@ -44,7 +50,7 @@ jobs:
             -o /tmp/kotonoha-presence-test
           /tmp/kotonoha-presence-test
           c++ -std=c++17 -Wall -Wextra -Werror -pthread -Ilib/include \
-            $(pkg-config --cflags json-c) lib/src/integrations/DiscordUnix.cpp \
+            -isystem "$(pkg-config --variable=includedir json-c)" lib/src/integrations/DiscordUnix.cpp \
             lib/tests/DiscordUnixTest.cpp $(pkg-config --libs json-c) \
             -o /tmp/kotonoha-ipc-test
           /tmp/kotonoha-ipc-test
