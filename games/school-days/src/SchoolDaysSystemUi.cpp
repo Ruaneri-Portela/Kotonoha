@@ -805,7 +805,7 @@ bool SchoolDaysSystemUi::OpenConfig(
             SchoolDaysConfigMenuRenderPlan::BaseRelativePath(configMenu_);
         const std::string pageChipLogical =
             SchoolDaysConfigMenuModel::ChipRelativePath(page);
-        if (!ResolveSchoolDaysOverlayFile(pageBaseLogical, nullptr)) {
+        if (!HasSchoolDaysAssetOverride(pageBaseLogical)) {
             const auto displayBase = ResolveSchoolDaysAssetPath(
                 assetsRoot.c_str(),
                 SchoolDaysConfigMenuModel::BaseRelativePath(
@@ -819,7 +819,7 @@ bool SchoolDaysSystemUi::OpenConfig(
                 }
             }
         }
-        if (!ResolveSchoolDaysOverlayFile(pageChipLogical, nullptr)) {
+        if (!HasSchoolDaysAssetOverride(pageChipLogical)) {
             const auto displayChip = ResolveSchoolDaysAssetPath(
                 assetsRoot.c_str(),
                 SchoolDaysConfigMenuModel::ChipRelativePath(

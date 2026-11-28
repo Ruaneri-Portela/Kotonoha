@@ -175,11 +175,12 @@ bool CommonControlAvailable(int control) {
 }
 
 bool ControlAvailable(Model::Page page, int control,
-                      const Plan::VisualState &) {
+                      const Plan::VisualState &state) {
   if (control >= 0 && control <= 3)
     return CommonControlAvailable(control);
   if (page == Model::Page::Def)
-    return control >= 4 && control <= 13;
+    return control >= 4 && control <= 13 &&
+           !(state.defDisplayLocked && control <= 7);
   if (page == Model::Page::Sound)
     return control >= 4 && control <= 43;
   return false;

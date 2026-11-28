@@ -1,4 +1,4 @@
-# Arte externa opcional do School Days HQ (Windows L4)
+# Arte de opções embutida do School Days HQ (Windows e Android)
 
 [English (US)](README.md) | **Português (Brasil)**
 
@@ -8,7 +8,7 @@ pelo usuário permanece fora do Git. A fonte privada preferencial é
 `games/school-days/game-assets/display-options/` continua aceita.
 
 Nenhuma PNG comercial ou arte derivada personalizada é distribuída neste
-repositório. A página Display Options do Windows exige recursos fornecidos
+repositório. A página Display Options personalizada utiliza recursos fornecidos
 pelo usuário em `System/Option/` sob essa pasta privada. A lista completa,
 dimensões e comportamento estão documentados em
 [`PR_PARITY_CONSOLIDATION_2026-11-05.md`](../../PR_PARITY_CONSOLIDATION_2026-11-05.md).
@@ -18,17 +18,21 @@ específicos de Display devem acompanhar `Option_Display.png` e
 `Option_Display_Chip.png`. As 22 regiões estão descritas em
 `display_options_controls.json` para reprodução.
 
-Após colocar os arquivos criados localmente em `System/Option/` privado,
-compile o SchoolDays para Windows. A tarefa CMake `SchoolDaysOptionAssets`
-copia os arquivos para `<diretório de SchoolDays.exe>/overlay/System/Option/`
-em DEV e DIST. Ela usa a fonte privada antiga
-`game-assets/display-options/` somente quando o par
-`Option_Display.png` / `Option_Display.cmap` não estiver completo em
-`game-assets/overlay/`.
+Windows e Android DEV/DIST incorporam os seis recursos aprovados de Display
+ao binário nativo quando presentes na configuração. O gerador verifica seus
+hashes SHA-256. Defina `KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE` como a
+pasta privada e `KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY=ON` para falhar
+se faltarem arquivos. No Android, use as propriedades Gradle
+`schoolDaysDisplayOverlaySource` e `schoolDaysRequireEmbeddedOverlay=true`.
 
-Durante o jogo, tanto o launcher quanto os assets preferem `<exe>/overlay/`
-e recorrem ao legado `<exe>/display-options/` quando falta o novo par
-PNG/CMAP. Um caminho de `--scripts`, `--asset-overlay` ou das configurações
-salvas tem precedência; inclua nele os recursos personalizados, se necessário.
+Somente para QA privado autorizado, os quatro PNGs aprovados de General/Sound
+editados pelo usuário também podem ser incorporados com
+`KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=ON` ou a propriedade Android
+`schoolDaysEmbedPrivateOptionArt=true`. Não redistribua esses binários sem
+permissão. Nenhum byte dos arquivos privados fica no Git.
+
+Não é necessário instalar uma pasta de overlay para a UI embutida. Overrides
+externos existentes continuam opcionais e têm prioridade sobre recursos
+embutidos; os packs retail originais fornecem os demais recursos.
 
 Nunca modifique, reempacote ou substitua `Packs/System.GPK`.

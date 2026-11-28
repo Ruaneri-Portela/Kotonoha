@@ -19,6 +19,11 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+#include "SchoolDaysEmbeddedDisplay.generated.hpp"
+#include <zlib.h>
+#endif
+
 namespace Kotonoha {
 namespace {
 
@@ -33,6 +38,15 @@ std::shared_ptr<const AssetOverlay> gOverlay;
 
 bool Fail(std::string *error, const char *text);
 bool Fail(std::string *error, const std::string &text);
+
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+const EmbeddedDisplay::Resource *FindEmbeddedDisplay(std::string_view logical) {
+  const auto key = AssetOverlay::key(std::string(logical));
+  for (const auto &resource : EmbeddedDisplay::resources)
+    if (key == resource.logical) return &resource;
+  return nullptr;
+}
+#endif
 
 bool RejectTranslatedConfiguration(std::string *error,
                                    const std::string &reason) {
@@ -935,6 +949,15 @@ bool ResolveSchoolDaysOverlayFile(std::string_view logical,
   return true;
 }
 
+bool HasSchoolDaysAssetOverride(std::string_view logical) {
+  if (ResolveSchoolDaysOverlayFile(logical, nullptr)) return true;
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+  return CurrentMount() && FindEmbeddedDisplay(logical);
+#else
+  return false;
+#endif
+}
+
 void UnmountSchoolDaysRetailGpks() {
   std::lock_guard<std::mutex> guard(gMountMutex);
   gMount.reset();
@@ -999,6 +1022,10 @@ LookupMountedSchoolDaysAsset(std::string_view logicalPath, bool ignoreOverlay) {
   if (!ignoreOverlay && ResolveSchoolDaysOverlayFile(logical, nullptr))
     return SchoolDaysGpkLookupStatus::Present;
   const auto mount = CurrentMount();
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+  if (!ignoreOverlay && mount && FindEmbeddedDisplay(logical))
+    return SchoolDaysGpkLookupStatus::Present;
+#endif
   return mount != nullptr ? mount->Lookup(CanonicalGpkLogical(logical))
                           : SchoolDaysGpkLookupStatus::Missing;
 }
@@ -1029,6 +1056,27 @@ bool ReadMountedSchoolDaysAsset(std::string_view logicalPath,
   const auto mount = CurrentMount();
   if (mount == nullptr)
     return Fail(error, "School Days retail GPKs are not mounted");
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+  if (!ignoreOverlay) {
+    if (const auto *resource = FindEmbeddedDisplay(logical)) {
+      if (!out) return Fail(error, "School Days asset output is null");
+      out->clear();
+      try {
+        out->resize(resource->size);
+      } catch (...) {
+        return Fail(error, "School Days asset buffer allocation failed");
+      }
+      uLongf size = static_cast<uLongf>(out->size());
+      if (uncompress(out->data(), &size, resource->data,
+                     static_cast<uLong>(resource->compressedSize)) != Z_OK ||
+          size != resource->size) {
+        out->clear();
+        return Fail(error, "Embedded School Days Display asset is corrupt");
+      }
+      return true;
+    }
+  }
+#endif
   return mount->Read(CanonicalGpkLogical(logical), out, error);
 }
 
@@ -1069,6 +1117,9 @@ std::unique_ptr<AssetStream> OpenMountedSchoolDaysAssetStream(
         (!ignoreOverlay && ResolveSchoolDaysOverlayFile(logical, nullptr))) return {};
     const auto mount = CurrentMount();
     if (mount == nullptr) return {};
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+    if (!ignoreOverlay && FindEmbeddedDisplay(logical)) return {};
+#endif
     size_t archiveIndex = 0u;
     size_t entryIndex = 0u;
     const std::string canonical = CanonicalGpkLogical(logical);

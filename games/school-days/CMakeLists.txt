@@ -221,50 +221,80 @@ kotonoha_preload_asset(SchoolDays
     "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/school-days-hq.ktnroute"
     "/game-assets/school-days-hq.ktnroute")
 
-# Stage user-supplied options into the standard <exe>/overlay directory,
-# independently of the commercial System.GPK. Accept the older private source
-# tree when game-assets/overlay has not been supplied yet.
-if(WIN32 AND NOT ANDROID)
-    set(_school_days_overlay_source
-        "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/overlay")
-    set(_school_days_overlay_legacy
-        "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/display-options")
-    set(KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE
-        "${_school_days_overlay_source}"
-        CACHE PATH "Private School Days HQ option artwork source")
-    set(SCHOOL_DAYS_DISPLAY_OVERLAY "${KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE}")
-    # A previous CMake cache may still contain the old default source.
-    # Migrate that known default while preserving other custom source paths.
-    if(SCHOOL_DAYS_DISPLAY_OVERLAY STREQUAL _school_days_overlay_legacy)
-        set(SCHOOL_DAYS_DISPLAY_OVERLAY "${_school_days_overlay_source}")
-    endif()
-    # Check the fallback on every build so newly supplied standard artwork
-    # takes precedence without reconfiguring. Other custom cache paths win.
-    set(_school_days_overlay_fallback "")
-    if(SCHOOL_DAYS_DISPLAY_OVERLAY STREQUAL _school_days_overlay_source)
-        set(_school_days_overlay_fallback "${_school_days_overlay_legacy}")
-    endif()
-    if((NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.png" OR
-        NOT EXISTS "${SCHOOL_DAYS_DISPLAY_OVERLAY}/System/Option/Option_Display.cmap") AND
-       (NOT _school_days_overlay_fallback OR
-        NOT EXISTS "${_school_days_overlay_fallback}/System/Option/Option_Display.png" OR
-        NOT EXISTS "${_school_days_overlay_fallback}/System/Option/Option_Display.cmap"))
-        message(WARNING "School Days HQ Display Options PNG/CMAP missing under: ${SCHOOL_DAYS_DISPLAY_OVERLAY}")
-    endif()
-    # Stage the custom options beside SchoolDays.exe as well, so a clean
-    # distribution does not silently lose them when moved from its build tree.
-    set(_school_days_overlay_output "${_school_days_runtime_output}/overlay")
-    # Always sync assets, including edits made without recompiling C++.
-    add_custom_target(SchoolDaysOptionAssets
-        COMMAND "${CMAKE_COMMAND}"
-            "-DKOTONOHA_ASSET_KIND=display-options"
-            "-DKOTONOHA_ASSET_SOURCE=${SCHOOL_DAYS_DISPLAY_OVERLAY}"
-            "-DKOTONOHA_ASSET_FALLBACK_SOURCE=${_school_days_overlay_fallback}"
-            "-DKOTONOHA_ASSET_DESTINATION=${_school_days_overlay_output}"
-            -P "${CMAKE_CURRENT_SOURCE_DIR}/windows/StageOptionalAssets.cmake"
-        COMMENT "Syncing School Days option artwork (retail System.GPK unchanged)"
+# Embed approved custom Display UI, identically in Windows and Android
+# DEV/DIST. Retail-derived General/Sound edits require an explicit private QA
+# opt-in. Source bytes and the generated header stay outside Git.
+set(_school_days_overlay_source "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/overlay")
+set(_school_days_overlay_legacy "${CMAKE_CURRENT_SOURCE_DIR}/game-assets/display-options")
+set(KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE "" CACHE PATH
+    "Private source of approved School Days Display artwork")
+option(KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY
+    "Fail configuration without the approved embedded Display UI" OFF)
+option(KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART
+    "Embed exact user-edited retail General/Sound art for private QA only" OFF)
+set(_school_days_embed_source "${KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE}")
+if(NOT _school_days_embed_source AND DEFINED ENV{KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE})
+    set(_school_days_embed_source "$ENV{KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE}")
+endif()
+set(_school_days_embed_files
+    Option_Display.png Option_Display_Chip.png Option_Display.cmap
+    Option_Display_Wide.cmap Option_Display_Wide_Full.cmap Option_Display_Wide_Note.cmap)
+set(_school_days_embed_flags "")
+set(_school_days_embed_mode display)
+if(KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART)
+    list(APPEND _school_days_embed_files
+        Option_Def.png Option_Def_Chip.png Option_Sound.png Option_Sound_Chip.png)
+    list(APPEND _school_days_embed_flags --private-option-art)
+    set(_school_days_embed_mode private)
+    message(WARNING "Private School Days General/Sound artwork enabled; do not redistribute these binaries without permission")
+endif()
+if(NOT _school_days_embed_source OR
+   _school_days_embed_source STREQUAL _school_days_overlay_source OR
+   _school_days_embed_source STREQUAL _school_days_overlay_legacy)
+    set(_school_days_embed_source "")
+    foreach(_candidate IN ITEMS "${_school_days_overlay_source}" "${_school_days_overlay_legacy}")
+        set(_complete TRUE)
+        foreach(_name IN LISTS _school_days_embed_files)
+            if(NOT EXISTS "${_candidate}/System/Option/${_name}")
+                set(_complete FALSE)
+            endif()
+        endforeach()
+        if(_complete)
+            set(_school_days_embed_source "${_candidate}")
+            break()
+        endif()
+    endforeach()
+endif()
+if(_school_days_embed_source)
+    set(_school_days_embed_dependencies "")
+    foreach(_name IN LISTS _school_days_embed_files)
+        set(_file "${_school_days_embed_source}/System/Option/${_name}")
+        if(NOT EXISTS "${_file}")
+            message(FATAL_ERROR "Missing approved Display UI resource: ${_file}")
+        endif()
+        list(APPEND _school_days_embed_dependencies "${_file}")
+    endforeach()
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(_school_days_embed_script "${CMAKE_CURRENT_SOURCE_DIR}/tools/embed_display_overlay.py")
+    set(_school_days_embed_dir "${CMAKE_CURRENT_BINARY_DIR}/generated/${_school_days_embed_mode}")
+    set(_school_days_embed_header "${_school_days_embed_dir}/SchoolDaysEmbeddedDisplay.generated.hpp")
+    add_custom_command(OUTPUT "${_school_days_embed_header}"
+        COMMAND "${Python3_EXECUTABLE}" "${_school_days_embed_script}"
+            "${_school_days_embed_source}" "${_school_days_embed_header}" ${_school_days_embed_flags}
+        DEPENDS "${_school_days_embed_script}" ${_school_days_embed_dependencies}
+        COMMENT "Embedding approved School Days Display UI resources"
         VERBATIM)
-    add_dependencies(SchoolDays SchoolDaysOptionAssets)
+    target_sources(school_days PRIVATE "${_school_days_embed_header}")
+    target_include_directories(school_days PRIVATE "${_school_days_embed_dir}")
+    target_compile_definitions(school_days PUBLIC KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY=1)
+    if(KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART)
+        target_compile_definitions(school_days PUBLIC KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=1)
+    endif()
+elseif(KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY OR
+       KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART)
+    message(FATAL_ERROR "Approved private School Days Display UI source is required")
+else()
+    message(STATUS "School Days embedded Display UI omitted (private artwork not supplied)")
 endif()
 
 if(BUILD_TESTING AND NOT ANDROID)

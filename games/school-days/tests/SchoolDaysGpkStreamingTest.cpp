@@ -392,6 +392,51 @@ int main(int argc, char **argv) {
       SchoolDays::Assets virtualAssets(rootWithoutPacks, {}, false, inner);
       for (const auto &logical : Kotonoha::SchoolDaysLxhContent::PackEntries())
         CheckIntegratedReadAndSeek(virtualAssets, logical);
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBEDDED_DISPLAY)
+      // The synthetic retail fixture contains no options UI entries and has
+      // no external overlay. All approved resources must resolve from
+      // the executable and retain their exact decompressed sizes.
+      const std::pair<const char *, size_t> displayResources[] = {
+          {"Option_Display.png", 489489u},
+          {"Option_Display_Chip.png", 198630u},
+          {"Option_Display.cmap", 480008u},
+          {"Option_Display_Wide.cmap", 360008u},
+          {"Option_Display_Wide_Full.cmap", 921608u},
+          {"Option_Display_Wide_Note.cmap", 589832u},
+#if defined(KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART)
+          {"Option_Def.png", 105855u},
+          {"Option_Def_Chip.png", 74642u},
+          {"Option_Sound.png", 103585u},
+          {"Option_Sound_Chip.png", 87223u},
+#endif
+      };
+      for (const auto &resource : displayResources) {
+        const std::string logical = std::string("System/Option/") + resource.first;
+        const auto reference = virtualAssets.resolve(logical);
+        Require(Kotonoha::IsSchoolDaysGpkUri(reference) &&
+                    virtualAssets.containsAsset(reference) &&
+                    Kotonoha::HasSchoolDaysAssetOverride(logical),
+                "Embedded Display resource failed to resolve: " + logical);
+        const auto bytes = virtualAssets.read(reference);
+        Require(bytes.size() == resource.second,
+                "Embedded Display resource size mismatch: " + logical);
+        Require(!virtualAssets.openStream(reference),
+                "Compressed embedded Display asset exposed a retail stream");
+        Require(Kotonoha::LookupMountedSchoolDaysAsset(logical, true) ==
+                    Kotonoha::SchoolDaysGpkLookupStatus::Missing,
+                "Original lookup must bypass the embedded Display overlay");
+      }
+      Require(Kotonoha::LookupMountedSchoolDaysAsset(
+                  "system\\option\\option_display.png") ==
+                  Kotonoha::SchoolDaysGpkLookupStatus::Present,
+              "Embedded Display lookup lost case/separator normalization");
+#if !defined(KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART)
+      Require(Kotonoha::LookupMountedSchoolDaysAsset(
+                  "System/Option/Option_Def.png") ==
+                  Kotonoha::SchoolDaysGpkLookupStatus::Missing,
+              "Retail-derived artwork must not be embedded by default");
+#endif
+#endif
     }
     Kotonoha::SchoolDaysGpkArchive integratedArchive;
     std::string archiveError;

@@ -65,6 +65,10 @@ public:
     // nonzero WindowMode exposes the selected-device D value.
     static RetailState ProjectRetailState(const RetailBackendState& state);
 
+    // Mobile has no windowed or 4:3 presentation. Normalize legacy settings
+    // without changing the chosen density of the widescreen resources.
+    static void ConstrainAndroid(RetailBackendState& state);
+
     // Apply one decoded Config/Def display request.  actionValue retains the
     // current model's exact control identity: Wide 1/0 == controls 4/5 and Full
     // 1/0 == controls 6/7.  It is NOT a generic desired-state boolean (notably,

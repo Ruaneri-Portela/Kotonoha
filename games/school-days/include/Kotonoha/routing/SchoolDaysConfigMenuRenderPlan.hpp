@@ -72,6 +72,7 @@ public:
         int displayResizable = -1;
         int displayVsync = -1;
         int displayFactor = -1;
+        bool defDisplayLocked = false; // Android: fixed FULL / 16:9
     };
 
     static Layout LayoutFor(SchoolDaysConfigMenuModel::Variant variant);

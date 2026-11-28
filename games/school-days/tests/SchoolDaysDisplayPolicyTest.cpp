@@ -21,6 +21,19 @@ void Check(bool value, const char* message) {
 
 int main() {
     {
+        using Display = Kotonoha::SchoolDaysDisplayPolicy;
+        for (int miniNote : {0, 1}) {
+            Display::RetailBackendState legacy{0, 0, 0, miniNote};
+            Display::ConstrainAndroid(legacy);
+            Check(legacy.baseDisplayType == 1 && legacy.deviceDisplayType == 1 &&
+                      legacy.windowMode == 1 && legacy.typeMiniNote == miniNote,
+                  "Android must normalize legacy 4:3/windowed settings to FULL / 16:9");
+            Check(Display::SelectRetailVariant(Display::ProjectRetailState(legacy)) ==
+                      (miniNote ? Display::Variant::WideNote : Display::Variant::WideFull),
+                  "Android must preserve widescreen resource density");
+        }
+    }
+    {
         using Startup = Kotonoha::SchoolDaysDesktopStartupProfile;
         Kotonoha::EngineSettings fresh;
         fresh.mode = Kotonoha::WindowMode::Borderless;
@@ -297,7 +310,7 @@ int main() {
                 std::chrono::steady_clock::now().time_since_epoch().count()));
         std::filesystem::create_directories(fixture / "System/Option");
         {
-            const unsigned char cmap[] = {2, 0, 0, 0, 1, 0, 0, 0, 7, 8};
+            const unsigned char cmap[] = {4, 0, 0, 0, 1, 0, 0, 0, 7, 8, 5, 6};
             std::ofstream file(fixture / "System/Option/Option_Def.cmap",
                                std::ios::binary);
             file.write(reinterpret_cast<const char*>(cmap), sizeof(cmap));
@@ -316,6 +329,19 @@ int main() {
                   control7.kind == Menu::ActionKind::RequestFull &&
                   control6.kind == Menu::ActionKind::RequestFull,
               "ConfigMenu Full controls did not produce Full requests");
+        {
+            using Plan = Kotonoha::SchoolDaysConfigMenuRenderPlan;
+            Plan::VisualState locked;
+            locked.defDisplayLocked = true;
+            locked.defWideCurrent = 4;
+            locked.defFullCurrent = 7;
+            for (int x : {0, 1, 2, 3}) {
+                menu.SetSelectionFromPointer(x, 0);
+                for (const auto& sprite : Plan::Build(menu, locked))
+                    Check(sprite.role != Plan::Role::Hover,
+                          "Android locked FULL/WINDOW and WIDE/STANDARD must not highlight on hover");
+            }
+        }
         menu.Close();
         // Sound level zero is an empty bar in the native plan. The presenter
         // must skip these zero-size source rectangles rather than treating

@@ -64,6 +64,9 @@ bool SetSchoolDaysAssetOverlay(const std::filesystem::path& directory,
 bool SchoolDaysAssetOverlaySet();
 bool ResolveSchoolDaysOverlayFile(std::string_view logicalPath,
                                          std::string* physical);
+// True for either a loose override or a compiled-in UI override; callers
+// that need a physical filesystem path must use ResolveSchoolDaysOverlayFile.
+bool HasSchoolDaysAssetOverride(std::string_view logicalPath);
 void UnmountSchoolDaysRetailGpks();
 void InstallMountedSchoolDaysAssetResolver();
 void UninstallMountedSchoolDaysAssetResolver();

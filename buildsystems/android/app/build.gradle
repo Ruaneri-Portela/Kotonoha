@@ -65,6 +65,15 @@ if (discordAar != null && !discordAar.isFile()) {
 }
 def discordNative = layout.buildDirectory.dir('generated/discordPresenceSdk')
 
+// Optional, hash-checked private options artwork compiled into the native
+// School Days binary. Do not bundle retail-derived edits for public releases.
+def schoolDaysDisplayOverlaySource = providers.gradleProperty('schoolDaysDisplayOverlaySource')
+  .orElse('').get()
+def schoolDaysRequireEmbeddedOverlay = providers.gradleProperty('schoolDaysRequireEmbeddedOverlay')
+  .orElse('false').get().toBoolean()
+def schoolDaysEmbedPrivateOptionArt = providers.gradleProperty('schoolDaysEmbedPrivateOptionArt')
+  .orElse('false').get().toBoolean()
+
 def rawAbis = providers.gradleProperty('abis')
   .orElse('arm64-v8a,armeabi-v7a,x86_64').get().split(',').toList()
 
@@ -178,6 +187,11 @@ android {
               "-DKOTONOHA_BUILD_GAME=${game[0]}",
               "-DKOTONOHA_VCPKG_BASE_DIR=${rootProject.projectDir}/build/vcpkg${flavor in ['dokiDoki', 'katawaShoujo', 'launcher'] ? '-python' : ''}"
             targets game[1]
+            if (flavor == 'schoolDays') {
+              arguments "-DKOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE=${schoolDaysDisplayOverlaySource}",
+                "-DKOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY=${schoolDaysRequireEmbeddedOverlay ? 'ON' : 'OFF'}",
+                "-DKOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=${schoolDaysEmbedPrivateOptionArt ? 'ON' : 'OFF'}"
+            }
             if (flavor == 'schoolDays' && discordAar != null) {
               arguments '-DKOTONOHA_ANDROID_DISCORD_RPC=ON',
                 "-DKOTONOHA_ANDROID_DISCORD_SDK_DIR=${discordNative.get().asFile.absolutePath}"

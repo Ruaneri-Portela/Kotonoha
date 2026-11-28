@@ -1,4 +1,4 @@
-# Optional external artwork for School Days HQ (Windows L4)
+# Embedded options artwork for School Days HQ (Windows and Android)
 
 **English (US)** | [Português (Brasil)](README.pt-BR.md)
 
@@ -8,7 +8,7 @@ user-supplied artwork remains outside Git. The preferred private source is
 `games/school-days/game-assets/display-options/` source remains supported.
 
 No PNGs from the commercial game or customized derivative artwork are
-distributed in this repository. The new Windows Display Options page needs
+distributed in this repository. The custom Display Options page uses
 user-supplied resources in `System/Option/` beneath that private directory. The
 complete list, dimensions and behavior are documented in
 [`PR_PARITY_CONSOLIDATION_2026-11-05.md`](../../PR_PARITY_CONSOLIDATION_2026-11-05.md).
@@ -18,17 +18,20 @@ The Display CMAPs belong to the customized third page and must accompany
 `Option_Display.png` and `Option_Display_Chip.png`. The 22 regions' bounds
 are described in `display_options_controls.json` for reproducibility.
 
-After adding the locally authored files to the private `System/Option/` folder,
-build SchoolDays for Windows. The CMake `SchoolDaysOptionAssets` target stages
-the files into `<SchoolDays.exe directory>/overlay/System/Option/` in both
-DEV and DIST. It uses the old private `game-assets/display-options/` source
-only when a complete `Option_Display.png` / `Option_Display.cmap` pair is
-absent from `game-assets/overlay/`.
+Windows and Android DEV/DIST compile all six approved Display resources into
+the native binary when present at configuration time. The generator checks
+their SHA-256 hashes. Set `KOTONOHA_SCHOOL_DAYS_DISPLAY_OVERLAY_SOURCE` to the
+private source directory and `KOTONOHA_SCHOOL_DAYS_REQUIRE_EMBEDDED_OVERLAY=ON`
+to fail if the inputs are missing. On Android, use Gradle properties
+`schoolDaysDisplayOverlaySource` and `schoolDaysRequireEmbeddedOverlay=true`.
 
-At runtime, both the launcher and gameplay prefer `<exe>/overlay/`, then the
-legacy installed `<exe>/display-options/` when the new PNG/CMAP pair is
-missing. An explicitly selected `--scripts`, `--asset-overlay` or saved
-asset overlay path wins over both automatic choices; supply these resources
-within that explicit overlay if needed.
+For authorized private QA only, the four approved user-edited General/Sound
+PNGs can also be embedded using `KOTONOHA_SCHOOL_DAYS_EMBED_PRIVATE_OPTION_ART=ON`
+or Android property `schoolDaysEmbedPrivateOptionArt=true`. Do not redistribute
+those binaries without permission. No private input bytes are tracked in Git.
+
+No installed overlay directory is required for the embedded UI. Existing
+external overrides remain optional and take precedence over embedded resources;
+the original retail packs supply the remaining resources.
 
 Never patch, repack or replace the commercial `Packs/System.GPK` for this UI.

@@ -4963,6 +4963,11 @@ bool Runtime::displayPanelOpen() const {
 
 bool Runtime::applyDisplayAspectPreference() {
   if (!engine) return false;
+#if defined(__ANDROID__) || defined(ANDROID)
+  displayAspectPreference = 2;
+  refreshDisplayProjection();
+  return true;
+#else
   DisplayPolicy::Variant requested = uiVariant;
   if (displayAspectPreference == 1) {
     requested = DisplayPolicy::Variant::Standard;
@@ -4984,6 +4989,7 @@ bool Runtime::applyDisplayAspectPreference() {
   // was loaded separately from settings.json and must survive this projection.
   refreshDisplayProjection();
   return true;
+#endif
 }
 
 void Runtime::renderDisplayPanel(Kotonoha::RendererRef renderer) {
@@ -5030,8 +5036,7 @@ void Runtime::renderDisplayPanel(Kotonoha::RendererRef renderer) {
   const int renderHeight = std::max(
       1, static_cast<int>(std::lround(baseHeight * settings.renderScale)));
   char aspect[96], renderResolution[128], frameRate[96], upscaling[160];
-  SDL_snprintf(aspect, sizeof(aspect), "Aspect: %s",
-               aspectLabels[std::clamp(displayAspectPreference, 0, 2)]);
+  SDL_snprintf(aspect, sizeof(aspect), "Aspect: %s (locked)", aspectLabels[2]);
   SDL_snprintf(renderResolution, sizeof(renderResolution),
                "Render Resolution: %dx%d (%d%%)", renderWidth, renderHeight,
                static_cast<int>(std::lround(settings.renderScale * 100.0f)));
@@ -5050,7 +5055,7 @@ void Runtime::renderDisplayPanel(Kotonoha::RendererRef renderer) {
                                            upscaling};
   for (int row = 1; row <= 4; ++row)
     ui.button(renderer, DisplayRow(geometry, row), labels[static_cast<size_t>(row - 1)],
-              displayPanelHoverRow == row);
+              row != 1 && displayPanelHoverRow == row);
 
   if (displayPanelRenderScaleOpen) {
     const auto popup = AndroidRenderScalePopup(geometry);
@@ -5350,13 +5355,7 @@ bool Runtime::handleDisplayPanel(Kotonoha::EventRef event) {
     displayPanelRenderScaleOpen = false;
     displayPanelResolutionOpen = false;
     displayPanelPresetOpen = false;
-    displayAspectPreference = (std::clamp(displayAspectPreference, 0, 2) + 1) % 3;
-    const auto beforeVariant = uiVariant;
-    if (applyDisplayAspectPreference()) {
-      SaveRemasterAspectPreference(documents, displayAspectPreference);
-      if (uiVariant != beforeVariant)
-        openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page::Display, false);
-    }
+    return true; // Android is fixed to FULL / 16:9.
   } else if (hoveredRow == 2) {
     displayPanelResolutionOpen = false;
     displayPanelPresetOpen = false;
@@ -6604,6 +6603,9 @@ void Runtime::loadSlot(int slot) {
 
 Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState Runtime::configVisualState() const {
   Kotonoha::SchoolDaysConfigMenuRenderPlan::VisualState state;
+#if defined(__ANDROID__) || defined(ANDROID)
+  state.defDisplayLocked = true;
+#endif
   state.defWideCurrent = displayState.effectiveDisplayType == 1 ? 4 : 5;
   state.defFullCurrent = displayBackend.windowMode == 0 ? 6 : 7;
   state.defSkipCurrent = config.skip ? 8 : 9;
@@ -6660,6 +6662,11 @@ void Runtime::openConfig(Kotonoha::SchoolDaysConfigMenuModel::Page page, bool pl
 
 void Runtime::handleConfig(const Kotonoha::SchoolDaysConfigMenuModel::Action &action) {
   using Kind = Kotonoha::SchoolDaysConfigMenuModel::ActionKind;
+#if defined(__ANDROID__) || defined(ANDROID)
+  // Reject both pointer and keyboard requests before touching saved settings.
+  if (action.kind == Kind::RequestWide || action.kind == Kind::RequestFull)
+    return;
+#endif
   const auto before = config;
   const auto beforeVariant = uiVariant;
   const auto currentPage = systemUi.IsConfigOpen()
@@ -6884,14 +6891,21 @@ void Runtime::loadConfig() {
         engine->GetSettings().mode == Kotonoha::WindowMode::Windowed ? 0 : 1;
   refreshDisplayProjection();
 
+#if defined(__ANDROID__) || defined(ANDROID)
+  displayAspectPreference = 2;
+#else
   displayAspectPreference = LoadRemasterAspectPreference(documents);
   if (displayAspectPreference != 0)
     Check(applyDisplayAspectPreference(),
           "School Days remaster aspect preference failed",
           "School Days remaster aspect preference failed");
+#endif
 }
 
 void Runtime::refreshDisplayProjection() {
+#if defined(__ANDROID__) || defined(ANDROID)
+  DisplayPolicy::ConstrainAndroid(displayBackend);
+#endif
   displayState = DisplayPolicy::ProjectRetailState(displayBackend);
   uiVariant = DisplayPolicy::SelectRetailVariant(displayState);
 }
@@ -7112,6 +7126,13 @@ void Runtime::openBacklog(bool playView) {
 }
 
 void Runtime::handlePanel(const Ui::Output &output) {
+#if defined(__ANDROID__) || defined(ANDROID)
+  using ConfigKind = Kotonoha::SchoolDaysConfigMenuModel::ActionKind;
+  if (output.hasConfigAction &&
+      (output.configAction.kind == ConfigKind::RequestWide ||
+       output.configAction.kind == ConfigKind::RequestFull))
+    return; // No click cue for locked Android display options.
+#endif
   playSound(output.uiSfx);
   if (output.hasSaveFeelResult) {
     submitSaveFeel(output.saveFeelResult);

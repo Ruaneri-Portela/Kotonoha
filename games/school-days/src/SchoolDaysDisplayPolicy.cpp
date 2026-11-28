@@ -52,6 +52,12 @@ SchoolDaysDisplayPolicy::RetailState SchoolDaysDisplayPolicy::ProjectRetailState
             state.windowMode, state.typeMiniNote};
 }
 
+void SchoolDaysDisplayPolicy::ConstrainAndroid(RetailBackendState& state) {
+    state.baseDisplayType = 1;
+    state.deviceDisplayType = 1;
+    state.windowMode = 1;
+}
+
 bool SchoolDaysDisplayPolicy::ApplyRetailConfigRequest(
     RetailConfigRequest request, int actionValue,
     const RetailConfigInputs& inputs, RetailBackendState* state) {

@@ -67,9 +67,10 @@ permission to publish private art, retail packs, saves or translations.
 The `src/`, `include/`, `game-assets/`, `windows/` and `tests/fixtures/` folders
 have paths referenced in CMake, runtime code and test harnesses. The private
 artwork lives under `game-assets/overlay/` (or the legacy source
-`game-assets/display-options/`) and `game-assets/launcher-art/`. Its installed
-locations are `overlay/` and `assets/SchoolDaysHQ-Launcher.png` beside the
-Windows executable; installed `display-options/` remains a runtime fallback.
+`game-assets/display-options/`) and `game-assets/launcher-art/`. The approved
+options UI can be embedded in the Windows and Android native binaries;
+external overlays are optional. The Windows launcher artwork is installed at
+`assets/SchoolDaysHQ-Launcher.png` beside the executable.
 Public Display Options metadata is in
 `docs/configuration/display-options/`. Moving these directories requires
 updating consumers, building and running CTest.
