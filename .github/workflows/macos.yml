@@ -374,8 +374,9 @@ jobs:
           SDL_AUDIO_DRIVER: dummy
         run: ctest --test-dir build-macos -L synthetic --output-on-failure --no-tests=error
 
-      - name: Warn if synthetic CTest failed
+      - name: Fail validation if synthetic CTest failed
         if: steps.synthetic-ctest.outcome == 'failure'
         run: |
           echo "::warning::macOS ${{ matrix.arch }} synthetic CTest failed; .app ZIP artifacts remain available"
           echo "⚠️ macOS ${{ matrix.arch }}: synthetic CTest failed. See the logs." >> "$GITHUB_STEP_SUMMARY"
+          exit 1

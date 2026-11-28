@@ -49,9 +49,34 @@ jobs:
             lib/src/integrations/RichPresence.cpp lib/tests/RichPresenceTest.cpp \
             -o /tmp/kotonoha-presence-test
           /tmp/kotonoha-presence-test
+          # GCC's include_next requires the default /usr/include search
+          # order. Only Homebrew's third-party headers need -isystem.
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            json_c_flags=(-isystem "$(pkg-config --variable=includedir json-c)")
+          else
+            read -r -a json_c_flags <<< "$(pkg-config --cflags json-c)"
+          fi
           c++ -std=c++17 -Wall -Wextra -Werror -pthread -Ilib/include \
-            -isystem "$(pkg-config --variable=includedir json-c)" lib/src/integrations/DiscordUnix.cpp \
+            "${json_c_flags[@]}" lib/src/integrations/DiscordUnix.cpp \
             lib/tests/DiscordUnixTest.cpp $(pkg-config --libs json-c) \
             -o /tmp/kotonoha-ipc-test
           /tmp/kotonoha-ipc-test
+      - name: Check native CMake transport ON and OFF
+        shell: bash
+        run: |
+          set -euo pipefail
+          fixture="$RUNNER_TEMP/rpc-cmake"
+          mkdir -p "$fixture"
+          cat > "$fixture/CMakeLists.txt" <<'CMAKE'
+          cmake_minimum_required(VERSION 3.16)
+          project(KotonohaRpcTests LANGUAGES CXX)
+          include(CTest)
+          add_subdirectory("$ENV{GITHUB_WORKSPACE}/lib/src/integrations" rpc)
+          CMAKE
+          for setting in ON OFF; do
+            cmake -S "$fixture" -B "$fixture/$setting" \
+              -DKOTONOHA_BUILD_RICH_PRESENCE="$setting" -DBUILD_TESTING=ON
+            cmake --build "$fixture/$setting" --parallel 2
+            ctest --test-dir "$fixture/$setting" -L synthetic --output-on-failure --no-tests=error
+          done
     timeout-minutes: 10

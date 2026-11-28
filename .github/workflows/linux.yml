@@ -376,6 +376,10 @@ jobs:
           echo "::warning::One or more WASM synthetic tests failed; build and ZIP artifacts were published"
           echo "⚠️ WASM: synthetic browser/HTTP tests failed. Check the failed test steps." >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Fail validation if any synthetic suite failed
+        if: ${{ always() && (steps.synthetic-ctest.outcome == 'failure' || steps.synthetic-toolbar.outcome == 'failure' || steps.synthetic-web.outcome == 'failure' || steps.synthetic-example.outcome == 'failure' || steps.synthetic-http.outcome == 'failure') }}
+        run: exit 1
+
       - name: Upload diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@v4
