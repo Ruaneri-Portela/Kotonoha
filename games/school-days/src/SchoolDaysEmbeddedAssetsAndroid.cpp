@@ -8,7 +8,7 @@
 #include <string_view>
 
 extern "C" JNIEXPORT jbyteArray JNICALL
-Java_org_kotonoha_android_SchoolDaysEmbeddedAssetsBridge_nativeRead(
+Java_me_hirameki_kotonoha_android_SchoolDaysEmbeddedAssetsBridge_nativeRead(
     JNIEnv *env, jclass, jstring logicalPath) {
   if (!logicalPath)
     return nullptr;

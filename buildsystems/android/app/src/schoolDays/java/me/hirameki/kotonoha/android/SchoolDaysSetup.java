@@ -1,4 +1,4 @@
-package org.kotonoha.android;
+package me.hirameki.kotonoha.android;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -52,10 +52,8 @@ public final class SchoolDaysSetup extends Activity {
     private static final int TAB_LANGUAGE = 4;
     private static final int TAB_FILES = 5;
 
-    // Independent of script/backend language. Activity.getPreferences()
-    // stores preferences under the FULL Activity class name on Android.
-    // Use exactly the same file in attachBaseContext (before onCreate).
-    private static final String LAUNCHER_PREFS = SchoolDaysSetup.class.getName();
+    // Keep the old preference filename across the upstream Java package rename.
+    private static final String LAUNCHER_PREFS = "org.kotonoha.android.SchoolDaysSetup";
     private static final String LAUNCHER_UI_LANGUAGE_KEY = "launcherUiLanguage";
     private static final String[] LAUNCHER_UI_LANGUAGE_CODES =
             {"en", "pt-BR", "es", "ru", "zh-CN"};
@@ -216,15 +214,15 @@ public final class SchoolDaysSetup extends Activity {
         configStore = new SchoolDaysConfigStore(this);
         notice = new StartupNotice(findViewById(R.id.status));
 
-        String rawLocale = getPreferences(MODE_PRIVATE).getString("languageSelection", null);
+        String rawLocale = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getString("languageSelection", null);
         if (rawLocale == null) {
-            String legacy = getPreferences(MODE_PRIVATE).getString("locale", "en");
+            String legacy = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getString("locale", "en");
             rawLocale = SchoolDaysFolder.formatLanguageSelection("json", legacy);
         }
         savedLanguageSelection = rawLocale;
         draftLanguageSelection = rawLocale;
 
-        boolean launcherMusicPref = getPreferences(MODE_PRIVATE).getBoolean("launcherMusic", true);
+        boolean launcherMusicPref = getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getBoolean("launcherMusic", true);
         savedConfig = configStore.load(launcherMusicPref);
         draftConfig = savedConfig.copy();
 
@@ -412,7 +410,7 @@ public final class SchoolDaysSetup extends Activity {
             boolean next = !savedConfig.launcherMusic;
             savedConfig.launcherMusic = next;
             draftConfig.launcherMusic = next;
-            getPreferences(MODE_PRIVATE).edit().putBoolean("launcherMusic", next).apply();
+            getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).edit().putBoolean("launcherMusic", next).apply();
             updateHomeMusicButton();
             syncUiFromDraft();
             updateLauncherMusicState();
@@ -733,7 +731,7 @@ public final class SchoolDaysSetup extends Activity {
                             dialog.dismiss();
                             String next = LAUNCHER_UI_LANGUAGE_CODES[index];
                             if (!next.equals(current)) {
-                                if (getPreferences(MODE_PRIVATE).edit()
+                                if (getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).edit()
                                         .putString(LAUNCHER_UI_LANGUAGE_KEY, next)
                                         .commit()) {
                                     recreate();
@@ -758,7 +756,7 @@ public final class SchoolDaysSetup extends Activity {
     }
 
     private void openOptions(int tab) {
-        savedConfig = configStore.load(getPreferences(MODE_PRIVATE).getBoolean("launcherMusic", true));
+        savedConfig = configStore.load(getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getBoolean("launcherMusic", true));
         draftConfig = savedConfig.copy();
         draftLanguageSelection = savedLanguageSelection;
         syncUiFromDraft();
@@ -772,7 +770,7 @@ public final class SchoolDaysSetup extends Activity {
             configStore.save(draftConfig, savedConfig, clearJson);
             savedConfig = draftConfig.copy();
             savedLanguageSelection = draftLanguageSelection;
-            getPreferences(MODE_PRIVATE).edit()
+            getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).edit()
                     .putString("languageSelection", savedLanguageSelection)
                     .putString("locale", SchoolDaysFolder.selectionLocale(savedLanguageSelection))
                     .putBoolean("launcherMusic", savedConfig.launcherMusic)
@@ -980,7 +978,7 @@ public final class SchoolDaysSetup extends Activity {
     protected void onResume() {
         super.onResume();
         if (!optionsOpen) {
-            savedConfig = configStore.load(getPreferences(MODE_PRIVATE).getBoolean("launcherMusic", true));
+            savedConfig = configStore.load(getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).getBoolean("launcherMusic", true));
             draftConfig = savedConfig.copy();
             syncUiFromDraft();
         }
@@ -1077,7 +1075,7 @@ public final class SchoolDaysSetup extends Activity {
                         if (fallback != null) {
                             savedLanguageSelection = fallback;
                             draftLanguageSelection = fallback;
-                            getPreferences(MODE_PRIVATE).edit()
+                            getSharedPreferences(LAUNCHER_PREFS, MODE_PRIVATE).edit()
                                     .putString("languageSelection", savedLanguageSelection)
                                     .putString("locale", SchoolDaysFolder.selectionLocale(savedLanguageSelection))
                                     .apply();

@@ -1,4 +1,4 @@
-package org.kotonoha.android;
+package me.hirameki.kotonoha.android;
 
 import android.util.Log;
 
@@ -10,10 +10,13 @@ final class SchoolDaysEmbeddedAssetsBridge {
 
     static byte[] read(String logicalPath) {
         if (!BuildConfig.SCHOOL_DAYS_EMBEDDED_ASSETS) return null;
-        // Reuse the existing loader and the same library order as GameActivity.
-        // JNI registration does not create an SDL window or initialize gameplay.
-        if (!LauncherBridge.ensureLoaded()) return null;
+        // The universal LauncherBridge loads KotonohaLauncherCore, which is not
+        // built into the standalone School Days APK. Use the native game loader
+        // order instead; loading libraries does not start SDL gameplay.
         try {
+            for (String library : GameActivity.gameLibraries()) {
+                System.loadLibrary(library);
+            }
             byte[] bytes = nativeRead(logicalPath);
             if (bytes == null) Log.w(TAG, "Missing embedded resource: " + logicalPath);
             return bytes;

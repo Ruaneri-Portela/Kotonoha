@@ -49,8 +49,12 @@ public final class GameActivity extends SDLActivity {
 
     @Override
     protected String[] getArguments() {
-        String[] args = getIntent().getStringArrayExtra(LAUNCH_ARGUMENTS);
-        return args == null ? super.getArguments() : args;
+        if (getIntent() != null) {
+            String[] args = getIntent().getStringArrayExtra(LAUNCH_ARGUMENTS);
+            if (args == null) args = getIntent().getStringArrayExtra("kotonoha_args");
+            if (args != null) return args;
+        }
+        return super.getArguments();
     }
 
     @Override
@@ -194,6 +198,10 @@ public final class GameActivity extends SDLActivity {
 
     @Override
     protected String[] getLibraries() {
+        return gameLibraries();
+    }
+
+    static String[] gameLibraries() {
         return new String[]{"c++_shared", "SDL3",
                             "SDL3_ttf", "Imgui", "KotonohaEngine", BuildConfig.NATIVE_TARGET};
     }

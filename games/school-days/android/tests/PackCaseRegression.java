@@ -1,4 +1,4 @@
-package org.kotonoha.android;
+package me.hirameki.kotonoha.android;
 
 import java.io.File;
 import java.nio.charset.StandardCharsets;

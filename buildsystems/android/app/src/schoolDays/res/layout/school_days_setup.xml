@@ -23,7 +23,7 @@
                 android:layout_height="124dp"
                 android:background="#E5F3F7">
 
-                <org.kotonoha.android.SchoolDaysBannerView
+                <me.hirameki.kotonoha.android.SchoolDaysBannerView
                     android:id="@+id/art"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
