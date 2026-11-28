@@ -122,6 +122,13 @@ def main() -> int:
         (ROOT / relative).resolve()
         for relative in tracked
         if relative.endswith((".cpp", ".mm"))
+        # CMake-only opt-in component, never part of the native engine target.
+        and relative not in {
+            "lib/src/integrations/RichPresence.cpp",
+            "lib/src/integrations/NullPresence.cpp",
+            "lib/src/integrations/DiscordWindows.cpp",
+            "lib/src/integrations/DiscordAndroid.cpp",
+        }
     }
     for source in sorted(engine_sources):
         if source not in mac:
