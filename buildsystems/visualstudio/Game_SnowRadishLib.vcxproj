@@ -51,7 +51,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup><LanguageStandard>stdcpp17</LanguageStandard></PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="$(RepoRoot)games\snow-radish-vacation\src\**\*.cpp" Exclude="$(RepoRoot)games\snow-radish-vacation\src\main.cpp" />
+    <ClCompile Include="$(RepoRoot)games\snow-radish-vacation\src\**\*.cpp" Exclude="$(RepoRoot)games\snow-radish-vacation\src\main.cpp;$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="KotonohaEngine.vcxproj">

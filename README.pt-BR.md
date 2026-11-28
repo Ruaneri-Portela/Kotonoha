@@ -23,11 +23,11 @@ Para usar o vcpkg explicitamente, acrescente `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROO
 ## Documentação
 
 - **[Índice da documentação](docs/README.pt-BR.md)** — guias e plataformas.
-- **[Carta de estilo e identidade visual](design/README.md)** — K oficial, splash, paleta, temas e geração de ícones por plataforma.
+- **[Carta de estilo e identidade visual](design/README.pt-BR.md)** — K oficial, splash, paleta, temas e geração de ícones por plataforma.
 - **[Guias de compilação](docs/BUILD_GUIDES.pt-BR.md)** — desktop, Android, iOS, macOS, WebAssembly e a solução Visual Studio nativa.
 - **[CI e vcpkg](docs/CI_VCPKG.pt-BR.md)** — Linux/WASM no mesmo runner, artefatos e política de cache.
 - **[Ports de jogos](games/README.pt-BR.md)** — módulos, limitações e instruções específicas.
-- **[Máquinas virtuais](modules/vms/README.pt-BR.md)** e **[provedores de assets](modules/providers/README.pt-BR.md)**.
+- **[Máquinas virtuais](modules/vms/README.pt-BR.md)**, **[provedores de assets](modules/providers/README.pt-BR.md)** e **[formatos de arquivo](modules/formats/README.pt-BR.md)**.
 - **[Overlays](docs/ASSET_OVERLAYS.pt-BR.md)**, **[armazenamento](docs/DIRECTORY_POLICY.pt-BR.md)** e **[configurações](docs/ENGINE_SETTINGS.pt-BR.md)**.
 
 ## Estado atual da integração
@@ -42,17 +42,19 @@ O [launcher unificado independente](launcher/README.pt-BR.md) funciona no deskto
 
 | Pasta | Função |
 | --- | --- |
-| `launcher/` | Launcher unificado desktop para vários motores e gerenciador Avalonia (`desktop/KotonohaManager/`) |
+| `launcher/` | Launcher unificado desktop para vários motores, host destacado (`host/`) e gerenciador Avalonia (`desktop/KotonohaManager/`) |
 | `lib/` | Motor compartilhado, headers públicos e testes |
 | `modules/vms/` | Máquinas virtuais de scripts |
 | `modules/providers/` | Leitura de assets e arquivos compactados |
+| `modules/formats/` | Codecs neutros de imagem, áudio e contêineres |
 | `games/` | Ports individuais e demonstração |
+| `design/` | Tokens canônicos de identidade visual (`tokens.json`) e ícones/splash gerados (`generated/`) |
 | `assets/` | Recursos compartilhados e avisos de terceiros |
 | `buildsystems/` | CMake, projeto Gradle Android, projeto Xcode nativo e solução Visual Studio independente (`visualstudio/Kotonoha.sln`) |
 | `docs/` | Documentação multiplataforma |
 | `tools/` | Utilitários de build e assets |
 
-Antes de distribuir binários, consulte a [licença](LICENSE), os [avisos de terceiros](THIRD_PARTY_NOTICES.md) e a [auditoria de licenciamento](docs/LICENSING.pt-BR.md).
+Antes de distribuir binários, consulte a [licença](LICENSE), os [avisos de terceiros](THIRD_PARTY_NOTICES.pt-BR.md) e a [auditoria de licenciamento](docs/LICENSING.pt-BR.md).
 
 ## Dados de jogos e licenças
 
@@ -60,6 +62,6 @@ Antes de distribuir binários, consulte a [licença](LICENSE), os [avisos de ter
 
 Ao contribuir, mantenha o motor independente de plataforma, documente novas opções nos dois idiomas e preserve relatórios históricos ao reorganizar guias ativos.
 
-## Integra??o do fork e QA Windows L4 de School Days
+## Integração do School Days HQ e isolamento de QA
 
-O fork preserva testes de paridade retail Windows L4, relat?rios locais de QA e hist?ricos distintos das branches `dev` e h?brida. Consulte [`docs/KNOWN_STATE.pt-BR.md`](docs/KNOWN_STATE.pt-BR.md) e [`games/school-days/docs/`](games/school-days/docs/) para limites espec?ficos. Nos testes de Replay, retail ou migra??o de saves, use perfis `--documents` isolados; nunca altere GPKs comerciais privados nem saves pessoais durante a integra??o. A vers?o hist?rica detalhada deste README foi preservada no backup pr?-sincroniza??o independente.
+Os testes integrados de paridade do School Days HQ (Windows x64 e Android SAF), os perfis DEV/DIST e os relatórios históricos de QA estão documentados em [`docs/KNOWN_STATE.pt-BR.md`](docs/KNOWN_STATE.pt-BR.md), [`docs/FORK_WORKFLOW.pt-BR.md`](docs/FORK_WORKFLOW.pt-BR.md) e [`games/school-days/docs/`](games/school-days/docs/). Em testes de Replay, gameplay retail ou migração de saves, utilize sempre perfis isolados via `--documents` e `--config`; nunca altere pacotes GPK comerciais nem saves pessoais durante os testes.

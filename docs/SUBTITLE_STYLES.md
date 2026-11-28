@@ -1,5 +1,7 @@
 # School Days HQ subtitle styles
 
+**English (US)** | [Português (Brasil)](SUBTITLE_STYLES.pt-BR.md)
+
 The subtitles use canonical `PrintText.character` names from the scripts and select an ASS style using an **exact, case-sensitive** comparison: no trimming, accent normalization or prefix/suffix removal. Translating dialogue does not translate the speaker identifier. Any unmatched name (including empty strings) uses `Default`.
 
 The same ASS file applies to **all languages** (EN, PT-BR, ES, RU, ZH) as long as a script retains the literal speaker identifier. Translated identifiers require their own exact style row.

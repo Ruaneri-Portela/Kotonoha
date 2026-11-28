@@ -51,7 +51,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup><LanguageStandard>stdcpp17</LanguageStandard></PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="$(RepoRoot)games\n2system\src\**\*.cpp" Exclude="$(RepoRoot)games\n2system\src\main.cpp" />
+    <ClCompile Include="$(RepoRoot)games\n2system\src\**\*.cpp" Exclude="$(RepoRoot)games\n2system\src\main.cpp;$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp" />
     <ClCompile Include="$(RepoRoot)games\ponscripter\src\**\*.cpp" Exclude="$(RepoRoot)games\ponscripter\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

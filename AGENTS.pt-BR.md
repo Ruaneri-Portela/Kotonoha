@@ -19,12 +19,13 @@ O Kotonoha é um **motor de visual novel modular em C++17** construído sobre SD
 | `modules/providers/` | Contêineres de pacotes/arquivos e implementações de `Kotonoha::AssetProvider` (adaptadores VFS, overlays, cache). |
 | `modules/formats/` | Codecs puros em `modules/formats/<type>/<format>/`, uma pasta por formato de arquivo, nomeada pelo formato (nunca por jogo ou engine). Retornam pixels RGBA/PCM neutros e dependem apenas da biblioteca padrão C++. |
 | `games/` | 16 aplicações de jogos (15 ports e Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
-| `buildsystems/` | Orquestração de compilação por plataforma: `cmake/` (módulos CMake), `android/` (projeto Gradle), `xcode/` (`Kotonoha.xcodeproj` nativo). |
+| `buildsystems/` | Orquestração de compilação por plataforma: `cmake/` (módulos CMake), `android/` (projeto Gradle), `xcode/` (`Kotonoha.xcodeproj` nativo), `visualstudio/` (`Kotonoha.sln` nativo). |
+| `design/` | Tokens canônicos de identidade visual (`design/tokens.json`) e ícones/splash gerados (`design/generated/`). |
 | `assets/` | Recursos compartilhados do motor (fontes, ícones, shaders) e avisos legais de terceiros. |
 | `docs/` | Documentação bilíngue completa (`*.md` em en-US, `*.pt-BR.md` em pt-BR). |
 | `tools/` | Verificação de build, validação de metadados, empacotamento de assets e utilitários web. |
-| `launcher/` | Launcher unificado para execução dos runtimes em um único processo. |
-| `vcpkg.json` / `vcpkg-overlays/` | Manifesto de dependências e overlays de ports customizados do vcpkg. |
+| `launcher/` | Launcher unificado, host destacado (`host/`), bridges e gerenciador desktop. |
+| `vcpkg.json` / `vcpkg-overlays/` | Manifesto de dependências e overlays de ports/triplets do vcpkg (`ports/`, `triplets/`). |
 
 ### Invariantes Arquiteturais
 
@@ -135,7 +136,7 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
   ```
 
 ### Plataformas Apple (macOS e iOS)
-- **Projeto Xcode Nativo**: `buildsystems/xcode/Kotonoha.xcodeproj` (contém 22 esquemas compartilhados: 11 para macOS e 11 para iOS).
+- **Projeto Xcode Nativo**: `buildsystems/xcode/Kotonoha.xcodeproj` (contém 34 esquemas compartilhados: 16 jogos + `KotonohaLauncher` para macOS e iOS).
 - **Script de Preparação**:
   ```sh
   python3 tools/PrepareApple.py
@@ -178,11 +179,13 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
 Antes de concluir qualquer tarefa de agente ou comitar alterações, execute os passos de verificação aplicáveis:
 
 ### 1. Validação de Metadados de Build (Crucial)
-Execute imediatamente após modificar `CMakeLists.txt`, `KotonohaGames.cmake`, `KotonohaOptions.cmake`, esquemas do Xcode, `Config/*.xcconfig` ou `project.pbxproj`:
+Execute imediatamente após modificar `CMakeLists.txt`, `KotonohaGames.cmake`, `KotonohaOptions.cmake`, esquemas do Xcode, `Config/*.xcconfig`, `project.pbxproj` ou arquivos `.vcxproj` do Visual Studio:
 ```sh
 python3 tools/ValidateBuildMetadata.py
+python3 tools/check_xcode_sources.py
+python3 tools/check_visual_studio_sources.py
 ```
-*Saída esperada*: `[Kotonoha] OK: 15 CMake games; 32 existing Xcode schemes; Xcode pending: none`
+*Saída esperada (`ValidateBuildMetadata.py`)*: `[Kotonoha] OK: 16 CMake games; 34 existing Xcode schemes; Xcode pending: none`
 
 ### 2. Testes Nativos em C++
 ```sh
@@ -232,19 +235,19 @@ python3 tools/check_sdl_cpack.py <diretorio_build>
 
 ---
 
-## 7. Políticas e Escopo do Fork (`tsubaki-0x/Kotonoha`)
+## 7. Políticas do School Days HQ e Colaboração entre Repositórios (`Ruaneri-Portela/Kotonoha` e `tsubaki-0x/Kotonoha`)
 
-Todas as regras upstream acima permanecem obrigatórias neste fork. As diretrizes abaixo documentam o escopo autorizado, o papel das branches permanentes e o fluxo de trabalho do School Days HQ (consulte [docs/FORK_WORKFLOW.pt-BR.md](docs/FORK_WORKFLOW.pt-BR.md) para procedimentos detalhados).
+Todas as regras centrais do motor acima são obrigatórias tanto no repositório upstream canônico (`Ruaneri-Portela/Kotonoha`) quanto no fork de colaboração do School Days HQ (`tsubaki-0x/Kotonoha`). Consulte [docs/FORK_WORKFLOW.pt-BR.md](docs/FORK_WORKFLOW.pt-BR.md) para procedimentos detalhados de DEV/DIST e QA.
 
 ### Alvos Autorizados e Arquitetura Compartilhada
-- Tanto **Windows x64** quanto **Android (`arm64-v8a`)** são alvos ativos e autorizados do **School Days HQ v1.02** (superando a restrição histórica de 2026-11 restrita a Windows L4).
+- Tanto **Windows x64** quanto **Android (`arm64-v8a` / dual-ABI)** são alvos ativos e autorizados do **School Days HQ v1.02** (superando a restrição histórica de 2026-11 restrita a Windows L4).
 - Preserve uma única implementação compartilhada da lógica de jogo em `games/school-days/`, código genérico do motor em `lib/`, VMs/provedores em `modules/` e adaptadores de plataforma Android (JNI/Gradle/SAF) em `buildsystems/android/`.
 - Não duplique a lógica do jogo entre Windows e Android nem reintroduza servidores MCP/DevBridge específicos de jogo (use o MCP genérico em `lib/`).
 
-### Branches Permanentes do Fork
-- `dev`: linha principal de desenvolvimento e colaboração upstream (branch padrão de `tsubaki-0x/Kotonoha`).
-- `hybrid`: linha híbrida que preserva a infraestrutura DEV/DIST do School Days HQ e os fluxos de distribuição Windows/Android específicos do fork.
-- Nunca faça push diretamente para `upstream` (`Ruaneri-Portela/Kotonoha`), nunca use force-push em branches publicadas e mantenha os PRs upstream pequenos, limpos e baseados diretamente em `upstream/dev`.
+### Papel dos Repositórios e Branches
+- `Ruaneri-Portela/Kotonoha` (`dev`): linha canônica de integração upstream do runtime multi-engine, sistemas de build e das 16 aplicações de jogos.
+- `tsubaki-0x/Kotonoha` (`dev` / `hybrid`): fork de colaboração e empacotamento privado de QA (`hybrid` preserva a infraestrutura de distribuição DEV/DIST específica do School Days HQ).
+- Nunca use force-push em branches compartilhadas publicadas (`dev`, `main` ou `hybrid`), e mantenha PRs entre repositórios pequenos, limpos e sem símbolos específicos de jogo em `lib/`.
 
 ### Política DEV vs DIST (Windows e Android)
 - **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` no Windows; `debug`/`release` com `BuildConfig.IS_DISTRIBUTION_BUILD=false` no Android): build de desenvolvimento otimizada em Release com `DebugOverlay`, MCP e ferramentas de QA.

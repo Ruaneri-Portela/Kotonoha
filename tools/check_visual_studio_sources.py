@@ -146,7 +146,10 @@ def validate() -> dict:
             "LauncherCore must export the JNI bridge")
 
     engine_sources, engine_xml = project_sources("KotonohaEngine")
-    disabled = {"MetalFXUpscaler.cpp", "MPVCompatibleUpscaler.cpp"}
+    # CMake selects one Discord presence backend per platform; the Android
+    # implementation and the null fallback are not Windows engine sources.
+    disabled = {"MetalFXUpscaler.cpp", "MPVCompatibleUpscaler.cpp",
+                "DiscordAndroid.cpp", "NullPresence.cpp"}
     for src in (ROOT / "lib" / "src").rglob("*.cpp"):
         if src.name in disabled:
             require(src.name in engine_xml and "Exclude=" in engine_xml,
@@ -187,6 +190,9 @@ def validate() -> dict:
         require(main not in lib_sources, f"{name}Lib: main.cpp must not be in the library")
         for src in (ROOT / "games" / slug / "src").rglob("*.cpp"):
             if src.resolve() == main:
+                continue
+            # School Days: obsolete source not listed by the CMake target.
+            if src.name == "SchoolDaysBackLogEngine.cpp":
                 continue
             require(src.resolve() in lib_sources,
                     f"{name}Lib: missing source {src.relative_to(ROOT)}")

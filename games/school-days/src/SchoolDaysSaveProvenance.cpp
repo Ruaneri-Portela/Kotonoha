@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cctype>
 #include <fstream>
 #include <iterator>
@@ -182,17 +183,17 @@ SchoolDaysSaveProvenance::Origin SchoolDaysSaveProvenance::Capture(
   for (const auto* event = script.data; event; event = event->next) {
     if (event->command == END_ROLL && event->data.path_end) {
       ++credits;
-      creditsEnd = event->endTick;
+      creditsEnd = static_cast<std::uint32_t>(event->endTick);
     } else if (event->command == PLAY_MOVIE && event->data.play_movie &&
                event->data.play_movie->path &&
                Normalized(event->data.play_movie->path).find(moviePath) !=
                    std::string::npos) {
       ++movies;
-      movieStart = event->startTick;
+      movieStart = static_cast<std::uint32_t>(event->startTick);
       touched = event->eventTouched;
     } else if (event->command == Next) {
       ++nexts;
-      nextTick = event->startTick;
+      nextTick = static_cast<std::uint32_t>(event->startTick);
     }
   }
   if (credits != 1 || movies != 1 || nexts != 1 || !touched ||

@@ -79,6 +79,16 @@ def validate():
     require("KOTONOHA_BUILD_GAME" in options and "KOTONOHA_BUILD_" in options,
             "Missing CMake game selection")
 
+    # The detached host must always be emitted beside the launcher in outputs/.
+    launcher_cmake = (ROOT / "launcher" / "CMakeLists.txt").read_text(encoding="utf-8")
+    outputs_cmake = (ROOT / "buildsystems" / "cmake" / "packaging" /
+                     "KotonohaOutputs.cmake").read_text(encoding="utf-8")
+    require("kotonoha_configure_helper_output(KotonohaGameHost KotonohaLauncher)"
+            in launcher_cmake,
+            "KotonohaGameHost must share the KotonohaLauncher output folder")
+    require("function(kotonoha_configure_helper_output" in outputs_cmake,
+            "Missing CMake helper-output rule for KotonohaGameHost")
+
     for config in (XCODE / "Config").glob("*.xcconfig"):
         content = config.read_text(encoding="utf-8")
         for inc in re.findall(r'^\s*#include\s+"([^"]+)"', content, re.M):

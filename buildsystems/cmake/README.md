@@ -1,12 +1,14 @@
 # CMake layout
 
+**English (US)** | [Português (Brasil)](README.pt-BR.md)
+
 The project root `CMakeLists.txt` only orchestrates configuration. Keep
 platform settings and shared options at the top level; keep responsibilities
 in the directories below:
 
-- `dependencies/`: discover and select SDL3 / SDL3_ttf, the pinned ImGui
-  submodule, FFmpeg, libass, json-c, and initialize required submodules.
-  SDL uses system packages, then vcpkg, then submodules in AUTO mode.
+- `dependencies/`: discover and select SDL3 / SDL3_ttf, Dear ImGui (pinned
+  submodule or vcpkg), FFmpeg, libass, json-c, and initialize required
+  submodules (`KotonohaDepsProvider.cmake`).
 - `games/`: canonical game list, target creation and selection, and
   platform-specific application target configuration.
 - `packaging/`: assets, shared-runtime deployment, macOS bundles, Python,

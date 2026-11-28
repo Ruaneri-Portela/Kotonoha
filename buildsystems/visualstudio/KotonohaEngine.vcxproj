@@ -60,7 +60,7 @@
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(RepoRoot)tools\GenerateVisualStudioExports.ps1&quot; -ObjectDir &quot;$(IntDir).&quot; -OutputDef &quot;$(IntDir)KotonohaEngine.def&quot; -Library KotonohaEngine -Platform &quot;$(Platform)&quot;" />
   </Target>
   <ItemGroup>
-    <ClCompile Include="$(RepoRoot)lib\src\**\*.cpp" Exclude="$(RepoRoot)lib\src\media\upscaling\MetalFXUpscaler.cpp;$(RepoRoot)lib\src\media\upscaling\MPVCompatibleUpscaler.cpp" />
+    <ClCompile Include="$(RepoRoot)lib\src\**\*.cpp" Exclude="$(RepoRoot)lib\src\media\upscaling\MetalFXUpscaler.cpp;$(RepoRoot)lib\src\media\upscaling\MPVCompatibleUpscaler.cpp;$(RepoRoot)lib\src\integrations\DiscordAndroid.cpp;$(RepoRoot)lib\src\integrations\NullPresence.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
 </Project>

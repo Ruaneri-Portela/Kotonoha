@@ -14,17 +14,18 @@ Start with the [project README](../README.md), then choose a topic:
 | Android | [Android](BUILD_ANDROID.md) · [Gradle details](../buildsystems/android/README.md) |
 | Apple | [macOS](BUILD_MACOS.md) · [iOS](BUILD_IOS.md) · [Xcode](../buildsystems/xcode/README.md) |
 | Browser | [WebAssembly](BUILD_WEB.md) |
-| Tests and build scope | [Validation](BUILD_VALIDATION.md) |
+| Tests and build scope | [Validation](BUILD_VALIDATION.md) · [Test groups](TESTING.md) |
 | Licensing and provenance | [Repository license audit](LICENSING.md) · [Third-party notices](../THIRD_PARTY_NOTICES.md) |
 | CI, build artifacts and dependency cache | [GitHub Actions and vcpkg](CI_VCPKG.md) |
 | Portable outputs, shared SDL entrypoints, ZIP | [Deployment and CPack](BUILD_PACKAGES.md) |
+| Unified launcher & bridges | [Launcher architecture](../launcher/README.md) · [Desktop manager](../launcher/desktop/KotonohaManager/README.md) |
 | Assets and patches | [Overlays and translation](ASSET_OVERLAYS.md) |
 | File locations | [Directory policy](DIRECTORY_POLICY.md) |
 | UI, subtitles, and saved options | [Engine settings](ENGINE_SETTINGS.md) |
-| Touchscreen, keyboard and controllers | [Unified input](INPUT_CONTROLS.md) |
-| Debug UI, applets and Git build info | [Debug tools and SDL diagnostics](DEBUG_TOOLS.md) |
+| Touchscreen, keyboard and controllers | [Unified input](INPUT_CONTROLS.md) · [Port input matrix](INPUT.md) |
+| Debug UI, applets and Git build info | [Debug tools and SDL diagnostics](DEBUG_TOOLS.md) · [Port debug integration](PORT_DEBUG_INTEGRATION.md) |
 | Game ports | [Port index](../games/README.md) · [Compatibility audit](PORT_COMPATIBILITY.md) |
-| Internals | [Virtual machines](../modules/vms/README.md) · [Asset providers](../modules/providers/README.md) |
+| Internals | [Virtual machines](../modules/vms/README.md) · [Asset providers](../modules/providers/README.md) · [File formats](../modules/formats/README.md) |
 
 ## Documentation policy
 
@@ -34,8 +35,8 @@ Files named `PORT_STATUS.md`, dated investigation notes in `games/*/docs/`, thir
 
 ## Experimental virtual filesystem
 
-The experimental, read-only [Filesystem V2](filesystem/README.md) is present in the `dev` source tree, but migration from legacy readers remains partial. The [original Portuguese architecture specification](filesystem/SPECIFICATION.pt-BR.md) remains the design reference; do not assume any game port is fully migrated without verification.
+The experimental, read-only [Filesystem V2](filesystem/README.md) is present in the `dev` source tree, while migration from legacy readers remains incremental. See the [architecture specification](filesystem/SPECIFICATION.md) ([original Portuguese text](filesystem/SPECIFICATION.pt-BR.md)) for the design contract; do not assume every game port is fully migrated without verification.
 
-## Fork-specific Windows L4 preservation
+## School Days HQ QA and data safety
 
-When integrating upstream, retain the School Days HQ Windows L4 visual/behavior regression suite, and use only synthetic assets and isolated `--documents` test profiles. Never follow NTFS junctions in cleanup routines or remove original retail binaries, GPK archives, private translations, installed QA releases or real saves. Earlier QA captures document their original test conditions, not necessarily the latest engine state. The old fork documentation index is preserved in the independent pre-sync archive.
+Retain the School Days HQ visual/behavior regression suite (Windows x64 and Android SAF), using only synthetic fixtures and isolated `--documents` / `--config` test profiles. See [FORK_WORKFLOW.md](FORK_WORKFLOW.md) and [KNOWN_STATE.md](KNOWN_STATE.md). Never follow NTFS junctions in cleanup routines or alter original retail binaries, GPK archives, private translations, installed QA releases, or personal saves. Dated QA captures document their original test conditions rather than every subsequent engine change.

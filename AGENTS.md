@@ -19,12 +19,13 @@ Kotonoha is a modular **C++17 visual novel engine** built upon SDL3, Dear ImGui,
 | `modules/providers/` | Archive/package containers and `Kotonoha::AssetProvider` implementations (VFS adapters, overlays, caching). |
 | `modules/formats/` | Pure file-format codecs in `modules/formats/<type>/<format>/`, one folder per file format, named after the format (never a game or engine). Codecs return neutral RGBA/PCM data and depend only on the C++ standard library. |
 | `games/` | 16 game applications (15 game ports and Example) (`example`, `amagami`, `zero-no-tsukaima`, `snow-radish-vacation`, `summer-radish-vacation`, `doki-doki-literature-club`, `school-days`, `reallive`, `kirikiri`, `luca-system`, `pmail`, `katawa-shoujo`, `meo`, `n2system`, `ponscripter`, `artemis`). |
-| `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`). |
+| `buildsystems/` | Platform build orchestration: `cmake/` (CMake modules), `android/` (Gradle project), `xcode/` (Native `Kotonoha.xcodeproj`), `visualstudio/` (Native `Kotonoha.sln`). |
+| `design/` | Canonical brand tokens (`design/tokens.json`) and generated platform icons/splash (`design/generated/`). |
 | `assets/` | Shared engine resources (fonts, icons, shaders) and legal third-party notices. |
 | `docs/` | Comprehensive bilingual documentation (`*.md` in en-US, `*.pt-BR.md` in pt-BR). |
 | `tools/` | Build verification, metadata validation, asset packaging, and web dev utilities. |
-| `launcher/` | Unified multi-engine launcher running linked game runtimes in one process. |
-| `vcpkg.json` / `vcpkg-overlays/` | Dependency manifest and custom vcpkg port overlays. |
+| `launcher/` | Unified multi-engine launcher, detached host (`host/`), bridges, and desktop manager. |
+| `vcpkg.json` / `vcpkg-overlays/` | Dependency manifest and custom vcpkg port/triplet overlays (`ports/`, `triplets/`). |
 
 ### Architectural Invariants
 
@@ -135,7 +136,7 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
   ```
 
 ### Apple Platforms (macOS & iOS)
-- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 32 shared schemes: 16 macOS and 16 iOS).
+- **Native Xcode Project**: `buildsystems/xcode/Kotonoha.xcodeproj` (contains 34 shared schemes: 16 games + `KotonohaLauncher` on macOS and iOS).
 - **Preparation Script**:
   ```sh
   python3 tools/PrepareApple.py
@@ -178,11 +179,13 @@ cmake -S . -B build -DKOTONOHA_BUILD_ALL=ON
 Before committing any changes or concluding an agent task, execute the relevant verification steps:
 
 ### 1. Build Metadata Validation (Crucial)
-Run immediately after modifying `CMakeLists.txt`, `KotonohaGames.cmake`, `KotonohaOptions.cmake`, Xcode schemes, `Config/*.xcconfig`, or `project.pbxproj`:
+Run immediately after modifying `CMakeLists.txt`, `KotonohaGames.cmake`, `KotonohaOptions.cmake`, Xcode schemes, `Config/*.xcconfig`, `project.pbxproj`, or Visual Studio `.vcxproj` files:
 ```sh
 python3 tools/ValidateBuildMetadata.py
+python3 tools/check_xcode_sources.py
+python3 tools/check_visual_studio_sources.py
 ```
-*Expected output*: `[Kotonoha] OK: 15 CMake games; 32 existing Xcode schemes; Xcode pending: none`
+*Expected output (`ValidateBuildMetadata.py`)*: `[Kotonoha] OK: 16 CMake games; 34 existing Xcode schemes; Xcode pending: none`
 
 ### 2. Native C++ Tests
 ```sh
@@ -232,19 +235,19 @@ python3 tools/check_sdl_cpack.py <build_dir>
 
 ---
 
-## 7. Fork Policies & Scope (`tsubaki-0x/Kotonoha`)
+## 7. School Days HQ & Fork Collaboration Policies (`Ruaneri-Portela/Kotonoha` & `tsubaki-0x/Kotonoha`)
 
-All upstream rules above remain mandatory in this fork. The policies below document the fork's authorized scope, branch roles, and School Days HQ workflows (see [docs/FORK_WORKFLOW.md](docs/FORK_WORKFLOW.md) for detailed procedures).
+All core engine rules above are mandatory across both the canonical upstream repository (`Ruaneri-Portela/Kotonoha`) and the School Days HQ collaboration fork (`tsubaki-0x/Kotonoha`). See [docs/FORK_WORKFLOW.md](docs/FORK_WORKFLOW.md) for detailed DEV/DIST and QA procedures.
 
 ### Authorized Targets & Shared Architecture
-- Both **Windows x64** and **Android (`arm64-v8a`)** are active, authorized targets for **School Days HQ v1.02** (superseding the historical 2026-11 Windows-L4-only restriction).
+- Both **Windows x64** and **Android (`arm64-v8a` / dual-ABI)** are active, authorized targets for **School Days HQ v1.02** (superseding the historical 2026-11 Windows-L4-only restriction).
 - Preserve a single shared School Days game-logic implementation in `games/school-days/`, generic engine code in `lib/`, VMs/providers in `modules/`, and Android JNI/Gradle/SAF platform adapters in `buildsystems/android/`.
 - Do not duplicate game logic across Windows and Android or introduce game-specific MCP/DevBridge servers (use generic MCP in `lib/`).
 
-### Permanent Fork Branches
-- `dev`: primary development and upstream-collaboration line (`tsubaki-0x/Kotonoha` default branch).
-- `hybrid`: hybrid line preserving the School Days HQ DEV/DIST packaging infrastructure and fork-specific Windows/Android distribution flows.
-- Never push directly to `upstream` (`Ruaneri-Portela/Kotonoha`), never force-push published branches, and keep upstream PRs small, clean, and based directly on `upstream/dev`.
+### Repository & Branch Roles
+- `Ruaneri-Portela/Kotonoha` (`dev`): canonical upstream integration line for the multi-engine runtime, build systems, and all 16 game applications.
+- `tsubaki-0x/Kotonoha` (`dev` / `hybrid`): collaboration and private QA packaging fork (`hybrid` preserves fork-specific School Days HQ DEV/DIST distribution tooling).
+- Never force-push published shared branches (`dev`, `main`, or `hybrid`), and keep cross-repository PRs focused, clean, and free of game-specific symbols in `lib/`.
 
 ### DEV vs DIST Policy (Windows & Android)
 - **DEV** (`-DKOTONOHA_DISTRIBUTION_BUILD=OFF -DKOTONOHA_ENABLE_MCP=ON` on Windows; `debug`/`release` with `BuildConfig.IS_DISTRIBUTION_BUILD=false` on Android): Release-optimized development build with `DebugOverlay`, MCP, and QA tooling.

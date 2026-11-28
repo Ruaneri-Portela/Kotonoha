@@ -13,12 +13,15 @@ references the source tree directly and does not invoke CMake.
 |---|---|---|---|
 | Debug, Release | Win32 (x86), x64 (amd64), ARM64 | MSVC v145 / Windows SDK 10.0 | vcpkg, manifest mode |
 
-The 74 projects are divided into 1 engine DLL, 39 module static libraries
-(12 VMs, 14 formats, 13 providers), 16 game static libraries plus 16 `main.cpp`
-executables, and 2 launcher projects (`KotonohaLauncherCore` is also a DLL).
+The 75 projects are divided into 1 engine DLL (`KotonohaEngine`), 39 module
+static libraries (12 VMs, 14 formats, 13 providers), 16 game static libraries
+plus 16 `main.cpp` executables, and 3 launcher projects (`KotonohaLauncherCore`
+DLL, detached `KotonohaGameHost` executable, and `KotonohaLauncher` executable).
 SDL3, SDL3_ttf and Dear ImGui come entirely from vcpkg. Game libraries each
 have their own intermediate directory, so identically named sources in
-different ports do not collide in MSBuild. See `buildsystems/visualstudio/README.md` for details.
+different ports do not collide in MSBuild. See
+[`buildsystems/visualstudio/README.md`](../buildsystems/visualstudio/README.md)
+for details.
 
 ## Prepare and build
 
@@ -57,15 +60,16 @@ Both are read-only. The first checks CMake/Xcode/Visual Studio metadata
 consistency; the second checks source coverage and the configuration matrix of
 the Visual Studio solution.
 
-## Launcher and Avalonia manager
+## Launcher, GameHost and Avalonia manager
 
-`KotonohaLauncherCore.dll` exports `KotonohaLauncherRunDll`, a RUNDLL32 entry
-point equivalent to a fork on Windows. The managed game manager in
-`launcher/desktop/KotonohaManager/` uses it to start each game on its own
-main thread (SDL requirement), receives the PID, captures stdout/stderr and
-keeps the game card green until the process exits. The manager switches between
-Portuguese and English at runtime and copies `assets/` to its build output so
-the engine can open the bundled fonts.
+`KotonohaLauncherCore.dll` spawns the universal detached helper
+`KotonohaGameHost.exe` (`launcher/host/GameHost.cpp`) to execute each game on
+its own main thread (an SDL3 requirement) across all desktop frontends. The
+managed game manager in `launcher/desktop/KotonohaManager/` invokes the C ABI
+bridge, receives the child PID, captures stdout/stderr and keeps the game card
+green until the process exits. The manager switches between Portuguese and
+English at runtime and copies `assets/` to its build output so the engine can
+open the bundled fonts.
 
 Commercial game assets remain in local, untracked `games/<slug>/game-assets/`
 directories and are never copied into the solution or packaged by it.

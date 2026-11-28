@@ -71,7 +71,7 @@
                       "x64",
                       "ARM64"
                   ],
-    "source_files":  317,
+    "source_files":  327,
     "include_directories":  117,
     "games":  {
                   "Game_SummerRadish":  "summer-radish-vacation",
@@ -310,7 +310,7 @@
                         "type":  "StaticLibrary"
                     },
                     {
-                        "sources":  4,
+                        "sources":  1,
                         "group":  "modules\\providers",
                         "guid":  "{D8206AF9-F0D0-1008-34C6-1017A78E40C1}",
                         "name":  "Provider_Gpk",
@@ -483,7 +483,7 @@
                     {
                         "lib_for":  "Game_SchoolDays",
                         "name":  "Game_SchoolDaysLib",
-                        "sources":  54,
+                        "sources":  67,
                         "type":  "StaticLibrary",
                         "slug":  "school-days",
                         "guid":  "{DD4940E9-1711-4D72-1A1B-9F6810A5F125}",

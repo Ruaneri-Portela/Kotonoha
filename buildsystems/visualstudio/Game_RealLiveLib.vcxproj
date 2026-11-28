@@ -51,7 +51,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup><LanguageStandard>stdcpp17</LanguageStandard></PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="$(RepoRoot)games\reallive\src\**\*.cpp" Exclude="$(RepoRoot)games\reallive\src\main.cpp" />
+    <ClCompile Include="$(RepoRoot)games\reallive\src\**\*.cpp" Exclude="$(RepoRoot)games\reallive\src\main.cpp;$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp" />
     <ClCompile Include="$(RepoRoot)games\reallive\vendor\libreallive\*.cc" />
   </ItemGroup>
   <ItemGroup>

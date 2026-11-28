@@ -10,19 +10,20 @@ from the repository root unless specified otherwise.
 | Target | Guide |
 | --- | --- |
 | Linux / Windows desktop | [Desktop section below](#desktop) |
-| Windows (MinGW cross from macOS/Linux) | [MinGW cross-build](BUILD_WINDOWS.md) |
+| Windows (native Visual Studio solution) | [Visual Studio 18 / v145](BUILD_VISUAL_STUDIO.md) |
+| Windows (MSVC, MinGW & MinGW cross) | [Windows & MinGW cross-build](BUILD_WINDOWS.md) |
 | macOS | [macOS app bundles](BUILD_MACOS.md) |
 | iOS | [Native Xcode project](BUILD_IOS.md) |
 | Android | [Gradle flavors](BUILD_ANDROID.md) |
 | WebAssembly | [Emscripten](BUILD_WEB.md) |
 | Tests | [Build validation](BUILD_VALIDATION.md) |
 
-## Dependency providers
+## Dependency providers & presets
 
-Configure CMake directly with `cmake -S . -B <build-dir>`; no preset file is
-checked in. Use Ninja with `-G Ninja` (single-config: `CMAKE_BUILD_TYPE` is
-authoritative) and add
-`-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"` when
+Configure CMake either via the checked-in [`CMakePresets.json`](../CMakePresets.json)
+(`cmake --preset <name>`) or directly with `cmake -S . -B <build-dir>`. Use
+Ninja with `-G Ninja` (single-config: `CMAKE_BUILD_TYPE` is authoritative) and
+add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake"` when
 vcpkg supplies the native libraries. Select dependency sources with
 `KOTONOHA_DEPS_PROVIDER`, `KOTONOHA_SDL_PROVIDER` and
 `KOTONOHA_IMGUI_PROVIDER`; see [dependency providers](DEPENDENCIES.md).

@@ -247,8 +247,9 @@ if(NOT EMSCRIPTEN AND NOT ANDROID)
             GAME_ASSET_SOURCE "${_kotonoha_launcher_empty_assets}")
     endif()
 
-    # The launcher bundle stages KotonohaGameHost; make the ordering explicit.
+    # The detached host is always emitted beside the launcher in outputs/.
     if(TARGET KotonohaGameHost)
+        kotonoha_configure_helper_output(KotonohaGameHost KotonohaLauncher)
         add_dependencies(KotonohaLauncher KotonohaGameHost)
     endif()
 

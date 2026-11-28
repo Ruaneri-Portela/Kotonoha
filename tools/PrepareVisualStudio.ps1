@@ -285,7 +285,10 @@ function Invoke-Generate {
     $engineGuid = New-Vcxproj -Name 'KotonohaEngine' -Type 'DynamicLibrary' -Group 'lib' -AutoExport -Sources @(
         (SourceItemXml -include '$(RepoRoot)lib\src\**\*.cpp' -exclude @(
             '$(RepoRoot)lib\src\media\upscaling\MetalFXUpscaler.cpp',
-            '$(RepoRoot)lib\src\media\upscaling\MPVCompatibleUpscaler.cpp'))
+            '$(RepoRoot)lib\src\media\upscaling\MPVCompatibleUpscaler.cpp',
+            # CMake selects a single Discord presence backend per platform.
+            '$(RepoRoot)lib\src\integrations\DiscordAndroid.cpp',
+            '$(RepoRoot)lib\src\integrations\NullPresence.cpp'))
     )
     $manifestTargets.Add(@{ name = 'KotonohaEngine'; type = 'DynamicLibrary'; group = 'lib'; guid = $engineGuid; sources = 85 })
 
@@ -316,7 +319,10 @@ function Invoke-Generate {
         $libName = $entry.Name + 'Lib'
         $gameLibNames += $libName
         $sources = @(
-            (SourceItemXml -include ("`$(RepoRoot)games\" + $entry.Slug + '\src\**\*.cpp') -exclude @("`$(RepoRoot)games\" + $entry.Slug + '\src\main.cpp'))
+            (SourceItemXml -include ("`$(RepoRoot)games\" + $entry.Slug + '\src\**\*.cpp') -exclude (@("`$(RepoRoot)games\" + $entry.Slug + '\src\main.cpp') + @(
+                # School Days: obsoleto, nao compilado pelo CMake.
+                '$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp'
+            )))
         )
         if ($entry.Slug -eq 'reallive') {
             $sources += (SourceItemXml '$(RepoRoot)games\reallive\vendor\libreallive\*.cc')

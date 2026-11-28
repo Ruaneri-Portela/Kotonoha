@@ -1,5 +1,7 @@
 # Estilos das legendas do School Days HQ
 
+[English (US)](SUBTITLE_STYLES.md) | **Português (Brasil)**
+
 A legenda usa nomes canônicos (`PrintText.character`) dos scripts e seleciona o estilo ASS por comparação **exata** e **sensível a maiúsculas/minúsculas**: sem `trim`, sem normalização de acentos, sem remover prefixos/sufixos. A tradução do texto das falas não altera o nome do falante. Nome não encontrado (inclusive vazio) usa `Default`.
 
 O mesmo arquivo ASS atende **qualquer idioma** (EN, PT-BR, ES, RU, ZH) desde que o script preserve o identificador literal de falante. Traduções que alterem esse identificador precisam de uma linha de estilo própria.
@@ -36,7 +38,7 @@ Somente `PrimaryColour=&H00EEEEF9` e `OutlineColour=&H003F43BE` foram modificado
 
 ### Contraste dos grupos mais claros
 
-O upstream sugeriu contornos mais escuros para ExtraMan, Fairy e System, mas o fork preserva as cores originais aprovadas pelo usu?rio na tabela acima. A variante de contraste do upstream n?o foi aplicada silenciosamente; mudan?as futuras exigem QA visual espec?fico.
+O upstream sugeriu contornos mais escuros para ExtraMan, Fairy e System, mas foram preservadas as cores originais aprovadas pelo usuário na tabela acima. A variante de contraste alternativa não foi aplicada silenciosamente; mudanças futuras exigem QA visual específico.
 
 ## ALIASES ADICIONADOS - REVISAR
 
@@ -49,7 +51,7 @@ O upstream sugeriu contornos mais escuros para ExtraMan, Fairy e System, mas o f
 
 A atribuição de alguns nomes a personagens ou funções é **inferida**, e uma correspondência entre rótulos em idiomas diferentes deve ser revista. Se houver dúvida sobre uma nova variante, não crie um alias automaticamente.
 
-O fork preserva os aliases Ameria e Chris previamente autorizados dentro de Fairy; diferentemente da proposta upstream, seus estilos exatos permanecem at? revis?o visual expressa.
+Os aliases Ameria e Chris previamente autorizados dentro de Fairy foram preservados; seus estilos exatos permanecem até revisão visual expressa.
 
 ## Como adicionar um personagem
 

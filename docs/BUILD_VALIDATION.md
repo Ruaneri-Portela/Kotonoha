@@ -6,13 +6,15 @@ Validate the CMake game matrix and Xcode schemes after build-system changes:
 
 ```sh
 python3 tools/ValidateBuildMetadata.py
+python3 tools/check_xcode_sources.py
 python3 tools/check_visual_studio_sources.py
 ```
 
 `check_visual_studio_sources.py` verifies the independent
-`buildsystems/visualstudio/Kotonoha.sln`: 74 projects (16 games, 39 modules),
-source coverage for `lib/`, all module directories, all 16 games and the
-launcher, plus the six Debug/Release × Win32/x64/ARM64 combinations.
+`buildsystems/visualstudio/Kotonoha.sln`: 75 projects (16 games, 39 modules,
+1 engine DLL, and 3 launcher projects), source coverage for `lib/`, all module
+directories, all 16 games and the launcher, plus the six Debug/Release ×
+Win32/x64/ARM64 combinations.
 
 The read-only check verifies **16 CMake game applications** (15 game ports plus Example), **34 Xcode schemes** (16 games plus `KotonohaLauncher` on macOS and iOS), no untracked `xcode_pending` gaps, target references, dependency-preparation actions, and `.xcconfig` includes. Android has 16 game flavors plus a separate `launcher` flavor (`KOTONOHA_BUILD_GAME=all`); run `python3 tools/check_release_matrix.py` to verify both matrices. It needs only Python 3 and does not compile anything.
 

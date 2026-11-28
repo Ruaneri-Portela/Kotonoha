@@ -62,6 +62,7 @@
 #include <cmath>
 #include <condition_variable>
 #include <cstdlib>
+#include <cstdint>
 #include <deque>
 #include <fstream>
 #include <iterator>
@@ -71,7 +72,9 @@
 #include <thread>
 #if defined(_WIN32) && !defined(__ANDROID__)
 #define WIN32_LEAN_AND_MEAN
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 #include <windows.h>
 // Windows' generic-text API alias otherwise rewrites our
 // SchoolDaysInputPolicy::TranslateAccelerator method calls to
@@ -562,8 +565,9 @@ int CurrentDisplayPreset(const Kotonoha::EngineSettings &settings) {
   case Kotonoha::UpscalePreset::ArtCNNDenoise: return 2;
   case Kotonoha::UpscalePreset::ArtCNNLarge: return 3;
   case Kotonoha::UpscalePreset::Anime4K: return 4;
+  // Additional Anime4K presets share the legacy display slot.
+  default: return 4;
   }
-  return 4;
 }
 
 const char *WindowModeLabel(Kotonoha::WindowMode mode) {
@@ -2167,7 +2171,7 @@ void Runtime::configureLxhFade() {
   for (const auto *event = script.data; event; event = event->next) {
     if (event->command == END_ROLL && event->data.path_end) {
       ++creditEvents;
-      creditsEnd = event->endTick;
+      creditsEnd = static_cast<std::uint32_t>(event->endTick);
     } else if (event->command == PLAY_MOVIE && event->data.play_movie) {
       std::string path = Text(event->data.play_movie->path);
       std::transform(path.begin(), path.end(), path.begin(),
@@ -2176,7 +2180,7 @@ void Runtime::configureLxhFade() {
                      });
       if (path.find(expectedMovie) != std::string::npos) {
         ++extraMovies;
-        movieStart = event->startTick;
+        movieStart = static_cast<std::uint32_t>(event->startTick);
       }
     } else if (event->command == Next) {
       ++nextEvents;
@@ -3473,7 +3477,7 @@ bool Runtime::completePendingSeek() {
 }
 
 void Runtime::seek(Kotonoha_SceneTick target) {
-  lxhFade.SeekTo(target);
+  lxhFade.SeekTo(static_cast<std::uint32_t>(target));
   if (choiceSpeedOverrideActive) {
     choiceSpeedOverrideActive = false;
     setPlaybackSpeedIndex(speedIndex);
@@ -3679,8 +3683,9 @@ void Runtime::update() {
     if (lxhFade.StartCountdownExit(now)) {
       if (firstLxhExitFrame)
         SDL_LogInfo(Kotonoha::LogUI,
-                    "LxH countdown fade OUT at Next: %s tick=%u",
-                    scene.sceneKey.c_str(), tick);
+                    "LxH countdown fade OUT at Next: %s tick=%llu",
+                    scene.sceneKey.c_str(),
+                    static_cast<unsigned long long>(tick));
       for (auto &item : playing) item.player->setPaused(true);
       if (!lxhFade.ExitReady(now)) return;
       lxhFade.CountdownOpened(now);
@@ -3733,7 +3738,7 @@ void Runtime::update() {
       if (event->startTick > candidateTick) break;
       if (event->command == SetSELECT && !event->eventTouched &&
           event->startTick >= tick) {
-        candidateTick = event->startTick;
+        candidateTick = static_cast<std::uint32_t>(event->startTick);
         clampedToChoice = true;
         break;
       }
@@ -3749,16 +3754,17 @@ void Runtime::update() {
         continue;
       if (Kotonoha::SchoolDaysLxhContent::IsPackResource(
               std::string(event->data.play_movie->path) + ".wmv")) {
-        candidateTick = event->startTick;
+        candidateTick = static_cast<std::uint32_t>(event->startTick);
         clampedToChoice = true;
         break;
       }
     }
   }
-  if (lxhFade.BeginAtCreditBoundary(candidateTick, now)) {
+  if (lxhFade.BeginAtCreditBoundary(static_cast<std::uint32_t>(candidateTick),
+                                    now)) {
     SDL_LogInfo(Kotonoha::LogUI,
-                "LxH entrance fade OUT after original EndRoll: %s tick=%u",
-                scene.sceneKey.c_str(), tick);
+                "LxH entrance fade OUT after original EndRoll: %s tick=%llu",
+                scene.sceneKey.c_str(), static_cast<unsigned long long>(tick));
     for (auto &item : playing) item.player->setPaused(true);
     return;
   }
@@ -3773,12 +3779,13 @@ void Runtime::update() {
     if (event->command == PLAY_MOVIE) {
       const bool reveal = lxhFade.CurrentPhase() ==
                           Kotonoha::SchoolDaysLxhFade::Phase::AwaitMovie;
-      lxhFade.MovieStarted(event->startTick, now);
+      lxhFade.MovieStarted(static_cast<std::uint32_t>(event->startTick), now);
       if (reveal && lxhFade.CurrentPhase() ==
                         Kotonoha::SchoolDaysLxhFade::Phase::EntryIn)
         SDL_LogInfo(Kotonoha::LogUI,
-                    "LxH entrance fade IN with extra movie: %s tick=%u",
-                    scene.sceneKey.c_str(), tick);
+                    "LxH entrance fade IN with extra movie: %s tick=%llu",
+                    scene.sceneKey.c_str(),
+                    static_cast<unsigned long long>(tick));
     }
   }
   updateAbcVoices();
@@ -3791,8 +3798,8 @@ void Runtime::update() {
   if (timeline.ReadyToEnd(tick) && choicePresentationComplete()) {
     if (lxhFirstTranslationEvent && !temporaryPlaybackActive())
       SDL_LogInfo(Kotonoha::LogUI,
-                  "LxH terminal Next reached; starting countdown handoff: %s tick=%u",
-                  scene.sceneKey.c_str(), tick);
+                  "LxH terminal Next reached; starting countdown handoff: %s tick=%llu",
+                  scene.sceneKey.c_str(), static_cast<unsigned long long>(tick));
     // The completed movie can already have retired from movieStates here.
     // Never recheck its decoder at Next: that would freeze the last PNG.
     pendingSceneAdvance = true;
@@ -6448,7 +6455,8 @@ Kotonoha::SchoolDaysSaveProvenance::Origin Runtime::saveProvenanceOrigin(
   }
   // Integrated LxH has no availability toggle. Real origin still requires a
   // recognized epilogue, the correct fade and an actually dispatched movie.
-  return Provenance::Capture(scene.sceneKey, script, tick,
+  return Provenance::Capture(scene.sceneKey, script,
+                             static_cast<std::uint32_t>(tick),
                              temporaryPlaybackActive(),
                              bridge.HasPendingHandoff(), pendingSceneAdvance,
                              actualEpilogue && movieDispatched);

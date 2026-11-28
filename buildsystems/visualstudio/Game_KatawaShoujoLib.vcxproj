@@ -51,7 +51,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup><LanguageStandard>stdcpp20</LanguageStandard></PropertyGroup>
   <ItemGroup>
-    <ClCompile Include="$(RepoRoot)games\katawa-shoujo\src\**\*.cpp" Exclude="$(RepoRoot)games\katawa-shoujo\src\main.cpp" />
+    <ClCompile Include="$(RepoRoot)games\katawa-shoujo\src\**\*.cpp" Exclude="$(RepoRoot)games\katawa-shoujo\src\main.cpp;$(RepoRoot)games\school-days\src\SchoolDaysBackLogEngine.cpp" />
     <ClCompile Include="$(RepoRoot)games\doki-doki-literature-club\src\**\*.cpp" Exclude="$(RepoRoot)games\doki-doki-literature-club\src\main.cpp" />
   </ItemGroup>
   <ItemGroup>

@@ -43,6 +43,28 @@ endif()
 # Select the output directory for an application target. macOS bundles are
 # emitted directly inside outputs; every other desktop application gets its own
 # folder containing the executable, assets, game-assets and runtime libraries.
+# Helper executables shipped alongside an app (notably KotonohaGameHost)
+# must be emitted directly into that app's output folder, so the native
+# launcher core always finds them next to KotonohaLauncher in outputs/.
+function(kotonoha_configure_helper_output helper target)
+    if(ANDROID OR NOT TARGET ${helper} OR NOT TARGET ${target})
+        return()
+    endif()
+    get_target_property(_kotonoha_is_bundle ${target} MACOSX_BUNDLE)
+    if(APPLE AND CMAKE_SYSTEM_NAME STREQUAL "Darwin"
+            AND KOTONOHA_BUILD_MACOS_BUNDLES AND _kotonoha_is_bundle)
+        # macOS bundles stage the helper in Contents/MacOS via POST_BUILD;
+        # do not move the helper target itself out of the build tree.
+        return()
+    endif()
+    get_target_property(_kotonoha_app_dir ${target} RUNTIME_OUTPUT_DIRECTORY)
+    if(NOT _kotonoha_app_dir)
+        set(_kotonoha_app_dir "${KOTONOHA_OUTPUT_CONFIG_DIR}/${target}")
+    endif()
+    set_target_properties(${helper} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${_kotonoha_app_dir}")
+endfunction()
+
 function(kotonoha_configure_app_output target)
     if(ANDROID)
         return()

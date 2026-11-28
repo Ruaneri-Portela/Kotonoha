@@ -27,7 +27,7 @@ If using vcpkg explicitly, add `-DCMAKE_TOOLCHAIN_FILE="$VCPKG_ROOT/scripts/buil
 - **[Build guides](docs/BUILD_GUIDES.md)** — desktop, Android, iOS, macOS, WebAssembly, and the native Visual Studio solution.
 - **[CI and vcpkg](docs/CI_VCPKG.md)** — one-runner Linux/WASM pipeline, artifact builds, and cache policy.
 - **[Game ports](games/README.md)** — supported modules, limitations, and game-specific instructions.
-- **[Modules](modules/vms/README.md)** — script VMs; **[asset providers](modules/providers/README.md)** — file and archive access.
+- **[Modules](modules/vms/README.md)** — script VMs; **[asset providers](modules/providers/README.md)** — file and archive access; **[file formats](modules/formats/README.md)** — neutral media/image codecs.
 - **[Overlays](docs/ASSET_OVERLAYS.md)**, **[storage](docs/DIRECTORY_POLICY.md)**, and **[engine settings](docs/ENGINE_SETTINGS.md)**.
 
 ## Current integration notes
@@ -42,11 +42,13 @@ The [standalone unified launcher](launcher/README.md) is a desktop executable th
 
 | Path | Purpose |
 | --- | --- |
-| `launcher/` | Standalone multi-engine desktop launcher and Avalonia game manager (`desktop/KotonohaManager/`) |
+| `launcher/` | Standalone multi-engine desktop launcher, detached host (`host/`), and Avalonia game manager (`desktop/KotonohaManager/`) |
 | `lib/` | Shared engine, public headers, and tests |
 | `modules/vms/` | Script virtual machines |
 | `modules/providers/` | Asset and archive providers |
+| `modules/formats/` | Game-neutral image, audio, and archive format codecs |
 | `games/` | Individual game ports and demo |
+| `design/` | Canonical visual identity tokens (`tokens.json`) and generated platform icons/splash (`generated/`) |
 | `assets/` | Shared engine resources and third-party notices |
 | `buildsystems/` | CMake helpers, Android Gradle project, native Xcode project, and independent Visual Studio solution (`visualstudio/Kotonoha.sln`) |
 | `docs/` | Cross-platform documentation |
@@ -60,6 +62,6 @@ See the [MIT license](LICENSE), [third-party notices](THIRD_PARTY_NOTICES.md) an
 
 Contributions should keep the engine platform-neutral, document new options in both languages, and preserve historical investigation records when refactoring active guides.
 
-## Fork integration and School Days Windows L4 QA
+## School Days HQ integration and QA isolation
 
-The fork retains Windows L4 retail-parity tests, local QA reports, and a distinct `dev`/hybrid integration history. See [`docs/KNOWN_STATE.md`](docs/KNOWN_STATE.md) and [`games/school-days/docs/`](games/school-days/docs/) for implementation-specific limits. Before replay, retail gameplay or save migration, use isolated `--documents` profiles; never alter private commercial GPK packs or personal saves during integration. Historical fork README detail is preserved in the independently verified pre-sync backup.
+Integrated School Days HQ parity tests (Windows x64 and Android SAF), DEV/DIST build gates, and historical QA records are documented in [`docs/KNOWN_STATE.md`](docs/KNOWN_STATE.md), [`docs/FORK_WORKFLOW.md`](docs/FORK_WORKFLOW.md), and [`games/school-days/docs/`](games/school-days/docs/). Before replay, retail gameplay, or save migration testing, always pass isolated `--documents` and `--config` profiles; never alter commercial GPK archives or personal saves during testing.
