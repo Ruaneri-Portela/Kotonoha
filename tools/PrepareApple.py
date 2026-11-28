@@ -3,7 +3,8 @@
 
 Xcode builds only check the prepared dependency directories. Manual preparation
 uses an existing vcpkg via $VCPKG_ROOT (or --vcpkg-executable / $VCPKG_EXE);
-no automatic search or bootstrap is performed.
+no automatic search or bootstrap is performed. When a prepared directory is
+missing, the Xcode pre-action only warns and tells how to generate it.
 
 Source archives are cached in build/<platform>-deps/python; Python.xcframework
 is installed to buildsystems/xcode/python/<platform> for Xcode's references.
@@ -51,6 +52,10 @@ USER_AGENT = "Kotonoha-PrepareApple/2.0"
 
 def say(message: str) -> None:
     print(f"[Kotonoha/PrepareApple] {message}", flush=True)
+
+
+def warn(message: str) -> None:
+    print(f"[Kotonoha/PrepareApple] WARNING: {message}", file=sys.stderr, flush=True)
 
 
 def sha256_file(path: Path) -> str:
@@ -517,7 +522,8 @@ def install_lock(sdk: str):
             fcntl.flock(lock.fileno(), fcntl.LOCK_UN)
 
 
-def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path | None) -> None:
+def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path | None,
+                  xcode_pre_action: bool = False) -> None:
     if mode == "skip":
         say("vcpkg preparation skipped by --vcpkg skip")
         return
@@ -530,11 +536,18 @@ def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path
                 missing = missing_vcpkg_libraries(triplet, root)
                 if missing:
                     platform_arg = "macos" if selected_sdk == "macosx" else "ios"
-                    raise RuntimeError(
+                    message = (
                         f"Missing prepared dependencies at {root / triplet}: "
                         f"{', '.join(missing)}. Run from the repository root: "
-                        f"python3 tools/PrepareApple.py --platform {platform_arg} "
-                        f"--sdk {selected_sdk} --only-vcpkg")
+                        "VCPKG_ROOT=<vcpkg-checkout> python3 tools/PrepareApple.py "
+                        f"--platform {platform_arg} --sdk {selected_sdk} --only-vcpkg")
+                    if xcode_pre_action:
+                        # Xcode has no VCPKG_ROOT and a minimal PATH: never
+                        # bootstrap/download here, only tell how to generate it.
+                        warn(f"{message} (bootstrap your checkout with "
+                             "bootstrap-vcpkg.sh first if needed)")
+                        continue
+                    raise RuntimeError(message)
                 say(f"Verified vcpkg ({selected_sdk}/{arch}, {triplet}): {root}")
                 continue
             with install_lock(f"{selected_sdk}-{arch}"):
@@ -581,7 +594,8 @@ def main() -> int:
     parser.add_argument("--only-vcpkg", action="store_true", help="Prepare only vcpkg, for non-DokiDoki targets")
     parser.add_argument("--only-python", action="store_true", help="Prepare only CPython, without vcpkg")
     parser.add_argument("--vcpkg", choices=("auto", "install", "check", "skip"), default="auto",
-                        help="auto reuses complete installs; install runs vcpkg; check only verifies; skip disables")
+                        help="auto reuses complete installs; install runs vcpkg; check only verifies "
+                             "(Xcode pre-action only warns); skip disables")
     parser.add_argument("--vcpkg-executable", type=Path,
                         help="Use an existing vcpkg executable (default: $VCPKG_ROOT/vcpkg)")
     parser.add_argument("--configuration", default=os.environ.get("CONFIGURATION", "Debug"),
@@ -613,7 +627,10 @@ def main() -> int:
         args.platform = ("macos" if platform_name == "macosx" else "ios")
         args.sdk = platform_name
         args.only_vcpkg = True
-        args.vcpkg = "check"
+        # Xcode's GUI environment has no VCPKG_ROOT and a minimal PATH, so the
+        # pre-action only verifies the install tree prepared by a terminal run.
+        if args.vcpkg != "skip":
+            args.vcpkg = "check"
         args.configuration = os.environ.get("CONFIGURATION", "Debug")
     if args.only_python and args.only_vcpkg:
         parser.error("--only-vcpkg and --only-python are mutually exclusive")
@@ -640,7 +657,8 @@ def main() -> int:
     try:
         say(f"Preparing Apple dependencies, platform={selected}, SDK={args.sdk or 'all'}")
         if not args.only_python and args.vcpkg == "check":
-            prepare_vcpkg(platform=selected, sdk=args.sdk, mode="check", executable=None)
+            prepare_vcpkg(platform=selected, sdk=args.sdk, mode="check", executable=None,
+                          xcode_pre_action=args.xcode_pre_action)
         prepare_visual_assets(platform=selected)
         if not args.only_vcpkg:
             if selected in ("ios", "all"):
@@ -656,7 +674,9 @@ def main() -> int:
                 )
                 prepare_macos(macos, force_prepare=args.force_prepare or args.force_download or args.macos_archive is not None)
         if not args.only_python and args.vcpkg != "check":
-            prepare_vcpkg(platform=selected, sdk=args.sdk, mode=args.vcpkg, executable=args.vcpkg_executable)
+            prepare_vcpkg(platform=selected, sdk=args.sdk, mode=args.vcpkg,
+                          executable=args.vcpkg_executable,
+                          xcode_pre_action=args.xcode_pre_action)
     except (OSError, RuntimeError, ValueError, tarfile.TarError, urllib.error.URLError,
             subprocess.CalledProcessError) as exc:
         print(f"error: [Kotonoha/PrepareApple] {exc}", file=sys.stderr)
