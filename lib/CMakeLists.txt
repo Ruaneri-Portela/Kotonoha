@@ -68,6 +68,9 @@ file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
 )
 
+# Optional integrations are separate, explicitly linked targets, not engine DLL sources.
+list(FILTER KOTONOHA_ENGINE_SOURCES EXCLUDE REGEX "/src/integrations/")
+
 if (APPLE)
     file(GLOB_RECURSE KOTONOHA_ENGINE_SOURCES_OBJC
             CONFIGURE_DEPENDS
@@ -226,6 +229,18 @@ if(EMSCRIPTEN AND KOTONOHA_WEB_SELFTEST)
     kotonoha_configure_app(KotonohaWebSelfTest
         GAME_ASSET_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/tests/web/game-assets")
 endif()
+
+option(KOTONOHA_BUILD_RICH_PRESENCE "Build the opt-in Discord Rich Presence transport" OFF)
+option(KOTONOHA_ANDROID_DISCORD_RPC "Use the optional Discord Social SDK for Android presence" OFF)
+if (KOTONOHA_ANDROID_DISCORD_RPC AND NOT KOTONOHA_BUILD_RICH_PRESENCE)
+    message(FATAL_ERROR "KOTONOHA_ANDROID_DISCORD_RPC requires KOTONOHA_BUILD_RICH_PRESENCE")
+endif ()
+if (KOTONOHA_BUILD_RICH_PRESENCE)
+    if (EMSCRIPTEN)
+        message(FATAL_ERROR "Rich Presence is not supported on WebAssembly")
+    endif ()
+    add_subdirectory(src/integrations)
+endif ()
 
 if (BUILD_TESTING)
     add_subdirectory(tests)
