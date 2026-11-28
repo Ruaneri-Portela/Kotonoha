@@ -18,8 +18,7 @@ IPHONEOS_DEPLOYMENT_TARGET = 15.0
 // macOS desktop builds consume the dynamic vcpkg triplets produced by
 // `cmake --preset macos-arm64-vcpkg` / `cmake --preset macos-amd64-vcpkg`, so
 // Xcode and CMake use the same dependency artifacts. iOS keeps its own
-// triplets. SDL3 and SDL3_ttf come from the Xcode projects in lib/submodules
-// (dynamic frameworks); the remaining dependencies come from vcpkg. The
+// triplets. SDL3, SDL3_ttf and ImGui all come from vcpkg on both SDKs. The
 // install root and triplet below must stay in sync with CMakePresets.json:
 // out/build/macos-arm64-vcpkg/vcpkg_installed (arm64) and
 // out/build/macos-amd64-vcpkg/vcpkg_installed (x86_64 architecture). The
@@ -157,18 +156,9 @@ KOTONOHA_GAME_HEADER_ROOTS = \
     "$(KOTONOHA_ROOT)/launcher/core" \
     "$(KOTONOHA_ROOT)/launcher/app"
 
-// macOS takes SDL3, SDL3_ttf and ImGui headers from the vcpkg include tree
-// (OTHER_CPLUSPLUSFLAGS). iOS keeps the pinned submodule headers.
-KOTONOHA_SUBMODULE_INCLUDES = \
-    "$(KOTONOHA_ROOT)/lib/submodules/SDL/include" \
-    "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/include" \
-    "$(KOTONOHA_ROOT)/lib/submodules/imgui" \
-    "$(KOTONOHA_ROOT)/lib/submodules/imgui/backends" \
-    "$(KOTONOHA_ROOT)/lib/submodules/imgui/misc/cpp"
-KOTONOHA_SUBMODULE_INCLUDES[sdk=macosx*] =
-
+// SDL3, SDL3_ttf and ImGui headers come from the vcpkg include tree on both
+// macOS and iOS (OTHER_CPLUSPLUSFLAGS); the submodules are not used.
 HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GAME_HEADER_ROOTS) "$(DERIVED_FILE_DIR)" "$(KOTONOHA_ROOT)/lib/include" \
-    $(KOTONOHA_SUBMODULE_INCLUDES) \
     "$(KOTONOHA_ROOT)/modules/providers/cmp/include" \
     "$(KOTONOHA_ROOT)/modules/providers/amagami/include" \
     "$(KOTONOHA_ROOT)/modules/providers/rpa/include" \
@@ -190,11 +180,9 @@ HEADER_SEARCH_PATHS = $(inherited) $(KOTONOHA_MODULE_HEADER_ROOTS) $(KOTONOHA_GA
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/include" \
     "$(KOTONOHA_ROOT)/games/$(KOTONOHA_GAME_DIR)/src"
 LIBRARY_SEARCH_PATHS = $(inherited) "$(KOTONOHA_VCPKG_LIB)"
-// iOS keeps the SDL3 / SDL3_ttf Xcode-built frameworks from the submodules.
-// KotonohaEngine / KotonohaImGui always come from BUILT_PRODUCTS_DIR.
-FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)" "$(KOTONOHA_ROOT)/lib/submodules/SDL/Xcode/SDL/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)" "$(KOTONOHA_ROOT)/lib/submodules/SDL_ttf/Xcode/build/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)"
-// macOS uses vcpkg dylibs for SDL3/SDL3_ttf; only engine frameworks remain.
-FRAMEWORK_SEARCH_PATHS[sdk=macosx*] = $(inherited) "$(BUILT_PRODUCTS_DIR)"
+// SDL3 / SDL3_ttf / ImGui are static/dynamic vcpkg libraries on both SDKs;
+// only the Kotonoha frameworks come from BUILT_PRODUCTS_DIR.
+FRAMEWORK_SEARCH_PATHS = $(inherited) "$(BUILT_PRODUCTS_DIR)"
 CLANG_CXX_LANGUAGE_STANDARD = c++17
 CLANG_CXX_LIBRARY = libc++
 // Keep vcpkg headers as system search paths after the Apple SDK so vcpkg's
@@ -210,8 +198,7 @@ KOTONOHA_METALFX_DEF = KOTONOHA_HAS_METALFX=1
 KOTONOHA_METALFX_DEF[sdk=iphonesimulator*] =
 GCC_PREPROCESSOR_DEFINITIONS = $(inherited) $(KOTONOHA_METALFX_DEF) KOTONOHA_ENABLE_UPSCALER=1 $(KOTONOHA_MCP_DEF)
 
-// All app targets link SDL3 / SDL3_ttf from vcpkg on macOS and from the pinned
-// Xcode submodule frameworks on iOS; the remaining libraries come from vcpkg.
+// All app targets link SDL3 / SDL3_ttf / ImGui from vcpkg on both macOS and iOS.
 // CoreFoundation handles engine text conversion, but bundled/third-party
 // libraries may still reference _iconv_open/_iconv/_iconv_close.
 // Keep the Apple SDK's libiconv linked for all macOS/iOS app targets.

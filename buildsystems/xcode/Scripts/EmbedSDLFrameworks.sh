@@ -3,9 +3,9 @@
 # into the app, verify the Xcode-signed Kotonoha frameworks, and copy the
 # remaining @rpath dylibs from the active vcpkg install root.
 #
-# SDL3 / SDL3_ttf come from lib/submodules (dynamic frameworks); other
-# dependencies come from vcpkg. The vcpkg copy loop is required so the launcher
-# does not fail at launch with "Library not loaded" for json-c / ffmpeg / ass.
+# SDL3 / SDL3_ttf / ImGui come from vcpkg. The vcpkg copy loop is required so
+# the launcher does not fail at launch with "Library not loaded" for
+# json-c / ffmpeg / ass and their dependencies.
 set -euo pipefail
 
 note() { printf '[Kotonoha/Bundle] %s\n' "$*"; }
@@ -42,96 +42,6 @@ for name in assets game-assets; do
   [[ -d "${resources_destination}/${name}" ]] || fatal "Missing ${resources_destination}/${name}. Check Copy Bundle Resources."
   note "Verified ${name}/ in app resources"
 done
-
-find_framework() {
-  local name="$1"
-  local custom="$2"
-  local base="$3"
-  local binary="$4"
-  local candidate
-  local -a locations=()
-
-  # Explicit overrides must be exact .framework directories (one per SDK).
-  if [[ -n "${custom}" ]]; then
-    locations+=("${custom}")
-  else
-    locations+=("${base}/${CONFIGURATION}${platform_suffix}/${name}.framework")
-    # On macOS EFFECTIVE_PLATFORM_NAME is normally empty.
-    if [[ "${platform_suffix}" == "" ]]; then
-      locations+=("${base}/${CONFIGURATION}/${name}.framework")
-    fi
-  fi
-
-  for candidate in "${locations[@]}"; do
-    if [[ -d "${candidate}" && -f "${candidate}/${binary}" ]]; then
-      printf '%s\n' "${candidate}"
-      return 0
-    fi
-  done
-
-  fatal "${name}.framework with a real ${binary} binary was not found. Build ${name} for ${CONFIGURATION}${platform_suffix} first. Checked: ${locations[*]} (SDKROOT=${SDKROOT:-unset}). A .tbd stub is not a redistributable binary."
-}
-
-install_framework() {
-  local name="$1"
-  local source="$2"
-  local dest="${framework_destination}/${name}.framework"
-  [[ "${source}" != "${dest}" ]] || fatal "Source and destination are the same: ${source}"
-
-  mkdir -p "${framework_destination}"
-  rm -rf "${dest}"
-  if command -v ditto >/dev/null 2>&1; then
-    ditto "${source}" "${dest}"
-  else
-    # Used only for testing without Apple's ditto; Xcode on macOS uses ditto.
-    cp -a "${source}" "${dest}"
-  fi
-  [[ -f "${dest}/${name}" ]] || fatal "Framework executable missing after copying ${name}: ${dest}"
-  note "Embedded ${name}.framework -> ${dest}"
-
-  if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
-    command -v codesign >/dev/null 2>&1 || fatal 'codesign not available for signing frameworks'
-    local identity="${EXPANDED_CODE_SIGN_IDENTITY:-}"
-    if [[ -z "${identity}" && "${PLATFORM_NAME:-}" == "iphoneos" ]]; then
-      fatal "No valid code-signing identity for iOS device: ${name}. Configure Signing & Capabilities."
-    fi
-    [[ -n "${identity}" ]] || identity='-'
-    codesign --force --sign "${identity}" --timestamp=none "${dest}"
-    codesign --verify "${dest}" || fatal "Signature verification failed for ${dest}"
-    note "Signed ${name}.framework"
-  fi
-}
-
-if [[ "${PLATFORM_NAME:-}" == "macosx" ]]; then
-  # macOS delivers SDL3, SDL3_ttf and ImGui from vcpkg. The vcpkg dylib loop
-  # below copies libSDL3/libSDL3_ttf into Frameworks; no submodule framework
-  # is searched, signed or embedded.
-  note "SDL3/SDL3_ttf/ImGui come from vcpkg for ${TARGET_NAME:-app}"
-else
-  sdl_base="${repo}/lib/submodules/SDL/Xcode/SDL/build"
-  ttf_base="${repo}/lib/submodules/SDL_ttf/Xcode/build"
-
-  sdl=$(find_framework SDL3 "${KOTONOHA_SDL3_FRAMEWORK_PATH:-}" "${sdl_base}" SDL3)
-  ttf=$(find_framework SDL3_ttf "${KOTONOHA_SDL3_TTF_FRAMEWORK_PATH:-}" "${ttf_base}" SDL3_ttf)
-
-  install_framework SDL3 "${sdl}"
-  install_framework SDL3_ttf "${ttf}"
-  note "Both SDL frameworks are present for ${TARGET_NAME:-app}"
-fi
-
-# KotonohaEngine.framework / KotonohaImGui.framework are embedded and signed by
-# Xcode's "Embed Frameworks" phase (CodeSignOnCopy). Verify that those signed
-# binaries are still present and valid; never re-sign or replace them here.
-if [[ "${CODE_SIGNING_ALLOWED:-NO}" == "YES" ]]; then
-  command -v codesign >/dev/null 2>&1 || fatal 'codesign not available for verifying embedded frameworks'
-  for name in KotonohaEngine KotonohaImGui; do
-    fw="${framework_destination}/${name}.framework"
-    [[ -d "${fw}" ]] || continue
-    [[ -f "${fw}/${name}" ]] || fatal "Embedded ${name}.framework has no binary"
-    codesign --verify "${fw}" || fatal "Signature verification failed for ${fw}"
-    note "Verified signature of embedded ${name}.framework"
-  done
-fi
 
 # Copy every @rpath dependency from the active vcpkg root into the app bundle
 # so @executable_path/Frameworks can resolve json-c, ffmpeg, ass, etc. at launch.
@@ -175,9 +85,13 @@ if [[ -n "${vcpkg_lib}" && -d "${vcpkg_lib}" ]]; then
       if [[ -e "${dest}" ]]; then
         src_archs="$(lipo -archs "${src}" 2>/dev/null || true)"
         dest_archs="$(lipo -archs "${dest}" 2>/dev/null || true)"
-        if [[ "${src_archs}" == "${dest_archs}" ]]; then
-          continue
-        fi
+        # A universal destination already contains the source slice; do not
+        # replace it on every pass or the copy loop never terminates.
+        keep=1
+        for arch in ${src_archs}; do
+          [[ " ${dest_archs} " == *" ${arch} "* ]] || keep=0
+        done
+        [[ "${keep}" -eq 1 ]] && continue
         rm -f "${dest}"
       fi
       if [[ ! -e "${src}" ]]; then

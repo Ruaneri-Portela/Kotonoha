@@ -1,10 +1,6 @@
 {
   "project": "buildsystems/xcode/Kotonoha.xcodeproj",
   "targets": {
-    "macOS/KotonohaImGui": {
-      "target": "5CFED35C25BAAA9080C5BFCF",
-      "sources": 7
-    },
     "macOS/KotonohaEngine": {
       "target": "E17D1F83ED8A3B29572860F9",
       "sources": 83
@@ -52,10 +48,6 @@
     "macOS/Pmail": {
       "target": "D9B6CD3809CE357BEA918F33",
       "sources": 18
-    },
-    "iOS/KotonohaImGui": {
-      "target": "602CC6310602184A1C7CAFDB",
-      "sources": 7
     },
     "iOS/KotonohaEngine": {
       "target": "F20A323ED8754B150319722C",

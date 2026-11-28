@@ -54,15 +54,10 @@ def build(scheme: str, configuration: str, archs: list[str]) -> Path:
            "-configuration", configuration, "-sdk", "macosx",
            "ARCHS=" + " ".join(archs), "ONLY_ACTIVE_ARCH=NO",
            "CODE_SIGNING_ALLOWED=NO", "-derivedDataPath", str(derived), "build"]
-    # The arm64 root holds universal SDL/vcpkg dylibs, so it can serve both
-    # slices of a universal build; use the amd64 root for x86_64-only builds.
-    folder = ("macos-arm64-vcpkg" if "arm64" in archs
-              else "macos-amd64-vcpkg")
-    root = ROOT / "out/build" / folder / "vcpkg_installed"
-    cmd.extend((f"KOTONOHA_VCPKG_PARENT={root}",
-                f"KOTONOHA_VCPKG_TRIPLET={folder}",
-                f"KOTONOHA_VCPKG_INCLUDE={root}/{folder}/include",
-                f"KOTONOHA_VCPKG_LIB={root}/{folder}/lib"))
+    # The vcpkg roots are selected per architecture in Config/Common.xcconfig.
+    # Passing a single root on the command line would override those
+    # conditions and make a universal (arm64 + x86_64) build link arm64 dylibs
+    # into the x86_64 slice.
     say(" ".join(cmd))
     subprocess.run(cmd, check=True, cwd=ROOT)
     products = derived / "Build/Products" / configuration

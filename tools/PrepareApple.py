@@ -280,19 +280,6 @@ def apple_tool_env() -> dict[str, str]:
     return env
 
 
-# SDL3 / SDL3_ttf are built from the pinned Xcode submodules. The macOS app
-# targets look for them in build/<CONFIGURATION>/ next to each subproject,
-# so the scheme pre-action must prepare them for the configuration being
-# built (Debug and Release are separate products).
-SDL_FRAMEWORK_PROJECTS = (
-    ("SDL3", ROOT / "lib/submodules/SDL/Xcode/SDL/SDL.xcodeproj",
-     ROOT / "lib/submodules/SDL/Xcode/SDL/build"),
-    ("SDL3_ttf", ROOT / "lib/submodules/SDL_ttf/Xcode/SDL_ttf.xcodeproj",
-     ROOT / "lib/submodules/SDL_ttf/Xcode/build"),
-)
-MACOS_SDL_ARCHS = ("arm64", "x86_64")
-
-
 def binary_archs(binary: Path) -> set[str]:
     try:
         result = subprocess.run(["xcrun", "lipo", "-archs", str(binary)],
@@ -300,39 +287,6 @@ def binary_archs(binary: Path) -> set[str]:
         return set(result.stdout.split())
     except (OSError, subprocess.CalledProcessError):
         return set()
-
-
-def prepare_sdl_frameworks(*, configuration: str, sdk: str | None) -> None:
-    """Build the SDL frameworks needed by the active Xcode configuration.
-
-    Xcode's scheme pre-actions run before the app targets, so this keeps
-    SDL3.framework / SDL3_ttf.framework in sync with the Configuration
-    popup in the Xcode UI. A universal pair is built once per configuration
-    and reused on later builds.
-    """
-    if sdk not in (None, "macosx"):
-        return
-    suffix = os.environ.get("EFFECTIVE_PLATFORM_NAME", "")
-    derived_root = ROOT / "out" / "sdl-frameworks" / configuration
-    for name, project, symroot in SDL_FRAMEWORK_PROJECTS:
-        binary = (symroot / f"{configuration}{suffix}" /
-                  f"{name}.framework" / name)
-        if binary_archs(binary).issuperset(MACOS_SDL_ARCHS):
-            say(f"Verified {name}.framework ({configuration}): {binary}")
-            continue
-        say(f"Preparing {name}.framework ({configuration}, "
-            f"{' '.join(MACOS_SDL_ARCHS)})")
-        derived_root.mkdir(parents=True, exist_ok=True)
-        run(["xcodebuild", "-project", str(project), "-scheme", name,
-             "-configuration", configuration, "-sdk", "macosx",
-             "ARCHS=" + " ".join(MACOS_SDL_ARCHS), "ONLY_ACTIVE_ARCH=NO",
-             "CODE_SIGNING_ALLOWED=NO", f"SYMROOT={symroot}",
-             "-derivedDataPath", str(derived_root / name), "build"],
-             env=apple_tool_env())
-        if not binary_archs(binary).issuperset(MACOS_SDL_ARCHS):
-            raise RuntimeError(
-                f"{name}.framework for {configuration} is missing architectures "
-                f"(expected {', '.join(MACOS_SDL_ARCHS)}): {binary}")
 
 
 def prepare_visual_assets(*, platform: str) -> None:
@@ -611,10 +565,12 @@ def prepare_vcpkg(*, platform: str, sdk: str | None, mode: str, executable: Path
                 # carries the iOS <stdbit.h> compatibility flag).
                 cmd.extend((f"--overlay-triplets={overlays / 'triplets'}",
                             f"--overlay-ports={overlays / 'ports'}"))
-                if selected_sdk == "macosx":
+                # Xcode consumes SDL3, SDL3_ttf and ImGui from vcpkg on both
+                # macOS and iOS; the submodule frameworks are no longer used.
+                if selected_sdk in ("macosx", "iphoneos", "iphonesimulator"):
                     cmd.extend(("--x-feature=sdl-vcpkg",
                                 "--x-feature=imgui-vcpkg"))
-                    if arch == "x86_64":
+                    if selected_sdk == "macosx" and arch == "x86_64":
                         env["PKG_CONFIG_LIBDIR"] = str(root / triplet / "lib/pkgconfig")
                 run(cmd, env=env)
                 missing = missing_vcpkg_libraries(triplet, root)
@@ -708,8 +664,6 @@ def main() -> int:
                 prepare_macos(macos, force_prepare=args.force_prepare or args.force_download or args.macos_archive is not None)
         if not args.only_python:
             prepare_vcpkg(platform=selected, sdk=args.sdk, mode=args.vcpkg, executable=args.vcpkg_executable)
-            if selected in ("macos", "all"):
-                prepare_sdl_frameworks(configuration=args.configuration, sdk=args.sdk)
     except (OSError, RuntimeError, ValueError, tarfile.TarError, urllib.error.URLError,
             subprocess.CalledProcessError) as exc:
         print(f"error: [Kotonoha/PrepareApple] {exc}", file=sys.stderr)

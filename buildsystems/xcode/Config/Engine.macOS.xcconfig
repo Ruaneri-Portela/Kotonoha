@@ -1,2 +1,2 @@
 #include "macOS.xcconfig"
-// The engine depends on KotonohaImGui in the same SDK/architecture.
+// Dear ImGui is linked from vcpkg; no engine framework wrapper is needed.

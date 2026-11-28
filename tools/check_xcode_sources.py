@@ -122,6 +122,9 @@ def main() -> int:
         (ROOT / relative).resolve()
         for relative in tracked
         if relative.endswith((".cpp", ".mm"))
+        # CMake excludes lib/src/integrations from the engine and selects one
+        # platform backend in the game targets (KotonohaEngine CMake: list(FILTER ...)).
+        and "/src/integrations/" not in relative.replace("\\", "/")
     }
     for source in sorted(engine_sources):
         if source not in mac:
@@ -200,7 +203,8 @@ def main() -> int:
         "PonscripterGame",
     ):
         for source in target_sources(f"{name}-macOS"):
-            if source is not None and source.name != "main.cpp":
+            if (source is not None and source.name != "main.cpp"
+                    and "/src/integrations/" not in str(source).replace("\\", "/")):
                 all_sources.add(source)
     for source in sorted(all_sources):
         if source not in core_macos or source not in core_ios:
